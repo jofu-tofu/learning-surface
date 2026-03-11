@@ -280,24 +280,114 @@ These have the pedagogical features (flashcards, quizzes, spaced repetition) but
 
 ---
 
+## Community Critiques: Why Chat Fails for Learning
+
+### The "Answer Machine" Problem (recurring HN theme)
+- Chat gives answers immediately, bypassing productive struggle. The effort of searching/reading/filtering IS the learning, not a barrier to it.
+- Fluent AI explanations *feel* like understanding, but readers can't reproduce or apply knowledge afterward ("illusion of understanding").
+- Robert Bjork's research on "desirable difficulty": making learning slightly harder (generation effects, interleaving, testing) produces dramatically better retention. Chat removes all desirable difficulty.
+- No verification mechanism — no testing, no spaced repetition, no comprehension checks.
+
+### "Chat is the CLI of AI" (emerging consensus)
+- Widely-cited analogy: chat is like command lines — powerful but not the final form factor. AI needs its "GUI moment."
+- **Linus Lee**: AI should generate UI components (tables, diagrams, widgets), not just text bubbles ("generative interfaces").
+- **Geoffrey Litt / Ink & Switch**: AI output should be manipulable objects, not inert text ("malleable software").
+- Chat conflates input and output — the way you ask shouldn't constrain how the answer is displayed.
+- "Blank page problem": chat starts with an empty text box, giving no scaffolding. Learners don't know what they don't know.
+
+### Chat UX Anti-Patterns
+- No "state" visualization — chat doesn't show where you are in a learning journey
+- Output length mismatch — either too terse or wall-of-text, no way to control granularity dynamically
+- The "regenerate" anti-pattern — only recourse for bad answers is regenerating from scratch
+- Context window as short-term memory — chat forgets, no persistent knowledge structure being built
+
+---
+
 ## Intellectual Influences & Design Thinking
 
 ### Bret Victor
-- "Explorable Explanations" — interactive documents where the reader can manipulate parameters and see results change in real-time
-- "Inventing on Principle" — direct manipulation interfaces. The gap between thinking and seeing results should be zero.
-- **Implication for Learning Surface**: Content should be interactive, not static. Diagrams should be explorable. Parameters in explanations should be adjustable.
+- **"Explorable Explanations" (2011)** — explanations should contain interactive elements readers can manipulate. "Active reading."
+- **"Learnable Programming" (2012)** — environments should make the invisible visible through immediate feedback and direct manipulation
+- **"Ladder of Abstraction" (2011)** — understanding requires moving between concrete examples and abstract principles. Interfaces should allow zooming in/out. Chat is stuck at one level.
+- **"Media for Thinking the Unthinkable" (2013)** — new representations enable new thoughts. Text is impoverished for many domains.
+- **Implication for Learning Surface**: Content should be interactive, not static. Diagrams should be explorable. Parameters in explanations should be adjustable. Support zooming between abstraction levels.
 
 ### Andy Matuschak
-- "Why books don't work" essay — passive reading doesn't produce learning. Active recall and spaced repetition are essential.
-- Collaborated with Michael Nielsen on "Quantum Country" — a textbook with embedded spaced repetition review cards
-- "Mnemonic medium" concept — embedding retrieval practice into the reading experience
-- **Implication for Learning Surface**: Retention features (flashcards, concept checks) should be embedded in the reading flow, not separate.
+- **"Why books don't work" (2019)** — transmissionism (exposing someone to information ≠ learning). Real learning requires effortful retrieval, spacing, interleaving, elaboration.
+- **"Mnemonic medium"** (with Michael Nielsen) — embedding spaced repetition directly into reading (Quantum.country). Unifies explanation and practice.
+- **Orbit** (withorbit.com) — embeds SR prompts inline in web essays. Eliminates the "separate app" problem. Closest existing implementation to a Learning Surface.
+- On AI: cautious about AI that becomes "answer dispenser." Challenge is making AI-assisted learning feel like *doing*, not watching.
+- **Implication for Learning Surface**: Retention features (flashcards, concept checks) should be embedded in the reading flow, not separate. Authoring prompts IS the learning.
 
-### Intelligent Tutoring Systems (ITS) Research
-- 40+ years of research showing that one-on-one tutoring produces 2 sigma improvement over classroom instruction (Bloom's 2-sigma problem)
-- Key design principles: scaffolded learning, immediate feedback, adaptive difficulty, error diagnosis
-- Modern ITS research incorporates "open learner models" — showing the student their own knowledge state
-- **Implication for Learning Surface**: The surface should track what you know and don't know, and adapt accordingly.
+### Michael Nielsen
+- Co-created Quantum.country. "Memory is a form of understanding" — can't separate knowing from understanding.
+- Insight that authoring prompts IS the learning — AI should scaffold prompt creation, not replace it.
+
+### Nicky Case
+- **"How to Remember Anything Forever-ish"**: the canonical explorable explanation of spaced repetition. You learn SR by DOING SR within the article.
+- **"Parable of the Polygons," "Evolution of Trust"**: proves complex concepts become intuitive when presented as interactive simulations.
+- Gamification isn't about points/badges — it's about giving the learner agency in a system.
+
+### Seymour Papert (historical foundation)
+- **Constructionism**: learning happens best when learners actively construct something
+- Computer should be an "object to think with," not an information delivery system
+
+### Maggie Appleton & Amelia Wattenberger
+- **Appleton** ("Language Model Sketchbook"): catalogued emerging patterns beyond chat — command palettes, inline completions, structured forms, canvas interfaces. "Bicycles for the mind, not chauffeurs."
+- **Wattenberger** ("Why Chatbots Are Not the Future"): AI should generate interfaces, not just text. Output format should match content type — spatial for geography, temporal for history, interactive for processes.
+
+---
+
+## Academic Research on Learning Interfaces
+
+### Intelligent Tutoring Systems — 40 Years of Findings
+
+| Paper | Key Finding | Learning Surface Implication |
+|-------|-------------|------------------------------|
+| VanLehn (2011) | ITS nearly as effective as human tutors (d=0.76 vs d=0.79). Effectiveness depends on interface design, not just content. | Interface design IS the intervention |
+| Anderson et al. (1995) — Cognitive Tutors | Step-by-step problem solving with immediate feedback is the key mechanism. | Must track learning process, not just Q&A |
+| Graesser et al. (2004) — AutoTutor | Conversational format effective ONLY when it forces students to generate explanations | Chat works only with Socratic constraints |
+| Chi & Wylie (2014) — ICAP Framework | Interactive > Constructive > Active > Passive. Chat is typically Passive or Active. | Must push users to Constructive/Interactive |
+| Kirschner, Sweller & Clark (2006) | Pure discovery doesn't work; guided exploration is optimal. | Need structured exploration with scaffolding |
+
+### Cognitive Load Theory Applied to AI
+- **Sweller (1988, 2011)**: Chat imposes extraneous load through scrolling, context management, parsing unstructured text
+- **Mayer (2009) Multimedia Learning Principles**:
+  - *Spatial contiguity*: related info should be near each other (violated by linear scroll)
+  - *Signaling*: learners need cues highlighting organization (chat lacks visual hierarchy)
+  - *Segmenting*: complex material should be broken into learner-paced segments (chat dumps everything)
+  - *Interactivity*: learners should control pace and order (chat is strictly sequential)
+
+### Recent LLM-Specific Research (2023-2024)
+- **Kazemitabaar et al. (2023, CHI)**: Students using ChatGPT for coding learned significantly less than those who struggled first. "Generation shortcut" effect.
+- **Prather et al. (2023)**: Students using AI without constraints showed reduced self-efficacy over time. Recommended guardrails: force attempt before seeing AI solutions.
+- **NNGroup finding**: Users retain ~40% less information from chat-format AI vs. same content in structured documents.
+
+### Progressive Disclosure Patterns from Research
+- **Shneiderman's mantra**: "Overview first, zoom and filter, then details on demand" — the design pattern Learning Surfaces should follow
+- Accordion/expandable sections for hierarchical explanations
+- Difficulty layers: same content at beginner/intermediate/advanced, switchable without re-prompting
+- Prerequisite mapping: AI identifies dependencies, presents in order
+- "Fog of war" pattern: content initially hidden, exploration reveals adjacent areas
+
+---
+
+## Five Themes Across All Research
+
+### 1. The Passivity Problem
+The #1 critique across ALL sources. Chat makes learners passive. ITS research: active generation >> passive reception. HN: "illusion of understanding." Matuschak: "transmissionism" doesn't work. **Learning Surface must require active engagement** — exercises, predictions, explanations, manipulations.
+
+### 2. The Format Problem
+Chat's linear, text-heavy format is wrong for learning. Cognitive load theory: split attention, extraneous load. Bret Victor: interactive representations enable understanding text cannot. Wattenberger: generate interfaces, not text. **Support multiple output formats chosen by content type.**
+
+### 3. The Persistence Problem
+Chat is ephemeral; learning requires revisitation. No bookmarking, navigation, or TOC in chat. SR requires revisitable, testable content. Matuschak's mnemonic medium: embed review in reading. **Must be persistent, navigable, bookmarkable, integrated with review.**
+
+### 4. The Scaffolding Problem
+Chat is either too open (blank page) or too closed (answer machine). Kirschner et al.: guided exploration is optimal. Khanmigo: suggested interactions, not blank text box. **Provide scaffolding — suggested paths, guided progression — while preserving agency.**
+
+### 5. The Verification Problem
+Chat has no mechanism to verify understanding. No quizzes, no self-tests unless manually requested. SR research: testing IS learning, not just assessment. ITS research: step-by-step verification with feedback is critical. **Embed comprehension checks as core, not afterthought.**
 
 ---
 
@@ -346,3 +436,64 @@ No existing tool does more than 2 of these 7 things simultaneously.
 | **Quantum Country** (Matuschak/Nielsen) | Embedded spaced repetition in reading flow |
 | **NotebookLM Audio Overview** | Multi-modal output beyond text |
 | **SciSpace "Explain Like I'm 5"** | Complexity toggle for explanations |
+| **MkDocs Material** | Gold standard for rendered markdown with Mermaid/KaTeX + file watching |
+| **Docsify** | Zero-build SPA that renders .md files directly — simplest possible setup |
+| **Markdown Preview Enhanced** | Richest single-file rendering engine; has programmatic API (`mume`) |
+| **Quarto** | Purpose-built for computational/learning documents with executable code |
+| **AFFiNE** | Document + Canvas + AI — same content viewable as doc OR spatial canvas |
+| **marimo** | Reactive Python notebook; AI generates into cells, not chat |
+| **Stanford STORM** | Generates full Wikipedia-style articles from AI (not chat) |
+
+---
+
+## Rendering Tools: What Would Power the Surface
+
+The rendering layer is a solved problem. These tools watch markdown files and render them with full rich content support:
+
+| Tool | File Watch | Mermaid | KaTeX | Zero Build | Best For |
+|------|-----------|---------|-------|------------|---------|
+| **MkDocs Material** | `mkdocs serve` | Native | Native | No | Best rendering quality |
+| **Docsify** | Any HTTP server | Plugin | Plugin | Yes | Simplest setup |
+| **Quarto** | `quarto preview` | Native | Native | No | Scientific/computational |
+| **mdBook** | `mdbook serve` | Plugin | Plugin | No | Book-structured content |
+| **Slidev** | Vite HMR | Native | Native | No | Presentations from markdown |
+| **VitePress** | Vite HMR | Plugin | Plugin | No | Modern Vue docs |
+| **Markdeep** | Browser only | ASCII->SVG | Yes | Yes, zero deps | Ultra-minimal |
+
+**Top pick for MVP**: Docsify (zero build, instant setup) or MkDocs Material (best rendering). Both watch a directory and render markdown with Mermaid/LaTeX on file change.
+
+**VS Code rendering**: Markdown Preview Enhanced (4M+ installs) renders Mermaid, KaTeX, PlantUML, GraphViz, and more. Has a programmatic library (`@shd101wyy/mume`) usable outside VS Code. If the surface lives in VS Code, this is the rendering engine.
+
+---
+
+## The Terminal-to-Knowledge Gap
+
+This is the core unsolved problem. People use terminal AI tools and the output goes to:
+1. **stdout** — ephemeral, gone when terminal closes
+2. **Files** — unrendered plain markdown sitting on disk
+3. **SQLite logs** (Simon Willison's `llm`) — invisible, requires explicit querying
+4. **Git diffs** — code changes, not learning artifacts
+
+**Nothing currently takes terminal AI output and renders it as a rich, navigable, learning-optimized document.** The pieces exist but aren't connected.
+
+### Closest Possible Combinations Today
+
+| Combo | How It Would Work | What's Missing |
+|-------|-------------------|----------------|
+| **Fabric -> MkDocs Material** | `fabric --pattern extract_wisdom > docs/topic.md && mkdocs serve` | Automation, organization, no spatial layout |
+| **Fabric -> Obsidian vault** | `fabric --pattern create_study_notes > ~/vault/topic.md` | Automation, multi-format, no pipeline |
+| **Fabric -> Docsify** | Zero-build: Fabric writes .md files, Docsify serves them | Same as MkDocs combo |
+| **Terminal AI -> AFFiNE** | AI output -> AFFiNE API -> doc + canvas | AFFiNE API maturity unclear |
+
+---
+
+## MVP Path Options
+
+### Quickest (hours)
+Fabric patterns -> write to directory -> Docsify or MkDocs Material serves with Mermaid/KaTeX rendering. A ~100-line shell script could bridge this. Proves the concept immediately.
+
+### Medium (days)
+Custom Vite app with markdown-it (Mermaid + KaTeX plugins), chokidar file watching, WebSocket push, sidebar outline, reading-optimized layout. Purpose-built for the use case.
+
+### Ambitious (weeks)
+Custom tool combining Fabric-style processing -> AFFiNE/canvas-style spatial arrangement -> MkDocs-quality rendering -> Obsidian-style knowledge graph -> embedded spaced repetition.

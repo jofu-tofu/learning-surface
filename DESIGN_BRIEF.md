@@ -253,26 +253,110 @@ Each layer is independently testable:
 
 ---
 
-## 8. MVP Definition
+## 8. Interaction Model: The Living Document
 
-The smallest thing that tests the core hypothesis: **"AI output restructured into a learning-optimized document is meaningfully better than raw chat."**
+The surface is NOT a static document generator. It is a **living document that the AI rewrites with each user prompt.** The chat bar is the control plane; the document is the artifact.
+
+### The Core Loop
+
+```
+┌─────────────────────────────────────────────────────┐
+│                   Learning Surface                   │
+│                                                      │
+│  ┌───────────────────────────────────────────────┐   │
+│  │              Document (v3)                     │   │
+│  │                                                │   │
+│  │  # How TCP Works                               │   │
+│  │                                                │   │
+│  │  TCP is a connection-oriented protocol...      │   │
+│  │                                                │   │
+│  │  ## The Three-Way Handshake                    │   │
+│  │  ┌──────────────────────────┐                  │   │
+│  │  │  SYN ──────────────► │                  │   │
+│  │  │  ◄──────────── SYN-ACK │                  │   │
+│  │  │  ACK ──────────────► │                  │   │
+│  │  └──────────────────────────┘                  │   │
+│  │                                                │   │
+│  │  ### SYN Packet (expanded in v3)               │   │
+│  │  The SYN packet contains...                    │   │
+│  │                                                │   │
+│  └───────────────────────────────────────────────┘   │
+│                                                      │
+│  ◄──── v1 ────── v2 ────── v3* ──────►  (timeline)  │
+│                                                      │
+│  ┌───────────────────────────────────────────────┐   │
+│  │  💬  "Go deeper on the SYN packet"            │   │
+│  └───────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────┘
+```
+
+1. User types in the chat bar: "Explain TCP"
+2. AI generates the full document → **version 1**
+3. User types: "Add a diagram of the handshake"
+4. AI rewrites the document with the diagram added → **version 2** (diff tracked)
+5. User types: "Go deeper on the SYN packet"
+6. AI rewrites again, expanding that section → **version 3** (diff tracked)
+7. User scrubs the timeline back to v1 to see where they started
+8. User directly edits a paragraph on the surface → **version 4** (manual edit, also diffed)
+
+### Key Properties
+
+**The conversation IS the version history.** Each prompt maps to a document version. You don't read a chat transcript — you scrub through how the document evolved. The learning journey is visible as a series of diffs.
+
+**The document is always the source of truth.** The AI doesn't append to a chat log. It rewrites the document. Previous states are preserved as diffs, not as message history.
+
+**User edits are first-class.** You can edit the document directly (fix a typo, add your own note, restructure a section). That's just another version in the timeline. The AI's next response builds on YOUR edits.
+
+**Branching is possible.** Go back to v2, ask a different question → you branch the timeline. Like git branches for learning paths.
+
+### Data Model
+
+```
+sessions/
+  tcp-explained/
+    v1.md              # initial document
+    v1.meta.json       # { prompt: "Explain TCP", timestamp, source: "ai" }
+    v2.patch           # diff from v1 → v2
+    v2.meta.json       # { prompt: "Add a diagram of the handshake", source: "ai" }
+    v3.patch           # diff from v2 → v3
+    v3.meta.json       # { prompt: "Go deeper on SYN", source: "ai" }
+    v4.patch           # diff from v3 → v4
+    v4.meta.json       # { prompt: null, source: "user-edit" }
+```
+
+Diffs keep storage efficient. Any version is reconstructable by applying patches forward from v1. The meta.json ties each version to its prompt (or marks it as a user edit).
+
+---
+
+## 9. MVP Definition
+
+The smallest thing that tests the core hypothesis: **"A living document that evolves through conversation, with version history you can scrub through, is meaningfully better for learning than a chat transcript."**
 
 ### MVP Must Have
-1. Vite app that watches a content directory
-2. Renders markdown with Mermaid diagrams, KaTeX math, syntax-highlighted code
-3. Auto-generated outline/TOC sidebar
-4. Progressive disclosure (expandable sections)
-5. Reading-optimized layout (typography, whitespace, max-width)
-6. Works in VS Code Simple Browser (same window as terminal)
+1. Web app with a chat bar at the bottom and a document surface above
+2. User types a prompt → AI generates/rewrites the document
+3. Rich rendering: Mermaid diagrams, KaTeX math, syntax-highlighted code
+4. **Version timeline**: scrub back and forth through document states
+5. **Diff tracking**: each prompt creates a new version, diffs are stored
+6. Auto-generated outline/TOC sidebar
+7. Reading-optimized layout (typography, whitespace, max-width)
 
 ### MVP Nice to Have
-7. Concept checks embedded in content
-8. Flashcard generation from content
-9. Mind map view (via Markmap)
+8. Direct editing of the document surface (saved as a user-edit diff)
+9. Branching (go back to v2, ask something different)
+10. Progressive disclosure (expandable sections)
 
 ### MVP Explicitly Not
-- No custom AI integration (filesystem is the interface)
-- No user accounts
 - No cross-session linking (v2)
 - No PDF viewer (v2)
 - No spaced repetition scheduling (v2)
+- No flashcard generation (v2)
+- No concept graph (v2)
+
+### AI Integration for MVP
+The MVP needs an AI backend to rewrite the document. Options:
+- **LLM API directly** (OpenAI/Anthropic key) — simplest, most control
+- **Proxy through terminal AI** — harder, but uses existing REPL subscription
+- **Filesystem bridge** — AI tool writes to a file, surface watches it (loses the tight loop)
+
+For the tight chat-bar-to-document loop, direct API integration is likely necessary for MVP, even if the long-term vision supports filesystem-based tools too.

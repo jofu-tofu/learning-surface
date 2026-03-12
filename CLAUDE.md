@@ -14,7 +14,13 @@ Server tests run in node environment; component tests run in jsdom.
 
 ## Testing Philosophy
 
-**Boundary tests only.** Tests cover edge cases, error conditions, empty/null/missing inputs, invalid data, fallback behavior, and guard clauses. No happy-path "it works" tests — those add noise without catching regressions at the boundaries where bugs live. When adding tests, ask: "does this test a boundary condition?" If not, don't write it.
+Three rules govern all tests in this project:
+
+1. **Boundary tests only.** Tests cover edge cases, error conditions, empty/null/missing inputs, invalid data, fallback behavior, and guard clauses. No happy-path "it works" tests. When adding a test, ask: "does this test a boundary condition?" If not, don't write it.
+
+2. **Test behavior, not implementation.** Tests assert on observable outputs (return values, state changes through public interfaces, thrown errors), never on internal method calls, execution order, or data structures. The refactoring test: if you rewrote the internals with a different algorithm, would the test still pass? If not, the test is wrong.
+
+3. **Isolate side effects for testability.** Separate pure decision logic from I/O (functional core, imperative shell). Pure functions are trivially testable — data in, data out, no mocks needed. If testing a function requires 3+ mocks, the function is doing too much; extract the decision as a pure function and push side effects to a thin shell. Mock only at system boundaries (external APIs, filesystem, network), never internal collaborators.
 
 ## Architecture
 

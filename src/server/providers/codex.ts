@@ -11,8 +11,9 @@ const MAX_TOOL_ROUNDS = 20;
 
 export function createCodexProvider(): ReplProvider {
   const config: ProviderConfig = {
-    id: 'codex',
-    name: 'Codex',
+    id: 'codex-api',
+    name: 'Codex (API)',
+    type: 'api',
     models: [
       { id: 'spark', name: 'Spark' },
       { id: '5.4-low', name: '5.4 Low' },
@@ -25,7 +26,7 @@ export function createCodexProvider(): ReplProvider {
     config,
 
     async complete({ prompt, systemPrompt, tools, model, onToolCall }) {
-      const openaiTools: OpenAI.ChatCompletionTool[] = tools.map((t) => ({
+      const openaiTools: OpenAI.ChatCompletionTool[] = (tools ?? []).map((t) => ({
         type: 'function' as const,
         function: {
           name: t.name,
@@ -75,7 +76,9 @@ export function createCodexProvider(): ReplProvider {
 
           let result: ToolCallResult;
           try {
-            result = await onToolCall(call);
+            result = onToolCall
+              ? await onToolCall(call)
+              : { success: false, message: 'No tool handler configured' };
           } catch (err) {
             result = {
               success: false,

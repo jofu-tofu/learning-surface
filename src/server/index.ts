@@ -325,6 +325,7 @@ export async function startServer(options: {
               systemPrompt,
               tools: providerTools,
               model: modelId,
+              sessionDir: chatDir,
               async onToolCall(call) {
                 // Read the latest document from disk (may have been updated by previous tool calls)
                 const raw = readFileSync(filePath, 'utf-8');

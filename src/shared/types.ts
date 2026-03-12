@@ -88,7 +88,19 @@ export interface Chat {
   updatedAt: string;
 }
 
-// === WebSocket Message Types ===
+// === Client → Server Message Types ===
+
+export type ClientMessage =
+  | { type: 'list-chats' }
+  | { type: 'new-chat' }
+  | { type: 'switch-chat'; chatId: string }
+  | { type: 'delete-chat'; chatId: string }
+  | { type: 'select-version'; version: number }
+  | { type: 'select-section'; sectionId: string }
+  | { type: 'prompt'; text: string; provider?: string; model?: string; fromVersion?: number }
+  | { type: 'get-providers' };
+
+// === Server → Client Message Types ===
 
 export interface WsMessage {
   type: 'document-update' | 'version-change' | 'session-init' | 'chat-list' | 'chat-deleted' | 'provider-list' | 'provider-error';

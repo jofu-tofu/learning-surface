@@ -1,5 +1,5 @@
 import type { ReplProvider, ProviderInfo } from '../../shared/providers.js';
-import { createCodexProvider } from './codex.js';
+import { createCliProvider } from './cli.js';
 
 const providers = new Map<string, ReplProvider>();
 
@@ -7,8 +7,16 @@ function register(provider: ReplProvider): void {
   providers.set(provider.config.id, provider);
 }
 
-// Register built-in providers
-register(createCodexProvider());
+// Register CLI provider (default — uses codex CLI, no API key needed)
+register(createCliProvider());
+
+// Register API provider if OPENAI_API_KEY is available
+try {
+  const { createCodexProvider } = await import('./codex.js');
+  register(createCodexProvider());
+} catch {
+  console.warn('Codex API provider unavailable (missing OPENAI_API_KEY)');
+}
 
 export function getProvider(id: string): ReplProvider | undefined {
   return providers.get(id);

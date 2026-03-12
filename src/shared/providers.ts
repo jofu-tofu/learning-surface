@@ -9,6 +9,7 @@ export interface ProviderConfig {
   id: string;
   name: string;
   models: ModelConfig[];
+  type: 'cli' | 'api';
 }
 
 export interface ToolDefinition {
@@ -43,9 +44,10 @@ export interface ReplProvider {
   complete(opts: {
     prompt: string;
     systemPrompt: string;
-    tools: ToolDefinition[];
+    tools?: ToolDefinition[];
     model: string;
-    onToolCall: (call: ProviderToolCall) => Promise<ToolCallResult>;
+    sessionDir: string;
+    onToolCall?: (call: ProviderToolCall) => Promise<ToolCallResult>;
   }): Promise<void>;
 }
 

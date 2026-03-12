@@ -194,14 +194,19 @@ These are the highest-value features from existing tools, ranked by impact on le
 |  +----------+  +---+-------------+--------------+---+   |
 |  | Nav      |  |          Version Store             |   |
 |  | Sidebar  |  |  v1.md / v2.patch / meta.json      |   |
-|  | TOC      |  +----+------+------------------------+   |
-|  | progress |       |      |                            |
-|  +----------+       |  +---+----------------------------+  |
-|                     |  | File Watcher (chokidar)        |  |
-|                     |  | watches session dir for changes|  |
-|                     |  +-----+--------------------------+  |
-|                     |        |                             |
-|                +----+--------+-----+                       |
+|  | ─────── |  +----+------+------------------------+   |
+|  | Chats   |       |      |                            |
+|  | list    |       |  +---+----------------------------+  |
+|  | ─────── |       |  | File Watcher (chokidar)        |  |
+|  | Sections|       |  | watches session dir for changes|  |
+|  | TOC     |       |  +-----+--------------------------+  |
+|  | progress|       |        |                             |
+|  +----------+      |  +-----+----------------------------+  |
+|                    |  | Chat Store                        |  |
+|                    |  | chats.json + per-chat dirs         |  |
+|                    |  +-----+----------------------------+  |
+|                    |        |                             |
+|                +---+--------+-----+                       |
 |                |  MCP Server        |                      |
 |                |  semantic tools -> |                      |
 |                |  filesystem writes |                      |
@@ -221,9 +226,10 @@ Each layer is independently testable:
 - **MCP Server**: does it translate semantic tool calls into correct structured markdown edits? Does it compile surface state into structured JSON context?
 - **File Watcher**: does it detect changes and notify the correct pane?
 - **Version Store**: does it apply diffs, reconstruct any version, persist to disk?
+- **Chat Store**: does it manage multiple chats, persist an index, create/delete chat directories?
 - **Canvas Pane**: does it render Mermaid/KaTeX/code and apply streaming visual updates?
 - **Explanation + Interaction Pane**: does it render text, concept checks, and follow-up questions?
-- **Navigation Sidebar**: does it show TOC, section progress, and active section?
+- **Navigation Sidebar**: does it show the chat list, section progress, and active section/chat?
 - **Version Timeline**: does it scrub between versions correctly?
 
 ### Scalability Axes
@@ -274,7 +280,7 @@ The rendering approach is a **multi-pane tutoring surface** — the frontend dis
 
 **The three surface areas:**
 
-1. **Navigation sidebar** (~20% width) — TOC, section progress, concept map. Always visible. Gives the learner structural orientation ("where am I, what have I covered, what's next").
+1. **Navigation sidebar** (~20% width) — Split into two panels: a **chat list** (top) showing all learning conversations with hover-to-delete, and a **section list** (bottom) showing TOC and section progress for the active chat. Always visible. The chat list lets learners maintain multiple independent explorations; the section list gives structural orientation within one ("where am I, what have I covered, what's next").
 
 2. **Canvas** (upper main area) — The current visual: Mermaid diagram, comparison table, mind map, code playground. This is the "whiteboard." It stays visible while the explanation references it, and gets built up incrementally — not replaced wholesale.
 
@@ -307,18 +313,18 @@ This is where the tutoring model and the version control model connect. The AI g
 ```
 +---------------------------------------------------+
 |  +----------+----------------------------------+  |
-|  |           |                                  |  |
-|  | # TCP     |   Canvas                         |  |
-|  |           |                                  |  |
-|  | ✓ Intro   |   ┌──────┐  SYN    ┌──────┐     |  |
-|  | → Handshk |   │Client│ ──────> │Server│     |  |
-|  |   Packets |   │      │ <────── │      │     |  |
-|  |   Errors  |   │      │ SYN-ACK │      │     |  |
+|  | CHATS  [+]|                                  |  |
+|  |           |   Canvas                         |  |
+|  | ● TCP     |                                  |  |
+|  | ● React   |   ┌──────┐  SYN    ┌──────┐     |  |
+|  |           |   │Client│ ──────> │Server│     |  |
+|  | ─────────|   │      │ <────── │      │     |  |
+|  | SECTIONS  |   │      │ SYN-ACK │      │     |  |
 |  |           |   │      │ ──────> │      │     |  |
-|  |           |   └──────┘  ACK    └──────┘     |  |
-|  |           |                                  |  |
-|  |           +----------------------------------+  |
-|  |           |                                  |  |
+|  | ✓ Intro   |   └──────┘  ACK    └──────┘     |  |
+|  | → Handshk |                                  |  |
+|  |   Packets +----------------------------------+  |
+|  |   Errors  |                                  |  |
 |  |           |   The three-way handshake        |  |
 |  |           |   establishes a connection by    |  |
 |  |           |   exchanging SYN and ACK...      |  |
@@ -341,7 +347,7 @@ This is where the tutoring model and the version control model connect. The AI g
 +---------------------------------------------------+
 ```
 
-Key elements visible: navigation sidebar with section progress (✓ completed, → active), canvas with the current diagram (persistent — not scrolled away), explanation with concept check and follow-up questions below the visual, version timeline, prompt indicator, and chat bar. The diagram stays visible while the user reads the explanation and interacts with the concept check — spatial contiguity enforced by layout, not just proximity in a scroll.
+Key elements visible: navigation sidebar split into **chat list** (top, with [+] button for new chat) and **section progress** (bottom, ✓ completed, → active), canvas with the current diagram (persistent — not scrolled away), explanation with concept check and follow-up questions below the visual, version timeline, prompt indicator, and chat bar. Each chat is an independent exploration tree with its own version history, sections, and documents. The diagram stays visible while the user reads the explanation and interacts with the concept check — spatial contiguity enforced by layout, not just proximity in a scroll.
 
 ### Prior Art: What We Learned From Existing Tools
 
@@ -370,13 +376,13 @@ The surface is a **multi-pane tutoring environment that the AI controls via sema
 ```
 +---------------------------------------------------+
 |  +----------+----------------------------------+  |
-|  |           |                                  |  |
-|  | Navigation|   Canvas (v3)                    |  |
-|  |           |                                  |  |
-|  | # TCP     |   [mermaid: handshake diagram]   |  |
-|  | ✓ Intro   |                                  |  |
-|  | → Handshk |   ====........  (building up)    |  |
-|  |           |                                  |  |
+|  | CHATS     |                                  |  |
+|  | ● TCP     |   Canvas (v3)                    |  |
+|  | ● React   |                                  |  |
+|  | ─────────|   [mermaid: handshake diagram]   |  |
+|  | SECTIONS  |                                  |  |
+|  | ✓ Intro   |   ====........  (building up)    |  |
+|  | → Handshk |                                  |  |
 |  |           +----------------------------------+  |
 |  |           |                                  |  |
 |  |           |   Explanation                    |  |
@@ -425,19 +431,29 @@ The surface is a **multi-pane tutoring environment that the AI controls via sema
 ### Data Model
 
 ```
-sessions/
-  tcp-explained/
-    v1.md              # initial structured markdown (from first prompt)
-    v1.meta.json       # { prompt: "Explain TCP", timestamp, source: "ai" }
-    v2.patch           # diff: new section added, canvas + explanation populated
-    v2.meta.json       # { prompt: "Add a diagram of the handshake", source: "ai" }
-    v3.patch           # diff: canvas additions, explanation extended
-    v3.meta.json       # { prompt: "Go deeper on SYN", source: "ai" }
-    v4.patch           # diff: user's manual edit to explanation
-    v4.meta.json       # { prompt: null, source: "user-edit" }
+data/
+  chats.json                   # chat index: [{id, title, createdAt, updatedAt}, ...]
+  chats/
+    abc123/                    # per-chat directory (id = nanoid)
+      current.md               # live structured markdown for active editing
+      v1.md                    # initial version (from first prompt)
+      v1.meta.json             # { prompt: "Explain TCP", summary: "TCP Overview", timestamp, source: "ai" }
+      v2.patch                 # diff: new section added, canvas + explanation populated
+      v2.meta.json             # { prompt: "Add a diagram of the handshake", summary: "TCP Handshake", ... }
+      v3.patch                 # diff: canvas additions, explanation extended
+      v3.meta.json             # { prompt: "Go deeper on SYN", summary: "SYN Packet Details", ... }
+      v4.patch                 # diff: user's manual edit to explanation
+      v4.meta.json             # { prompt: null, source: "user-edit" }
+    def456/                    # another chat
+      v1.md
+      v1.meta.json
 ```
 
-Diffs keep storage efficient. Any version is reconstructable by applying patches forward from v1. The meta.json ties each version to its prompt (or marks it as a user edit).
+**Multi-chat architecture.** Each chat is an independent exploration tree with its own directory, version history, and document. The `chats.json` index tracks all chats. The server manages which chat is active, switching the file watcher and version store when the user selects a different chat. Creating a new chat creates a new directory; deleting a chat removes its directory and index entry.
+
+**Chat titles from summaries.** The AI generates a `summary` field in the frontmatter with every response — a short label describing the prompt. The first version's summary becomes the chat title (e.g., "TCP Overview"). Subsequent summaries are used as breadcrumb labels in the version timeline, replacing the raw prompt text for cleaner navigation.
+
+Diffs keep storage efficient. Any version is reconstructable by applying patches forward from v1. The meta.json ties each version to its prompt, optional summary, and marks it as AI-generated or a user edit.
 
 **Structured markdown file format:**
 
@@ -447,6 +463,7 @@ The v1.md file uses conventional markdown with semantic section markers that the
 ---
 version: 3
 active_section: the-three-way-handshake
+summary: TCP Handshake
 ---
 
 ## What is TCP?
@@ -627,21 +644,23 @@ If the user is on v3, the compiled context includes the v3 surface state and the
 The smallest thing that tests the core hypothesis: **"A multi-pane tutoring surface — where the AI controls a canvas, explanation, and interaction area via semantic tools, with version history you can scrub through — is meaningfully better for learning than a chat transcript or a single scrollable document."**
 
 ### MVP Must Have
-1. Web app with **multi-pane layout**: navigation sidebar, canvas pane, explanation + interaction pane, chat bar, version timeline
+1. Web app with **multi-pane layout**: navigation sidebar (chat list + section list), canvas pane, explanation + interaction pane, chat bar, version timeline
 2. User types a prompt → AI calls **semantic MCP tools** to populate/edit panes (not full rewrites)
 3. **Both creation and edit tools**: `show_visual` / `edit_visual`, `explain` / `edit_explanation` / `extend`, etc. — new topics get creation tools, follow-ups get incremental edit tools
 4. **Real-time streaming**: panes re-render live as AI streams tool calls
 5. Rich rendering: Mermaid diagrams, KaTeX math, syntax-highlighted code (within panes)
 6. **Version timeline**: scrub back and forth through surface states
 7. **Diff tracking**: each prompt creates a new version, diffs are stored on the structured markdown file
-8. Navigation sidebar with auto-generated TOC and section progress
+8. Navigation sidebar with **chat list** (create, switch, delete chats) and auto-generated section TOC with progress
 9. **Structured JSON context**: each prompt sends the AI a compact JSON snapshot of the current surface state, not the raw markdown file
 10. Reading-optimized layout (typography, whitespace) within each pane
+11. **Multi-chat persistence**: independent exploration trees persisted to disk, each with its own version history and directory
+12. **Summary field**: AI-generated short labels in frontmatter, used as chat titles and breadcrumb labels
 
 ### MVP Nice to Have
-11. Direct editing of the explanation pane (saved as a user-edit diff)
-12. Branching (go back to v2, ask something different)
-13. Progressive disclosure (expandable sections within panes)
+13. Direct editing of the explanation pane (saved as a user-edit diff)
+14. Branching (go back to v2, ask something different)
+15. Progressive disclosure (expandable sections within panes)
 
 ### MVP Explicitly Not
 - No cross-session linking (v2)
@@ -729,27 +748,37 @@ src/
     mcp-server.ts          # McpServer + tool definitions (show_visual, explain, etc.)
     markdown.ts            # Structured markdown read/write/parse
     versions.ts            # Patch/diff logic, version reconstruction
+    chat-store.ts          # Multi-chat persistence (chats.json index + per-chat dirs)
     watcher.ts             # chokidar file watcher + WebSocket push
     context.ts             # Surface state → structured JSON compiler
+    index.ts               # Server entry point (multi-chat aware WebSocket handler)
   app/                     # React frontend (Vite)
     components/
       Canvas.tsx           # Mermaid/KaTeX/code rendering pane
       Explanation.tsx      # Explanation text + concept checks + follow-ups
-      Sidebar.tsx          # Navigation TOC + section progress
-      Timeline.tsx         # Version timeline scrubber
+      ChatList.tsx         # Chat list with create/delete (top of sidebar)
+      Sidebar.tsx          # Section navigation TOC + progress (bottom of sidebar)
+      Breadcrumb.tsx       # Version path with branching
       ChatBar.tsx          # Prompt input + send
-    App.tsx                # Multi-pane layout shell
+    hooks/
+      useSurface.ts        # Central state: document, versions, chats, chat CRUD
+      useWebSocket.ts      # WebSocket connection + reconnect
+    App.tsx                # Multi-pane layout shell with split sidebar
     main.tsx               # Vite entry point
+  shared/
+    types.ts               # All shared types (LearningDocument, VersionMeta, Chat, WsMessage)
+    schemas.ts             # Zod schemas for MCP tool parameters
+    FORMAT.md              # Structured markdown format spec (data contract)
   test/
-    server/                # vitest — no browser
-    components/            # vitest + React Testing Library + jsdom
-    e2e/                   # Playwright
-sessions/                  # Data directory (git-ignored)
-  {topic}/
-    v1.md
-    v1.meta.json
-    v2.patch
-    v2.meta.json
+    helpers.ts             # Test data builders and markdown fixtures
+data/                      # Data directory (git-ignored)
+  chats.json               # Chat index
+  chats/
+    {chatId}/
+      v1.md
+      v1.meta.json
+      v2.patch
+      v2.meta.json
 ```
 
 ### Why Not the Alternatives

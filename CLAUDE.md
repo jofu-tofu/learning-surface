@@ -2,7 +2,7 @@
 
 A comprehension engine that transforms AI output into a multi-pane learning surface. Not a chat UI, not a note-taking app — a pedagogy layer between AI and the learner, controlled via semantic MCP tools.
 
-**Status:** Phase 1 — scaffold and test stubs. `src/server/markdown.ts` is implemented (all tests pass). Other module stubs throw "Not implemented".
+**Status:** Implemented — all server modules functional (markdown, versions, chat-store, context, mcp-server, watcher, index). Multi-pane UI with split sidebar (chat list + sections), breadcrumb version timeline, and multi-chat persistence. All tests pass (126 tests across 14 files).
 
 ## Project Structure
 
@@ -44,7 +44,6 @@ src/
 - `npm test` — run all tests (vitest)
 - `npx tsc --noEmit` — type check
 - Server tests run in node environment; component tests run in jsdom
-- Module stubs (except `markdown.ts`) throw "Not implemented" — implement one module at a time, making its tests pass
 
 ## Context Tree
 

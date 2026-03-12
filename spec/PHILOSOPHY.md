@@ -33,7 +33,7 @@ Upload a textbook PDF. The AI discusses Chapter 3. The surface shows the relevan
 The surface generates flashcards, concept checks, and "test yourself" questions from the content. It's not a viewer — it actively helps you retain information. Spaced repetition is built in, not bolted on.
 
 ### 5. Concept Graph Across Sessions
-Learn TCP on Monday, HTTP on Wednesday. The surface automatically links them: "HTTP builds on TCP (see your notes from Monday)." A knowledge graph grows over time without manual linking.
+Learn TCP on Monday, HTTP on Wednesday. The surface automatically links them: "HTTP builds on TCP (see your notes from Monday)." A knowledge graph grows over time without manual linking. Multi-chat architecture provides the foundation — each learning topic lives in its own chat with independent version history, making cross-session linking a matter of indexing across chat directories rather than parsing a monolithic conversation.
 
 ### 6. Progressive Disclosure
 Instead of the full text dump, the surface shows the overview first. You expand into details. The AI generates the hierarchy; the surface enforces it. Information is revealed at the pace of understanding, not the pace of generation.
@@ -52,22 +52,25 @@ Instead of the full text dump, the surface shows the overview first. You expand 
 │ ┌──────────────────────────────────────────┐ │
 │ │  Learning Surface (local web app)        │ │
 │ │  ┌──────────┐ ┌───────────────────────┐  │ │
-│ │  │ Outline  │ │ Rendered Content      │  │ │
-│ │  │          │ │ - Rich markdown       │  │ │
-│ │  │ Topics   │ │ - Mermaid diagrams    │  │ │
-│ │  │ Concepts │ │ - LaTeX math          │  │ │
-│ │  │ Links    │ │ - PDF excerpts        │  │ │
-│ │  │          │ │ - Interactive elements │  │ │
+│ │  │ Chats    │ │ Canvas                │  │ │
+│ │  │ ● TCP    │ │ - Mermaid diagrams    │  │ │
+│ │  │ ● React  │ │ - LaTeX math          │  │ │
+│ │  │ [+ New]  │ │ - Interactive elements│  │ │
+│ │  │──────────│ ├───────────────────────┤  │ │
+│ │  │ Sections │ │ Explanation           │  │ │
+│ │  │ ✓ Intro  │ │ - Rich markdown       │  │ │
+│ │  │ → Detail │ │ - Concept checks      │  │ │
+│ │  │          │ │ - Follow-up questions  │  │ │
 │ │  └──────────┘ └───────────────────────┘  │ │
-│ └──────────────────────────────────────────┘ │
-│ ┌──────────────────────────────────────────┐ │
-│ │  Terminal: AI REPL                       │ │
-│ │  > Explain how TCP works with diagrams   │ │
+│ │  ← v1 ── v2 ── v3* →  (version timeline)│ │
+│ │  [  prompt input  ]         (chat bar)   │ │
 │ └──────────────────────────────────────────┘ │
 └──────────────────────────────────────────────┘
 ```
 
-**Content pipeline:** AI → structured markdown files → file watcher → WebSocket → rendered surface
+**Content pipeline:** AI → semantic MCP tools → structured markdown files → file watcher → WebSocket → rendered surface
+
+**Data pipeline:** chats.json index → per-chat directories → v1.md + patches + meta.json → version reconstruction
 
 ## What This Is Not
 

@@ -146,8 +146,8 @@ const TOOL_DEFS: ToolDef[] = [
   },
 ];
 
-// Build a lookup map for tool schemas
-const toolSchemaMap = new Map<string, z.ZodObject<z.ZodRawShape>>();
+// Build a lookup map for tool schemas (exported for testing)
+export const toolSchemaMap = new Map<string, z.ZodObject<z.ZodRawShape>>();
 for (const def of TOOL_DEFS) {
   toolSchemaMap.set(def.name, def.schema);
 }

@@ -148,8 +148,8 @@ These are the highest-value features from existing tools, ranked by impact on le
 |---------|------------|---------------|
 | **Rich markdown rendering** (Mermaid, KaTeX, syntax highlighting) | Claude Artifacts, MkDocs Material | Table stakes — the whole point is rendering what chat can't |
 | **Auto-generated outline / TOC** | Readwise Reader, any docs tool | Solves scroll-bottom problem immediately |
-| **Progressive disclosure** (expandable sections) | SciSpace "Explain Like I'm 5" | Lets user control depth. Overview first, details on demand. |
-| **File-watching with live reload** | MkDocs, Docsify, Vite | AI writes files, surface updates instantly. The filesystem interface. |
+| **Real-time streaming edits** | Cursor, Claude Artifacts | Watch the document update live as AI streams changes |
+| **Version timeline with diffs** | Git, Google Docs version history | Scrub through how the document evolved with each prompt |
 | **Reading-optimized layout** | Readwise Reader, Medium | Typography, whitespace, max-width, reading-mode design |
 
 ### Tier 2: Core Differentiators (build these next)
@@ -176,66 +176,51 @@ These are the highest-value features from existing tools, ranked by impact on le
 
 ## 6. Architecture for Testability and Scalability
 
-### Content Model
-
-Everything flows from a clean content model. Each learning session produces a **content bundle**:
-
-```
-content/
-  sessions/
-    2024-03-11-tcp-explained/
-      meta.json          # title, tags, timestamps, related sessions
-      document.md        # the structured document (with Mermaid, LaTeX)
-      concepts.json      # extracted key concepts (for linking, flashcards)
-      flashcards.json    # generated flashcards
-      quiz.json          # generated concept checks
-      sources/           # uploaded PDFs, reference material
-```
-
-This is testable because:
-- Each component is a file with a known schema
-- Rendering is decoupled from content generation
-- You can write unit tests against the JSON schemas
-- You can snapshot-test the rendered output
-- Content generation (AI) and content display (surface) are independent
-
 ### Component Architecture
 
 ```
-┌─────────────────────────────────────────────┐
-│                Learning Surface              │
-│                                              │
-│  ┌──────────┐  ┌──────────┐  ┌───────────┐  │
-│  │ Watcher  │  │ Renderer │  │ Interactor│  │
-│  │          │  │          │  │           │  │
-│  │ chokidar │  │ markdown │  │ click-to  │  │
-│  │ websocket│  │ mermaid  │  │ -explain  │  │
-│  │ fs events│  │ katex    │  │ quiz mode │  │
-│  │          │  │ code     │  │ flashcard │  │
-│  └────┬─────┘  └────┬─────┘  └─────┬─────┘  │
-│       │              │              │         │
-│  ┌────┴──────────────┴──────────────┴─────┐  │
-│  │            Content Store               │  │
-│  │  sessions / concepts / flashcards      │  │
-│  └────────────────────────────────────────┘  │
-└─────────────────────────────────────────────┘
++-----------------------------------------------+
+|              Learning Surface App              |
+|                                                |
+|  +----------+  +----------+  +-----------+     |
+|  |  Chat    |  | Document |  | Version   |     |
+|  |  Bar     |  | Surface  |  | Timeline  |     |
+|  |          |  |          |  |           |     |
+|  | prompt   |  | markdown |  | v1 v2 v3  |     |
+|  | input    |  | mermaid  |  | diffs     |     |
+|  | send     |  | katex    |  | scrubber  |     |
+|  |          |  | code     |  |           |     |
+|  +----+-----+  +----+-----+  +-----+-----+     |
+|       |              |              |           |
+|  +----+--------------+--------------+-----+     |
+|  |           Version Store                |     |
+|  |  v1.md / v2.patch / v3.patch / meta    |     |
+|  +----+--------------+--------------+-----+     |
+|       |              |                          |
+|  +----+--------------+-----+                    |
+|  |     AI Bridge           |                    |
+|  |  REPL subprocess/CLI    |                    |
+|  |  streams edit ops back  |                    |
+|  +--------------------------+                    |
++-----------------------------------------------+
 ```
 
 Each layer is independently testable:
-- **Watcher**: does it detect file changes and push updates?
-- **Renderer**: does it correctly render Mermaid/KaTeX/code?
-- **Interactor**: do concept checks, flashcards, click-to-explain work?
-- **Content Store**: is the data model consistent, queryable?
+- **Chat Bar**: does it send prompts to the AI bridge?
+- **AI Bridge**: does it invoke the REPL and stream edit operations?
+- **Version Store**: does it apply diffs, reconstruct any version, persist to disk?
+- **Document Surface**: does it render Mermaid/KaTeX/code and apply streaming edits?
+- **Version Timeline**: does it scrub between versions correctly?
 
 ### Scalability Axes
 
 | Axis | How It Scales |
 |------|--------------|
 | **More content types** | Add new renderers (PDF viewer, code playground, audio player) |
-| **More AI tools** | Any tool that writes to the content directory works. No integration needed. |
-| **More learning modalities** | Add generators (flashcard generator, quiz generator, mind map generator) |
-| **Cross-session features** | Build on concepts.json — link, graph, schedule for review |
-| **Collaboration** | Content is files. Git for collaboration. Or add a sync layer later. |
+| **More AI tools** | Any REPL tool that can receive prompts and stream edits works |
+| **More learning modalities** | Add generators (flashcard, quiz, mind map) on top of version store |
+| **Cross-session features** | Build on version store — link concepts across sessions |
+| **Collaboration** | Content is files with diffs. Git-native. |
 
 ---
 
@@ -243,8 +228,8 @@ Each layer is independently testable:
 
 | Temptation | Why to Avoid |
 |-----------|-------------|
-| Custom AI chat interface | You already have Devin/Claude Code/Codex. Don't rebuild what works. |
-| User authentication / accounts | Local-first. Files on disk. No server needed for v0. |
+| Full document regeneration per prompt | Too slow, too expensive. Edit the document, don't rewrite it. |
+| Separate API key / AI subscription | Use the REPL subscription the user already has. |
 | Custom markdown parser | Use markdown-it or remark. Solved problem. |
 | Custom diagram renderer | Use Mermaid. Solved problem. |
 | Mobile app | Desktop-first. VS Code / browser. Mobile can come later. |
@@ -255,96 +240,113 @@ Each layer is independently testable:
 
 ## 8. Interaction Model: The Living Document
 
-The surface is NOT a static document generator. It is a **living document that the AI rewrites with each user prompt.** The chat bar is the control plane; the document is the artifact.
+The surface is a **living document that the AI edits with each user prompt.** The chat bar is the control plane; the document is the artifact. The AI never regenerates the full document — it applies targeted edits that stream in and re-render in real-time.
 
 ### The Core Loop
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                   Learning Surface                   │
-│                                                      │
-│  ┌───────────────────────────────────────────────┐   │
-│  │              Document (v3)                     │   │
-│  │                                                │   │
-│  │  # How TCP Works                               │   │
-│  │                                                │   │
-│  │  TCP is a connection-oriented protocol...      │   │
-│  │                                                │   │
-│  │  ## The Three-Way Handshake                    │   │
-│  │  ┌──────────────────────────┐                  │   │
-│  │  │  SYN ──────────────► │                  │   │
-│  │  │  ◄──────────── SYN-ACK │                  │   │
-│  │  │  ACK ──────────────► │                  │   │
-│  │  └──────────────────────────┘                  │   │
-│  │                                                │   │
-│  │  ### SYN Packet (expanded in v3)               │   │
-│  │  The SYN packet contains...                    │   │
-│  │                                                │   │
-│  └───────────────────────────────────────────────┘   │
-│                                                      │
-│  ◄──── v1 ────── v2 ────── v3* ──────►  (timeline)  │
-│                                                      │
-│  ┌───────────────────────────────────────────────┐   │
-│  │  💬  "Go deeper on the SYN packet"            │   │
-│  └───────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────┘
++-------------------------------------------------------+
+|                   Learning Surface                     |
+|                                                        |
+|  +---------------------------------------------------+ |
+|  |              Document (v3)                         | |
+|  |                                                    | |
+|  |  # How TCP Works                                  | |
+|  |                                                    | |
+|  |  TCP is a connection-oriented protocol...          | |
+|  |                                                    | |
+|  |  ## The Three-Way Handshake                        | |
+|  |  [mermaid: sequenceDiagram SYN/SYN-ACK/ACK]        | |
+|  |                                                    | |
+|  |  ### SYN Packet ====........  (streaming in)       | |
+|  |  The SYN packet contains the initial seq...        | |
+|  |                                                    | |
+|  +---------------------------------------------------+ |
+|                                                        |
+|  <---- v1 ------ v2 ------ v3* ------>  (timeline)     |
+|                                                        |
+|  +---------------------------------------------------+ |
+|  |  > "Go deeper on the SYN packet"                  | |
+|  +---------------------------------------------------+ |
++-------------------------------------------------------+
 ```
 
 1. User types in the chat bar: "Explain TCP"
-2. AI generates the full document → **version 1**
+2. AI generates the initial document, **streaming in real-time** — user watches it appear -> **version 1**
 3. User types: "Add a diagram of the handshake"
-4. AI rewrites the document with the diagram added → **version 2** (diff tracked)
+4. AI **edits** the document — inserts a Mermaid diagram into the right section. User sees the diagram materialize in-place as it streams. -> **version 2** (diff tracked)
 5. User types: "Go deeper on the SYN packet"
-6. AI rewrites again, expanding that section → **version 3** (diff tracked)
+6. AI **edits** again — expands that section with new content, streaming in. -> **version 3** (diff tracked)
 7. User scrubs the timeline back to v1 to see where they started
-8. User directly edits a paragraph on the surface → **version 4** (manual edit, also diffed)
+8. User directly edits a paragraph on the surface -> **version 4** (manual edit, also diffed)
 
 ### Key Properties
 
+**Edits, not rewrites.** The AI applies targeted changes to the existing document — inserting sections, expanding paragraphs, adding diagrams, rewording explanations. It never regenerates the whole thing. This is fast and token-efficient.
+
+**Real-time streaming.** As the AI streams its edits, the document re-renders live. You watch the new content appear in-place within the document, not in a chat bubble. Diagrams render as they complete. Math typesets as it arrives. The surface is alive.
+
 **The conversation IS the version history.** Each prompt maps to a document version. You don't read a chat transcript — you scrub through how the document evolved. The learning journey is visible as a series of diffs.
 
-**The document is always the source of truth.** The AI doesn't append to a chat log. It rewrites the document. Previous states are preserved as diffs, not as message history.
+**The document is always the source of truth.** The AI doesn't append to a chat log. It edits the document. Previous states are preserved as diffs, not as message history.
 
 **User edits are first-class.** You can edit the document directly (fix a typo, add your own note, restructure a section). That's just another version in the timeline. The AI's next response builds on YOUR edits.
 
-**Branching is possible.** Go back to v2, ask a different question → you branch the timeline. Like git branches for learning paths.
+**Branching is possible.** Go back to v2, ask a different question -> you branch the timeline. Like git branches for learning paths.
 
 ### Data Model
 
 ```
 sessions/
   tcp-explained/
-    v1.md              # initial document
+    v1.md              # initial document (from first prompt)
     v1.meta.json       # { prompt: "Explain TCP", timestamp, source: "ai" }
-    v2.patch           # diff from v1 → v2
+    v2.patch           # diff: diagram inserted into handshake section
     v2.meta.json       # { prompt: "Add a diagram of the handshake", source: "ai" }
-    v3.patch           # diff from v2 → v3
+    v3.patch           # diff: SYN section expanded
     v3.meta.json       # { prompt: "Go deeper on SYN", source: "ai" }
-    v4.patch           # diff from v3 → v4
+    v4.patch           # diff: user's manual edit
     v4.meta.json       # { prompt: null, source: "user-edit" }
 ```
 
 Diffs keep storage efficient. Any version is reconstructable by applying patches forward from v1. The meta.json ties each version to its prompt (or marks it as a user edit).
 
+### AI Edit Protocol
+
+The AI doesn't return a full document. It returns **edit operations** that the surface applies:
+
+```json
+{
+  "operations": [
+    { "type": "insert_after", "anchor": "## The Three-Way Handshake", "content": "```mermaid\nsequenceDiagram..." },
+    { "type": "replace", "anchor": "TCP uses a simple...", "content": "TCP uses a three-step..." },
+    { "type": "append_section", "heading": "### SYN Packet Details", "content": "The SYN packet..." }
+  ]
+}
+```
+
+Each operation streams in. As an operation completes, the surface applies it and re-renders that region of the document. The user sees the document update piece by piece in real-time.
+
 ---
 
 ## 9. MVP Definition
 
-The smallest thing that tests the core hypothesis: **"A living document that evolves through conversation, with version history you can scrub through, is meaningfully better for learning than a chat transcript."**
+The smallest thing that tests the core hypothesis: **"A living document that evolves through conversation — with edits streaming in real-time and version history you can scrub through — is meaningfully better for learning than a chat transcript."**
 
 ### MVP Must Have
 1. Web app with a chat bar at the bottom and a document surface above
-2. User types a prompt → AI generates/rewrites the document
-3. Rich rendering: Mermaid diagrams, KaTeX math, syntax-highlighted code
-4. **Version timeline**: scrub back and forth through document states
-5. **Diff tracking**: each prompt creates a new version, diffs are stored
-6. Auto-generated outline/TOC sidebar
-7. Reading-optimized layout (typography, whitespace, max-width)
+2. User types a prompt -> AI **edits** the document (not full rewrite)
+3. **Real-time streaming**: document re-renders live as AI streams edits in
+4. Rich rendering: Mermaid diagrams, KaTeX math, syntax-highlighted code
+5. **Version timeline**: scrub back and forth through document states
+6. **Diff tracking**: each prompt creates a new version, diffs are stored
+7. Auto-generated outline/TOC sidebar
+8. Reading-optimized layout (typography, whitespace, max-width)
 
 ### MVP Nice to Have
-8. Direct editing of the document surface (saved as a user-edit diff)
-9. Branching (go back to v2, ask something different)
-10. Progressive disclosure (expandable sections)
+9. Direct editing of the document surface (saved as a user-edit diff)
+10. Branching (go back to v2, ask something different)
+11. Progressive disclosure (expandable sections)
 
 ### MVP Explicitly Not
 - No cross-session linking (v2)
@@ -353,10 +355,25 @@ The smallest thing that tests the core hypothesis: **"A living document that evo
 - No flashcard generation (v2)
 - No concept graph (v2)
 
-### AI Integration for MVP
-The MVP needs an AI backend to rewrite the document. Options:
-- **LLM API directly** (OpenAI/Anthropic key) — simplest, most control
-- **Proxy through terminal AI** — harder, but uses existing REPL subscription
-- **Filesystem bridge** — AI tool writes to a file, surface watches it (loses the tight loop)
+### AI Integration: REPL Subscription
 
-For the tight chat-bar-to-document loop, direct API integration is likely necessary for MVP, even if the long-term vision supports filesystem-based tools too.
+The MVP uses the user's existing REPL subscription (Claude Code, Devin, Codex) as the AI backend. No separate API key needed.
+
+**How the chat bar connects to the REPL:**
+
+The web app runs a local server. The chat bar sends prompts to the server. The server communicates with the REPL tool (likely via subprocess or CLI invocation), passing:
+- The current document state
+- The user's prompt
+- Instructions to return edit operations (not a full document)
+
+The REPL tool streams back edit operations. The server relays them to the frontend via WebSocket. The frontend applies each operation and re-renders in real-time.
+
+```
+Chat bar -> Local server -> REPL CLI (subprocess) -> streams edits back
+                                                         |
+                              WebSocket <- server <- edit operations
+                                  |
+                        Frontend applies edits, re-renders live
+```
+
+This keeps the AI cost on the existing REPL subscription and avoids any separate API key requirement.

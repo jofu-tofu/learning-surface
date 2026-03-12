@@ -36,7 +36,7 @@ function MermaidRenderer({ content }: { content: string }) {
     (async () => {
       try {
         const mermaid = (await import('mermaid')).default;
-        mermaid.initialize({ startOnLoad: false });
+        mermaid.initialize({ startOnLoad: false, theme: 'dark' });
         const id = `mermaid-${Date.now()}`;
         const { svg: rendered } = await mermaid.render(id, content);
         if (!cancelled) {
@@ -57,9 +57,18 @@ function MermaidRenderer({ content }: { content: string }) {
   }, [content]);
 
   return (
-    <div data-testid="canvas-mermaid" ref={containerRef}>
-      {loading && <div>Loading...</div>}
-      {error && <div>{error}</div>}
+    <div data-testid="canvas-mermaid" ref={containerRef} className="canvas-container">
+      {loading && (
+        <div className="flex items-center gap-2 text-sm text-surface-400">
+          <div className="w-4 h-4 border-2 border-surface-500 border-t-accent-400 rounded-full animate-spin" />
+          Loading diagram...
+        </div>
+      )}
+      {error && (
+        <div className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+          {error}
+        </div>
+      )}
       {svg && <div dangerouslySetInnerHTML={{ __html: svg }} />}
     </div>
   );
@@ -88,9 +97,11 @@ function KatexRenderer({ content }: { content: string }) {
   }, [content]);
 
   return (
-    <div data-testid="canvas-katex">
+    <div data-testid="canvas-katex" className="canvas-container overflow-x-auto">
       {error ? (
-        <div>{error}</div>
+        <div className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+          {error}
+        </div>
       ) : (
         <div dangerouslySetInnerHTML={{ __html: html }} />
       )}
@@ -127,12 +138,12 @@ function CodeRenderer({ content, language }: { content: string; language?: strin
   }, [content, language]);
 
   return (
-    <div data-testid="canvas-code">
+    <div data-testid="canvas-code" className="canvas-container w-full">
       {html ? (
-        <div dangerouslySetInnerHTML={{ __html: html }} />
+        <div className="rounded-lg overflow-hidden [&_pre]:!rounded-lg [&_pre]:!p-4" dangerouslySetInnerHTML={{ __html: html }} />
       ) : (
-        <pre>
-          <code className={language ? `language-${language}` : undefined}>
+        <pre className="bg-surface-800 rounded-lg p-4 overflow-x-auto text-sm">
+          <code className={`text-surface-200 ${language ? `language-${language}` : ''}`}>
             {content}
           </code>
         </pre>
@@ -143,7 +154,16 @@ function CodeRenderer({ content, language }: { content: string; language?: strin
 
 export function Canvas({ content }: CanvasProps): React.ReactElement {
   if (!content) {
-    return <div data-testid="canvas-empty" />;
+    return (
+      <div data-testid="canvas-empty" className="flex flex-col items-center justify-center py-12 text-surface-500">
+        <svg className="w-10 h-10 mb-3 text-surface-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+          <line x1="3" y1="9" x2="21" y2="9" />
+          <line x1="9" y1="21" x2="9" y2="9" />
+        </svg>
+        <p className="text-sm italic">No visual content yet</p>
+      </div>
+    );
   }
 
   switch (content.type) {
@@ -154,6 +174,6 @@ export function Canvas({ content }: CanvasProps): React.ReactElement {
     case 'code':
       return <CodeRenderer content={content.content} language={content.language} />;
     default:
-      return <div>Unsupported canvas type</div>;
+      return <div className="text-sm text-surface-400">Unsupported canvas type</div>;
   }
 }

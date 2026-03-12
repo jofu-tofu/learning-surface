@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
+    "@tailwindcss/vite": "^4.2.1",
     "chokidar": "^4.0.0",
     "diff": "^7.0.0",
     "gray-matter": "^4.0.3",

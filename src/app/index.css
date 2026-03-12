@@ -1,3 +1,96 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+@theme {
+  --color-surface-50: #f8fafc;
+  --color-surface-100: #f1f5f9;
+  --color-surface-200: #e2e8f0;
+  --color-surface-300: #cbd5e1;
+  --color-surface-400: #94a3b8;
+  --color-surface-500: #64748b;
+  --color-surface-600: #475569;
+  --color-surface-700: #334155;
+  --color-surface-800: #1e293b;
+  --color-surface-900: #0f172a;
+
+  --color-accent-50: #eff6ff;
+  --color-accent-100: #dbeafe;
+  --color-accent-200: #bfdbfe;
+  --color-accent-400: #60a5fa;
+  --color-accent-500: #3b82f6;
+  --color-accent-600: #2563eb;
+  --color-accent-700: #1d4ed8;
+
+  --color-emerald-50: #ecfdf5;
+  --color-emerald-100: #d1fae5;
+  --color-emerald-500: #10b981;
+  --color-emerald-600: #059669;
+
+  --color-amber-50: #fffbeb;
+  --color-amber-500: #f59e0b;
+
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+
+/* Global resets */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--color-surface-900);
+  color: var(--color-surface-100);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  height: 100%;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-surface-600);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-surface-500);
+}
+
+/* Mermaid diagram dark theme overrides */
+.canvas-container svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Prose overrides for dark theme */
+.prose-surface {
+  --tw-prose-body: var(--color-surface-200);
+  --tw-prose-headings: var(--color-surface-50);
+  --tw-prose-lead: var(--color-surface-300);
+  --tw-prose-links: var(--color-accent-400);
+  --tw-prose-bold: var(--color-surface-50);
+  --tw-prose-counters: var(--color-surface-400);
+  --tw-prose-bullets: var(--color-surface-500);
+  --tw-prose-hr: var(--color-surface-700);
+  --tw-prose-quotes: var(--color-surface-300);
+  --tw-prose-quote-borders: var(--color-surface-600);
+  --tw-prose-captions: var(--color-surface-400);
+  --tw-prose-code: var(--color-accent-400);
+  --tw-prose-pre-code: var(--color-surface-200);
+  --tw-prose-pre-bg: var(--color-surface-900);
+  --tw-prose-th-borders: var(--color-surface-600);
+  --tw-prose-td-borders: var(--color-surface-700);
+}

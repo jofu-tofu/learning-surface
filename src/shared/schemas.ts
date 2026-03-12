@@ -82,12 +82,12 @@ export const TOOL_DEFS: ToolDef[] = [
   },
   {
     name: 'explain',
-    description: 'Replace the explanation pane with new content. Erases any existing explanation in the active section. Use this for the first explanation or to rewrite from scratch.',
+    description: 'Replace the explanation pane with new content. Erases any existing explanation in the active section. Use this for the first explanation or to rewrite from scratch. Keep content concise — 2-4 short paragraphs that fit on screen without scrolling. If more depth is needed, create a new section instead.',
     schema: ExplainSchema,
   },
   {
     name: 'extend',
-    description: 'Append content to the existing explanation. Creates the explanation if it does not exist yet. Use this to elaborate or add detail without rewriting.',
+    description: 'Append content to the existing explanation. Creates the explanation if it does not exist yet. Use this to elaborate or add detail without rewriting. Keep the total explanation concise — if extending would push past 4 paragraphs, consider creating a new section for the additional detail.',
     schema: ExtendSchema,
   },
   {

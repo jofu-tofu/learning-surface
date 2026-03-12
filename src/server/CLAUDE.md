@@ -30,6 +30,7 @@ No find/replace tools — they're fragile (silent no-op on mismatch). When the A
 | `index.ts` | Server factory — wires WebSocket, watcher, chat store |
 | `ws-handlers.ts` | Message routing with `HandlerDeps` DI |
 | `prompt-handler.ts` | AI orchestration — pure functions + `handlePrompt` imperative shell |
+| `system-prompt.ts` | Single source of truth for all AI system prompts and teaching principles |
 | `document-service.ts` | Document I/O with injectable `FileIO` |
 | `markdown.ts` | `parse`/`serialize`/`applyToolCall` for structured markdown |
 | `tool-handlers.ts` | Pure tool mutations — `applyTool(doc, tool, params)` mutates in-place |

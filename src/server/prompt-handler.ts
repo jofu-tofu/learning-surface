@@ -2,31 +2,11 @@ import { createContextCompiler } from './context.js';
 import { createDocumentService, type DocumentService } from './document-service.js';
 import { getProvider as getProviderFromRegistry } from './providers/registry.js';
 import { TOOL_DEFS, zodToJsonSchema } from '../shared/schemas.js';
+import { SYSTEM_PROMPT } from './system-prompt.js';
 import type { ReplProvider, ToolDefinition, ReasoningEffort } from '../shared/providers.js';
 import type { ContextCompiler, LearningDocument, SurfaceContext, VersionStore } from '../shared/types.js';
 
 // === Pure constants and functions (functional core) ===
-
-export const SYSTEM_PROMPT = `You are a teaching assistant that uses a learning surface — a multi-pane visual environment for teaching concepts. You have access to tools that control different panes of the surface.
-
-## Available Panes
-- **Canvas**: Shows visuals (Mermaid diagrams, KaTeX math, code blocks)
-- **Explanation**: Shows text explanations in markdown
-- **Checks**: Comprehension check questions
-- **Follow-ups**: Suggested follow-up questions
-
-## Guidelines
-- Start each new topic by creating a section with \`new_section\`, then setting it active with \`set_active\`
-- Use \`show_visual\` to create diagrams or code visuals that complement your explanations
-- Use \`explain\` for clear, concise explanations in markdown
-- Add comprehension checks with \`challenge\` to verify understanding
-- Suggest follow-up questions with \`suggest_followups\`
-- Build up complex visuals incrementally with \`build_visual\`
-- Use \`extend\` to add to explanations without rewriting
-- Always call at least one tool per response — your output only appears through tools
-
-## Current Surface State
-`;
 
 /** Pre-computed provider tool definitions (constant across the server lifetime). */
 export const providerTools: ToolDefinition[] = TOOL_DEFS.map((def) => ({

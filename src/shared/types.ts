@@ -59,26 +59,23 @@ export interface SurfaceContext {
   promptHistory: string[];
 }
 
-// === MCP Tool Parameter Types ===
+// === MCP Tool Parameter Types (derived from Zod schemas — single source of truth) ===
 
-export interface ShowVisualParams {
-  type: 'mermaid' | 'katex' | 'code';
-  content: string;
-  title?: string;
-  language?: string;
-}
-export interface EditVisualParams { find: string; replace: string }
-export interface BuildVisualParams { additions: string }
-export interface AnnotateParams { element: string; label: string }
-export interface ExplainParams { content: string }
-export interface EditExplanationParams { find: string; replace: string }
-export interface ExtendParams { content: string; position?: 'before' | 'after' }
-export interface ChallengeParams { question: string; hints?: string[] }
-export interface RevealParams { checkId: string; answer: string; explanation: string }
-export interface SuggestFollowupsParams { questions: string[] }
-export interface NewSectionParams { title: string }
-export interface CompleteSectionParams { section: string }
-export interface SetActiveParams { section: string }
+export type {
+  ShowVisualParams,
+  EditVisualParams,
+  BuildVisualParams,
+  AnnotateParams,
+  ExplainParams,
+  EditExplanationParams,
+  ExtendParams,
+  ChallengeParams,
+  RevealParams,
+  SuggestFollowupsParams,
+  NewSectionParams,
+  CompleteSectionParams,
+  SetActiveParams,
+} from './schemas.js';
 
 // === WebSocket Message Types ===
 
@@ -86,8 +83,9 @@ export type PaneType = 'canvas' | 'explanation' | 'sidebar' | 'timeline' | 'inte
 
 export interface WsMessage {
   type: 'document-update' | 'version-change' | 'session-init';
-  document?: LearningDocument; // full document on every change (simple, no partial-merge bugs)
+  document?: LearningDocument;
   version?: number;
+  versions?: VersionMeta[];
   sessionDir?: string;
 }
 

@@ -320,6 +320,45 @@ export function applyToolCall(
       break;
     }
 
+    case 'build_visual': {
+      const active = findActive();
+      if (active?.canvas) {
+        active.canvas.content = active.canvas.content + '\n' + (params.additions as string);
+      }
+      break;
+    }
+
+    case 'annotate': {
+      const active = findActive();
+      if (active?.canvas) {
+        active.canvas.content = active.canvas.content + '\n' + `%% ${params.label}: ${params.element}`;
+      }
+      break;
+    }
+
+    case 'edit_explanation': {
+      const active = findActive();
+      if (active?.explanation !== undefined) {
+        const find = params.find as string;
+        const replace = params.replace as string;
+        active.explanation = active.explanation.replace(find, replace);
+      }
+      break;
+    }
+
+    case 'reveal': {
+      const active = findActive();
+      if (active?.checks) {
+        const check = active.checks.find(c => c.id === params.checkId);
+        if (check) {
+          check.status = 'revealed';
+          check.answer = params.answer as string;
+          check.answerExplanation = params.explanation as string;
+        }
+      }
+      break;
+    }
+
     default:
       throw new Error(`Unknown tool: ${tool}`);
   }

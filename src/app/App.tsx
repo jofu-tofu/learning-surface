@@ -1,9 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Canvas } from './components/Canvas.js';
 import { Explanation } from './components/Explanation.js';
 import { Sidebar } from './components/Sidebar.js';
-import { Timeline } from './components/Timeline.js';
+import { ChatList } from './components/ChatList.js';
+import { Breadcrumb } from './components/Breadcrumb.js';
+import { BranchPopover } from './components/BranchPopover.js';
 import { ChatBar } from './components/ChatBar.js';
+import { PromptPreview } from './components/PromptPreview.js';
+import { PaneHeader } from './components/PaneHeader.js';
 import { useSurface } from './hooks/useSurface.js';
 
 export function App(): React.ReactElement {
@@ -11,14 +15,24 @@ export function App(): React.ReactElement {
     document: doc,
     versions,
     currentVersion,
+    path,
+    forwardPath,
     connected,
+    chats,
+    activeChatId,
     submitPrompt,
     selectVersion,
     selectSection,
+    newChat,
+    switchChat,
+    deleteChat,
   } = useSurface();
+
+  const [branchPopover, setBranchPopover] = useState<number | null>(null);
 
   const activeSection = doc?.sections.find((s) => s.id === doc.activeSection);
   const sectionList = doc?.sections.map((s) => ({ title: s.title, status: s.status })) ?? [];
+  const currentMeta = versions.find((v) => v.version === currentVersion);
 
   return (
     <div className="h-dvh flex flex-col bg-surface-900 text-surface-100 overflow-hidden">
@@ -41,20 +55,42 @@ export function App(): React.ReactElement {
 
       {/* Main content */}
       <div className="flex flex-1 min-h-0">
-        {/* Sidebar */}
+        {/* Sidebar — split into Chats (top) and Sections (bottom) */}
         <aside data-testid="pane-sidebar" className="w-56 shrink-0 bg-surface-800/50 border-r border-surface-700 flex flex-col">
-          <div className="px-4 py-3 border-b border-surface-700/50">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-surface-400">Sections</h2>
+          {/* Chats panel */}
+          <div className="flex flex-col min-h-0">
+            <div className="px-4 py-3 border-b border-surface-700/50">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-surface-400">Chats</h2>
+            </div>
+            <div className="flex-1 overflow-y-auto py-2">
+              <ChatList
+                chats={chats}
+                activeChatId={activeChatId}
+                onChatSelect={switchChat}
+                onNewChat={newChat}
+                onDeleteChat={deleteChat}
+              />
+            </div>
           </div>
-          <div className="flex-1 overflow-y-auto py-2">
-            <Sidebar
-              sections={sectionList}
-              activeSection={doc?.activeSection ?? ''}
-              onSectionClick={selectSection}
-            />
-            {sectionList.length === 0 && (
-              <p className="px-4 text-sm text-surface-500 italic">No sections yet. Send a prompt to begin.</p>
-            )}
+
+          {/* Divider */}
+          <div className="border-t border-surface-700/50" />
+
+          {/* Sections panel */}
+          <div className="flex flex-col min-h-0 flex-1">
+            <div className="px-4 py-3 border-b border-surface-700/50">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-surface-400">Sections</h2>
+            </div>
+            <div className="flex-1 overflow-y-auto py-2">
+              <Sidebar
+                sections={sectionList}
+                activeSection={doc?.activeSection ?? ''}
+                onSectionClick={selectSection}
+              />
+              {sectionList.length === 0 && (
+                <p className="px-4 text-sm text-surface-500 italic">No sections yet. Send a prompt to begin.</p>
+              )}
+            </div>
           </div>
         </aside>
 
@@ -64,9 +100,7 @@ export function App(): React.ReactElement {
           <div className="flex-1 flex min-h-0">
             {/* Canvas pane */}
             <div data-testid="pane-canvas" className="flex-1 flex flex-col min-w-0 border-r border-surface-700/50">
-              <div className="px-5 py-3 border-b border-surface-700/50 bg-surface-800/30">
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-surface-400">Canvas</h2>
-              </div>
+              <PaneHeader title="Canvas" />
               <div className="flex-1 overflow-auto p-5 flex items-start justify-center">
                 <Canvas content={activeSection?.canvas ?? null} />
               </div>
@@ -74,9 +108,7 @@ export function App(): React.ReactElement {
 
             {/* Explanation pane */}
             <div data-testid="pane-explanation" className="flex-1 flex flex-col min-w-0">
-              <div className="px-5 py-3 border-b border-surface-700/50 bg-surface-800/30">
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-surface-400">Explanation</h2>
-              </div>
+              <PaneHeader title="Explanation" />
               <div className="flex-1 overflow-auto p-5">
                 <Explanation
                   explanation={activeSection?.explanation ?? null}
@@ -88,13 +120,31 @@ export function App(): React.ReactElement {
             </div>
           </div>
 
-          {/* Timeline */}
-          <div data-testid="pane-timeline" className="shrink-0 border-t border-surface-700/50 bg-surface-800/30">
-            <Timeline
+          {/* Prompt preview */}
+          <PromptPreview
+            prompt={currentMeta?.prompt ?? null}
+            version={currentVersion}
+          />
+
+          {/* Breadcrumb path */}
+          <div data-testid="pane-timeline" className="shrink-0 border-t border-surface-700/50 bg-surface-800/30 relative">
+            <Breadcrumb
+              path={path}
               versions={versions}
               currentVersion={currentVersion}
+              forwardPath={forwardPath}
               onVersionSelect={selectVersion}
+              onBranchClick={(v) => setBranchPopover(branchPopover === v ? null : v)}
             />
+            {branchPopover !== null && (
+              <BranchPopover
+                parentVersion={branchPopover}
+                versions={versions}
+                currentVersion={currentVersion}
+                onSelect={selectVersion}
+                onClose={() => setBranchPopover(null)}
+              />
+            )}
           </div>
 
           {/* Chat bar */}

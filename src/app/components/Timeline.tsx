@@ -1,19 +1,12 @@
 import React from 'react';
 import type { VersionMeta } from '../../shared/types.js';
+import { formatTime } from '../utils/formatTime.js';
+import { VersionDot } from './VersionDot.js';
 
 export interface TimelineProps {
   versions: VersionMeta[];
   currentVersion: number;
   onVersionSelect?: (version: number) => void;
-}
-
-function formatTime(timestamp: string): string {
-  try {
-    const d = new Date(timestamp);
-    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  } catch {
-    return '';
-  }
 }
 
 export function Timeline({ versions, currentVersion, onVersionSelect }: TimelineProps): React.ReactElement {
@@ -51,9 +44,7 @@ export function Timeline({ versions, currentVersion, onVersionSelect }: Timeline
                   }
                 `}
               >
-                <span className={`shrink-0 w-1.5 h-1.5 rounded-full ${
-                  isCurrent ? 'bg-accent-400' : v.source === 'ai' ? 'bg-emerald-500' : 'bg-surface-500'
-                }`} />
+                <VersionDot isCurrent={isCurrent} source={v.source} />
                 <span className="truncate max-w-40">{label}</span>
                 {v.timestamp && (
                   <span className="text-[10px] text-surface-500 shrink-0">{formatTime(v.timestamp)}</span>

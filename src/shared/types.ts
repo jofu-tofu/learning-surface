@@ -28,6 +28,7 @@ export interface Section {
 export interface LearningDocument {
   version: number;
   activeSection: string;
+  summary?: string; // AI-generated label for this version (used as chat title for v1)
   sections: Section[];
 }
 
@@ -36,6 +37,7 @@ export interface LearningDocument {
 export interface VersionMeta {
   version: number;
   prompt: string | null;
+  summary?: string | null; // AI-generated short label for this version
   timestamp: string;
   source: 'ai' | 'user-edit';
   parent?: number; // for branching
@@ -77,14 +79,26 @@ export type {
   SetActiveParams,
 } from './schemas.js';
 
+// === Chat Types ===
+
+export interface Chat {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // === WebSocket Message Types ===
 
 export interface WsMessage {
-  type: 'document-update' | 'version-change' | 'session-init';
+  type: 'document-update' | 'version-change' | 'session-init' | 'chat-list' | 'chat-deleted';
   document?: LearningDocument;
   version?: number;
   versions?: VersionMeta[];
   sessionDir?: string;
+  chats?: Chat[];
+  activeChatId?: string;
+  chatId?: string;
 }
 
 // === Module Interface Contracts ===

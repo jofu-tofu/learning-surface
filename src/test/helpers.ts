@@ -51,6 +51,7 @@ export function buildVersionMeta(overrides: Partial<VersionMeta> = {}): VersionM
   return {
     version: 1,
     prompt: 'Explain TCP',
+    summary: null,
     timestamp: '2026-03-11T00:00:00Z',
     source: 'ai',
     ...overrides,

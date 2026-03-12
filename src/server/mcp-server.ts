@@ -8,17 +8,19 @@ import {
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { TOOL_DEFS, toolSchemaMap, zodToJsonSchema } from '../shared/schemas.js';
 import { parse, serialize, applyToolCall } from './markdown.js';
-import { createVersionStore } from './versions.js';
+import type { VersionStore } from '../shared/types.js';
 
 // --- Factory ---
 
 export function createMcpServer(options: {
   sessionDir: string;
+  versionStore?: VersionStore;
 }): { start(): Promise<void>; stop(): Promise<void> } {
-  const { sessionDir } = options;
+  const { sessionDir, versionStore } = options;
 
-  const versionStore = createVersionStore();
-  let versionStoreReady = false;
+  if (!versionStore) {
+    throw new Error('versionStore is required');
+  }
 
   const server = new Server(
     { name: 'learning-surface', version: '0.1.0' },
@@ -56,12 +58,6 @@ export function createMcpServer(options: {
       };
     }
 
-    // Initialize version store lazily
-    if (!versionStoreReady) {
-      await versionStore.init(sessionDir);
-      versionStoreReady = true;
-    }
-
     try {
       // Read current document
       const filePath = join(sessionDir, 'current.md');
@@ -79,6 +75,7 @@ export function createMcpServer(options: {
       // Create version
       await versionStore.createVersion(serialized, {
         prompt: null,
+        summary: updated.summary ?? null,
         timestamp: new Date().toISOString(),
         source: 'ai',
       });

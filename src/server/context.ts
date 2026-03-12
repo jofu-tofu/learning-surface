@@ -1,6 +1,6 @@
-import * as fs from 'fs/promises';
 import * as path from 'path';
-import type { ContextCompiler, LearningDocument, SurfaceContext, VersionMeta } from '../shared/types.js';
+import type { ContextCompiler, LearningDocument, SurfaceContext } from '../shared/types.js';
+import { readAllVersionMetas } from './utils/readMetas.js';
 
 export function createContextCompiler(): ContextCompiler {
   return {
@@ -19,7 +19,10 @@ export function createContextCompiler(): ContextCompiler {
         status: s.status,
       }));
 
-      const promptHistory = await readPromptHistory(sessionDir);
+      const metas = await readAllVersionMetas(sessionDir).catch(() => []);
+      const promptHistory = metas
+        .filter(m => m.prompt)
+        .map(m => m.prompt!);
 
       const topic = path.basename(sessionDir);
 
@@ -35,22 +38,4 @@ export function createContextCompiler(): ContextCompiler {
       };
     },
   };
-}
-
-async function readPromptHistory(sessionDir: string): Promise<string[]> {
-  try {
-    const entries = await fs.readdir(sessionDir);
-    const metaFiles = entries.filter(e => e.endsWith('.meta.json')).sort();
-    const prompts: string[] = [];
-    for (const file of metaFiles) {
-      const content = await fs.readFile(path.join(sessionDir, file), 'utf-8');
-      const meta: VersionMeta = JSON.parse(content);
-      if (meta.prompt) {
-        prompts.push(meta.prompt);
-      }
-    }
-    return prompts;
-  } catch {
-    return [];
-  }
 }

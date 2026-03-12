@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Check } from '../../shared/types.js';
 import { useMarkdown } from '../hooks/useMarkdown.js';
+import { EmptyState } from './EmptyState.js';
 
 export interface ExplanationProps {
   explanation: string | null;
@@ -8,6 +9,15 @@ export interface ExplanationProps {
   followups: string[];
   onFollowupClick?: (question: string) => void;
 }
+
+const explanationEmptyIcon = (
+  <svg className="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+    <polyline points="14 2 14 8 20 8" />
+    <line x1="16" y1="13" x2="8" y2="13" />
+    <line x1="16" y1="17" x2="8" y2="17" />
+  </svg>
+);
 
 export function Explanation({ explanation, checks, followups, onFollowupClick }: ExplanationProps): React.ReactElement {
   const renderedExplanation = useMarkdown(explanation);
@@ -80,15 +90,7 @@ export function Explanation({ explanation, checks, followups, onFollowupClick }:
 
       {/* Empty state */}
       {!explanation && checks.length === 0 && followups.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-12 text-surface-500">
-          <svg className="w-10 h-10 mb-3 text-surface-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-            <polyline points="14 2 14 8 20 8" />
-            <line x1="16" y1="13" x2="8" y2="13" />
-            <line x1="16" y1="17" x2="8" y2="17" />
-          </svg>
-          <p className="text-sm italic">Select a section to see its explanation</p>
-        </div>
+        <EmptyState icon={explanationEmptyIcon} message="Select a section to see its explanation" />
       )}
     </div>
   );

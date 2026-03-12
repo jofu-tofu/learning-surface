@@ -18,12 +18,13 @@ src/
   server/
     markdown.ts        # parse/serialize/applyToolCall for structured markdown
     versions.ts        # Version store (v1.md + patches + meta.json)
+    chat-store.ts      # Chat persistence (multi-chat CRUD, chats.json index)
     context.ts         # Context compiler (surface state → JSON for AI)
     mcp-server.ts      # MCP server exposing semantic teaching tools
     watcher.ts         # File watcher (chokidar → WebSocket)
-    index.ts           # Server entry point
+    index.ts           # Server entry point (multi-chat aware)
   app/
-    components/        # React components: Canvas, Explanation, Sidebar, Timeline, ChatBar
+    components/        # React components: Canvas, Explanation, Sidebar, ChatList, Timeline, ChatBar
     hooks/             # useWebSocket, useSurface
     App.tsx            # Root component with multi-pane grid layout
     main.tsx           # Vite entry point

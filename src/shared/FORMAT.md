@@ -19,6 +19,7 @@ BLOCK := CANVAS_BLOCK | EXPLANATION_BLOCK | CHECK_BLOCK | FOLLOWUPS_BLOCK
 ---
 version: <integer>           # current version number
 active_section: <section-id> # slug of the currently active section
+summary: <string>            # (optional) AI-generated short label for this version
 ---
 ```
 

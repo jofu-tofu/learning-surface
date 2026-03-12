@@ -6,6 +6,7 @@ import type {
   Check,
 } from '../shared/types.js';
 import { slugify } from '../shared/slugify.js';
+import { applyTool } from './tool-handlers.js';
 
 // === Helpers ===
 
@@ -151,6 +152,7 @@ export function parse(raw: string): LearningDocument {
   return {
     version: data.version,
     activeSection: data.active_section,
+    ...(data.summary ? { summary: data.summary } : {}),
     sections,
   };
 }
@@ -162,6 +164,9 @@ export function serialize(doc: LearningDocument): string {
   lines.push('---');
   lines.push(`version: ${doc.version}`);
   lines.push(`active_section: ${doc.activeSection}`);
+  if (doc.summary) {
+    lines.push(`summary: ${doc.summary}`);
+  }
   lines.push('---');
   lines.push('');
 
@@ -220,140 +225,6 @@ export function applyToolCall(
 ): LearningDocument {
   // Deep clone the document
   const result: LearningDocument = structuredClone(doc);
-
-  const findActive = (): Section | undefined =>
-    result.sections.find(s => s.id === result.activeSection);
-
-  switch (tool) {
-    case 'new_section': {
-      const title = params.title as string;
-      const newSection: Section = {
-        id: slugify(title),
-        title,
-        status: 'active',
-      };
-      result.sections.push(newSection);
-      break;
-    }
-
-    case 'show_visual': {
-      const active = findActive();
-      if (active) {
-        active.canvas = {
-          type: params.type as CanvasContent['type'],
-          content: params.content as string,
-        };
-      }
-      break;
-    }
-
-    case 'explain': {
-      const active = findActive();
-      if (active) {
-        active.explanation = params.content as string;
-      }
-      break;
-    }
-
-    case 'edit_visual': {
-      const active = findActive();
-      if (active?.canvas) {
-        const find = params.find as string;
-        const replace = params.replace as string;
-        active.canvas.content = active.canvas.content.replace(find, replace);
-      }
-      break;
-    }
-
-    case 'extend': {
-      const active = findActive();
-      if (active) {
-        active.explanation = (active.explanation ?? '') + (params.content as string);
-      }
-      break;
-    }
-
-    case 'challenge': {
-      const active = findActive();
-      if (active) {
-        if (!active.checks) active.checks = [];
-        const check: Check = {
-          id: `c${active.checks.length + 1}`,
-          question: params.question as string,
-          status: 'unanswered',
-        };
-        if (params.hints) {
-          check.hints = params.hints as string[];
-        }
-        active.checks.push(check);
-      }
-      break;
-    }
-
-    case 'suggest_followups': {
-      const active = findActive();
-      if (active) {
-        active.followups = params.questions as string[];
-      }
-      break;
-    }
-
-    case 'complete_section': {
-      const sectionId = params.section as string;
-      const section = result.sections.find(s => s.id === sectionId);
-      if (section) {
-        section.status = 'completed';
-      }
-      break;
-    }
-
-    case 'set_active': {
-      result.activeSection = params.section as string;
-      break;
-    }
-
-    case 'build_visual': {
-      const active = findActive();
-      if (active?.canvas) {
-        active.canvas.content = active.canvas.content + '\n' + (params.additions as string);
-      }
-      break;
-    }
-
-    case 'annotate': {
-      const active = findActive();
-      if (active?.canvas) {
-        active.canvas.content = active.canvas.content + '\n' + `%% ${params.label}: ${params.element}`;
-      }
-      break;
-    }
-
-    case 'edit_explanation': {
-      const active = findActive();
-      if (active?.explanation !== undefined) {
-        const find = params.find as string;
-        const replace = params.replace as string;
-        active.explanation = active.explanation.replace(find, replace);
-      }
-      break;
-    }
-
-    case 'reveal': {
-      const active = findActive();
-      if (active?.checks) {
-        const check = active.checks.find(c => c.id === params.checkId);
-        if (check) {
-          check.status = 'revealed';
-          check.answer = params.answer as string;
-          check.answerExplanation = params.explanation as string;
-        }
-      }
-      break;
-    }
-
-    default:
-      throw new Error(`Unknown tool: ${tool}`);
-  }
-
+  applyTool(result, tool, params);
   return result;
 }

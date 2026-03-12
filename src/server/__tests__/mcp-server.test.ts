@@ -1,6 +1,18 @@
 import { describe, it, expect } from 'vitest';
 import { createMcpServer } from '../mcp-server.js';
 import { toolSchemaMap } from '../../shared/schemas.js';
+import type { VersionStore } from '../../shared/types.js';
+
+function stubVersionStore(): VersionStore {
+  return {
+    async init() {},
+    async createVersion() { return 1; },
+    async getVersion() { return ''; },
+    async getCurrentVersion() { return 0; },
+    async listVersions() { return []; },
+    async getDiff() { return ''; },
+  };
+}
 
 describe('MCP Server', () => {
   const TOOL_NAMES = [
@@ -20,7 +32,7 @@ describe('MCP Server', () => {
   ] as const;
 
   it('creates an MCP server instance', () => {
-    const server = createMcpServer({ sessionDir: '/tmp/test' });
+    const server = createMcpServer({ sessionDir: '/tmp/test', versionStore: stubVersionStore() });
     expect(server).toBeDefined();
     expect(server.start).toBeDefined();
     expect(server.stop).toBeDefined();

@@ -7,6 +7,7 @@ import { createVersionStore } from './versions.js';
 import { createChatStore } from './chat-store.js';
 import { createContextCompiler } from './context.js';
 import { parse, serialize, applyToolCall } from './markdown.js';
+import { BLANK_DOC } from './document-service.js';
 import { TOOL_DEFS, zodToJsonSchema } from '../shared/schemas.js';
 import { getProvider, listProviders } from './providers/registry.js';
 import type { ToolDefinition } from '../shared/providers.js';
@@ -300,11 +301,7 @@ export async function startServer(options: {
 
           // Ensure current.md exists with a blank document
           if (!existsSync(filePath)) {
-            const blankDoc: LearningDocument = {
-              version: 0,
-              activeSection: 'untitled',
-              sections: [{ id: 'untitled', title: 'Untitled', status: 'active' }],
-            };
+            const blankDoc = { ...BLANK_DOC, sections: [...BLANK_DOC.sections] };
             writeFileSync(filePath, serialize(blankDoc), 'utf-8');
             latestDocument = blankDoc;
           }

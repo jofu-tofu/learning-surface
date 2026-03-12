@@ -19,6 +19,20 @@ const handlers: Record<string, ToolHandler> = {
       title,
       status: 'active',
     };
+
+    // Auto-remove the empty "Untitled" placeholder when a real section is created
+    const untitledIdx = doc.sections.findIndex(s => s.id === 'untitled');
+    if (untitledIdx !== -1) {
+      const u = doc.sections[untitledIdx];
+      const isEmpty = !u.canvas && !u.explanation && !u.checks?.length && !u.followups?.length;
+      if (isEmpty) {
+        doc.sections.splice(untitledIdx, 1);
+        if (doc.activeSection === 'untitled') {
+          doc.activeSection = newSection.id;
+        }
+      }
+    }
+
     doc.sections.push(newSection);
   },
 

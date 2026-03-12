@@ -38,7 +38,7 @@ export function App(): React.ReactElement {
   const [branchPopover, setBranchPopover] = useState<number | null>(null);
 
   const activeSection = doc?.sections.find((s) => s.id === doc.activeSection);
-  const sectionList = doc?.sections.map((s) => ({ title: s.title, status: s.status })) ?? [];
+  const sectionList = doc?.sections.map((s) => ({ title: s.title })) ?? [];
   const currentMeta = versions.find((v) => v.version === currentVersion);
 
   return (
@@ -130,7 +130,6 @@ export function App(): React.ReactElement {
           {/* Prompt preview */}
           <PromptPreview
             prompt={currentMeta?.prompt ?? null}
-            version={currentVersion}
           />
 
           {/* Breadcrumb path */}

@@ -3,7 +3,7 @@ import { z } from 'zod';
 import {
   ShowVisualSchema, BuildVisualSchema, ExplainSchema, ExtendSchema,
   ChallengeSchema, RevealSchema, SuggestFollowupsSchema,
-  NewSectionSchema, CompleteSectionSchema, SetActiveSchema, ClearSchema,
+  NewSectionSchema, SetActiveSchema, ClearSchema,
   zodToJsonSchema,
 } from '../../shared/schemas.js';
 
@@ -39,7 +39,6 @@ describe('simple tool param schemas', () => {
     ['ExplainSchema', ExplainSchema, { content: 42 }],
     ['ExtendSchema', ExtendSchema, { content: true }],
     ['NewSectionSchema', NewSectionSchema, { title: 42 }],
-    ['CompleteSectionSchema', CompleteSectionSchema, { section: 123 }],
     ['SetActiveSchema', SetActiveSchema, { section: false }],
   ] as [string, z.ZodTypeAny, unknown][])('%s: rejects empty / rejects wrong type', (_, schema, wrongType) => {
     expect(schema.safeParse({}).success).toBe(false);

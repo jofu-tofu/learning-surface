@@ -15,7 +15,7 @@ The data contract between all modules. Documents use YAML frontmatter + `##` sec
 
 **Frontmatter:** `version` (integer), `active_section` (slug), `summary` (optional string).
 
-**Sections:** Start with `## Title`. ID = slugified title. Optional `<!-- status: active|completed -->`.
+**Sections:** Start with `## Title`. ID = slugified title. No section-level status (sections are just containers).
 
 **Blocks within a section:**
 

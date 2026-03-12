@@ -41,13 +41,6 @@ function parseBlocks(body: string): RawBlock[] {
 function parseSection(title: string, body: string): Section & { _unknownBlocks?: RawBlock[] } {
   const id = slugify(title);
 
-  // Extract status comment from the body (before any ### blocks)
-  let status: 'active' | 'completed' = 'active';
-  const statusMatch = body.match(/<!--\s*status:\s*(active|completed)\s*-->/);
-  if (statusMatch) {
-    status = statusMatch[1] as 'active' | 'completed';
-  }
-
   const blocks = parseBlocks(body);
 
   let canvas: CanvasContent | undefined;
@@ -118,7 +111,6 @@ function parseSection(title: string, body: string): Section & { _unknownBlocks?:
   const section: Section & { _unknownBlocks?: RawBlock[] } = {
     id,
     title,
-    status,
     ...(canvas ? { canvas } : {}),
     ...(explanation !== undefined ? { explanation } : {}),
     ...(checks.length > 0 ? { checks } : {}),
@@ -188,7 +180,6 @@ export function serialize(doc: LearningDocument): string {
 
   for (const section of doc.sections) {
     lines.push(`## ${section.title}`);
-    lines.push(`<!-- status: ${section.status} -->`);
     lines.push('');
 
     // Unknown blocks first (they were before known blocks typically, but order doesn't matter for tests)

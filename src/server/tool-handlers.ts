@@ -17,7 +17,6 @@ const handlers: Record<string, ToolHandler> = {
     const newSection: Section = {
       id: slugify(title),
       title,
-      status: 'active',
     };
 
     // Auto-remove the empty "Untitled" placeholder when a real section is created
@@ -81,14 +80,6 @@ const handlers: Record<string, ToolHandler> = {
     });
   },
 
-  complete_section(doc, params) {
-    const sectionId = params.section as string;
-    const section = doc.sections.find(s => s.id === sectionId);
-    if (section) {
-      section.status = 'completed';
-    }
-  },
-
   set_active(doc, params) {
     doc.activeSection = params.section as string;
   },
@@ -122,7 +113,6 @@ const handlers: Record<string, ToolHandler> = {
       doc.sections.push({
         id: 'start',
         title: 'Start',
-        status: 'active',
       });
       doc.activeSection = 'start';
       delete doc.summary;

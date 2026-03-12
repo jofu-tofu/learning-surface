@@ -43,7 +43,6 @@ describe('MCP Server', () => {
     'reveal',
     'suggest_followups',
     'new_section',
-    'complete_section',
     'set_active',
   ] as const;
 

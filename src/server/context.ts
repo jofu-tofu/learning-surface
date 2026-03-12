@@ -16,7 +16,6 @@ export function createContextCompiler(): ContextCompiler {
 
       const sections = doc.sections.map(s => ({
         title: s.title,
-        status: s.status,
       }));
 
       const metas = await readAllVersionMetas(sessionDir).catch(() => []);

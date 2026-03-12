@@ -39,10 +39,6 @@ export const NewSectionSchema = z.object({
   title: z.string(),
 });
 
-export const CompleteSectionSchema = z.object({
-  section: z.string(),
-});
-
 export const SetActiveSchema = z.object({
   section: z.string(),
 });
@@ -62,7 +58,6 @@ export type ChallengeParams = z.infer<typeof ChallengeSchema>;
 export type RevealParams = z.infer<typeof RevealSchema>;
 export type SuggestFollowupsParams = z.infer<typeof SuggestFollowupsSchema>;
 export type NewSectionParams = z.infer<typeof NewSectionSchema>;
-export type CompleteSectionParams = z.infer<typeof CompleteSectionSchema>;
 export type SetActiveParams = z.infer<typeof SetActiveSchema>;
 export type ClearParams = z.infer<typeof ClearSchema>;
 
@@ -114,11 +109,6 @@ export const TOOL_DEFS: ToolDef[] = [
     name: 'new_section',
     description: 'Create a new learning section. The section is added but does not become active — call set_active to switch to it. The section ID is the slugified title.',
     schema: NewSectionSchema,
-  },
-  {
-    name: 'complete_section',
-    description: 'Mark a section as completed by its section ID (slugified title, e.g. "the-three-way-handshake").',
-    schema: CompleteSectionSchema,
   },
   {
     name: 'set_active',

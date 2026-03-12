@@ -32,7 +32,6 @@ export function buildSection(overrides: Partial<Section> = {}): Section {
   return {
     id: slugify(title),
     title,
-    status: 'active',
     ...overrides,
   };
 }
@@ -71,7 +70,7 @@ export function buildSurfaceContext(overrides: Partial<SurfaceContext> = {}): Su
       checks: [],
       followups: [],
     },
-    sections: [{ title: 'Test Section', status: 'active' }],
+    sections: [{ title: 'Test Section' }],
     promptHistory: [],
     ...overrides,
   };
@@ -85,7 +84,6 @@ active_section: introduction
 ---
 
 ## Introduction
-<!-- status: active -->
 
 ### explanation
 This is the introduction.
@@ -97,7 +95,6 @@ active_section: the-three-way-handshake
 ---
 
 ## What is TCP?
-<!-- status: completed -->
 
 ### canvas: mermaid
 graph LR
@@ -107,7 +104,6 @@ graph LR
 TCP is a connection-oriented protocol that ensures reliable data delivery.
 
 ## The Three-Way Handshake
-<!-- status: active -->
 
 ### canvas: mermaid
 sequenceDiagram

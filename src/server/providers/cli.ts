@@ -29,9 +29,8 @@ IMPORTANT: Do NOT navigate outside the current directory. Do NOT modify any file
 \`\`\`
 DOCUMENT := FRONTMATTER SECTION+
 FRONTMATTER := "---\\n" YAML_FIELDS "---\\n"
-SECTION := SECTION_HEADER STATUS_COMMENT? BLOCK*
+SECTION := SECTION_HEADER BLOCK*
 SECTION_HEADER := "## " TITLE "\\n"
-STATUS_COMMENT := "<!-- status: " ("active" | "completed") " -->\\n"
 BLOCK := CANVAS_BLOCK | EXPLANATION_BLOCK | CHECK_BLOCK | FOLLOWUPS_BLOCK
 \`\`\`
 
@@ -49,7 +48,6 @@ summary: <string>            # (optional) AI-generated short label for this vers
 
 - Each section starts with \`## Title\` (h2 heading)
 - Section ID = slugified title: lowercase, spaces to hyphens, strip non-alphanumeric
-- Status comment \`<!-- status: active|completed -->\` is optional; default is active
 - A document must have at least one section
 - Exactly one section should match \`active_section\` from frontmatter
 
@@ -77,7 +75,6 @@ summary: TCP Handshake
 ---
 
 ## What is TCP?
-<!-- status: completed -->
 
 ### canvas: mermaid
 graph LR
@@ -87,7 +84,6 @@ graph LR
 TCP is a connection-oriented protocol that ensures reliable data delivery...
 
 ## The Three-Way Handshake
-<!-- status: active -->
 
 ### canvas: mermaid
 sequenceDiagram
@@ -114,8 +110,8 @@ export function createCliProvider(): ReplProvider {
     name: 'Codex',
     type: 'cli',
     models: [
-      { id: 'gpt-5.3-codex-spark', name: 'Spark' },
-      { id: 'gpt-5.4', name: '5.4' },
+      { id: 'gpt-5.3-codex-spark', name: 'Spark', displayName: '5.3 Spark' },
+      { id: 'gpt-5.4', name: '5.4', displayName: '5.4' },
     ],
   };
 

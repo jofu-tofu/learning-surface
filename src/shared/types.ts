@@ -20,7 +20,6 @@ export interface Check {
 export interface Section {
   id: string; // slug derived from title
   title: string;
-  status: 'active' | 'completed';
   canvas?: CanvasContent;
   explanation?: string;
   checks?: Check[];
@@ -59,7 +58,7 @@ export interface SurfaceContext {
     checks: Check[];
     followups: string[];
   };
-  sections: Array<{ title: string; status: string }>;
+  sections: Array<{ title: string }>;
   promptHistory: string[];
 }
 
@@ -74,7 +73,6 @@ export type {
   RevealParams,
   SuggestFollowupsParams,
   NewSectionParams,
-  CompleteSectionParams,
   SetActiveParams,
   ClearParams,
 } from './schemas.js';

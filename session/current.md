@@ -4,7 +4,6 @@ active_section: the-three-way-handshake
 ---
 
 ## What is TCP?
-<!-- status: completed -->
 
 ### canvas: mermaid
 graph LR
@@ -20,7 +19,6 @@ What layer of the OSI model does TCP operate at?
 <!-- status: unanswered -->
 
 ## The Three-Way Handshake
-<!-- status: active -->
 
 ### canvas: mermaid
 sequenceDiagram

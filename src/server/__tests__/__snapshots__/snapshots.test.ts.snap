@@ -7,7 +7,6 @@ exports[`parse snapshots > DUPLICATE_BLOCK_DOC 1`] = `
     {
       "explanation": "Second explanation.",
       "id": "test",
-      "status": "active",
       "title": "Test",
     },
   ],
@@ -21,7 +20,6 @@ exports[`parse snapshots > EMPTY_SECTION_DOC 1`] = `
   "sections": [
     {
       "id": "empty",
-      "status": "active",
       "title": "Empty",
     },
   ],
@@ -42,7 +40,6 @@ exports[`parse snapshots > UNKNOWN_BLOCK_DOC 1`] = `
       ],
       "explanation": "Known block.",
       "id": "test",
-      "status": "active",
       "title": "Test",
     },
   ],

@@ -1,4 +1,4 @@
-import type { ProviderInfo } from './providers.js';
+import type { ProviderInfo, ReasoningEffort } from './providers.js';
 
 // === Core Data Types ===
 
@@ -95,7 +95,7 @@ export type ClientMessage =
   | { type: 'delete-chat'; chatId: string }
   | { type: 'select-version'; version: number }
   | { type: 'select-section'; sectionId: string }
-  | { type: 'prompt'; text: string; provider?: string; model?: string; fromVersion?: number }
+  | { type: 'prompt'; text: string; provider?: string; model?: string; reasoningEffort?: ReasoningEffort; fromVersion?: number }
   | { type: 'get-providers' };
 
 // === Server → Client Message Types ===

@@ -31,8 +31,10 @@ export function App(): React.ReactElement {
     providers,
     selectedProvider,
     selectedModel,
+    selectedReasoningEffort,
     setSelectedProvider,
     setSelectedModel,
+    setSelectedReasoningEffort,
   } = useSurface();
 
   const [branchPopover, setBranchPopover] = useState<number | null>(null);
@@ -44,10 +46,10 @@ export function App(): React.ReactElement {
   return (
     <div className="h-dvh flex flex-col bg-surface-900 text-surface-100 overflow-hidden">
       {/* Header */}
-      <header className="shrink-0 flex items-center justify-between px-5 py-3 bg-surface-800 border-b border-surface-700">
+      <header className="shrink-0 flex items-center justify-between px-5 py-2.5 bg-surface-800/90 border-b border-surface-700/60 backdrop-blur-sm">
         <div className="flex items-center gap-3">
-          <div className="w-7 h-7 rounded-lg bg-accent-600 flex items-center justify-center">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-accent-500 to-accent-700 flex items-center justify-center shadow-sm shadow-accent-500/20">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
               <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
             </svg>
@@ -55,19 +57,19 @@ export function App(): React.ReactElement {
           <h1 className="text-sm font-semibold text-surface-50 tracking-tight">Learning Surface</h1>
         </div>
         <div className="flex items-center gap-2">
-          <span className={`inline-block w-2 h-2 rounded-full ${connected ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-          <span className="text-xs text-surface-400">{connected ? 'Connected' : 'Reconnecting...'}</span>
+          <span className={`inline-block w-1.5 h-1.5 rounded-full ${connected ? 'bg-emerald-500 shadow-sm shadow-emerald-500/40' : 'bg-amber-500 animate-pulse'}`} />
+          <span className="text-[11px] text-surface-500">{connected ? 'Connected' : 'Reconnecting...'}</span>
         </div>
       </header>
 
       {/* Main content */}
       <div className="flex flex-1 min-h-0">
         {/* Sidebar — split into Chats (top) and Sections (bottom) */}
-        <aside data-testid="pane-sidebar" className="w-56 shrink-0 bg-surface-800/50 border-r border-surface-700 flex flex-col">
+        <aside data-testid="pane-sidebar" className="w-60 shrink-0 bg-surface-800/40 border-r border-surface-700/50 flex flex-col">
           {/* Chats panel */}
           <div className="flex flex-col min-h-0">
-            <div className="px-4 py-3 border-b border-surface-700/50">
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-surface-400">Chats</h2>
+            <div className="px-4 py-3 border-b border-surface-700/30">
+              <h2 className="text-[11px] font-semibold uppercase tracking-widest text-surface-400/80">Chats</h2>
             </div>
             <div className="flex-1 overflow-y-auto py-2">
               <ChatList
@@ -81,12 +83,12 @@ export function App(): React.ReactElement {
           </div>
 
           {/* Divider */}
-          <div className="border-t border-surface-700/50" />
+          <div className="border-t border-surface-700/30" />
 
           {/* Sections panel */}
           <div className={`flex flex-col min-h-0 flex-1 ${changedPanes.has('sections') ? 'pane-updated' : ''}`}>
-            <div className="px-4 py-3 border-b border-surface-700/50">
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-surface-400">Sections</h2>
+            <div className="px-4 py-3 border-b border-surface-700/30">
+              <h2 className="text-[11px] font-semibold uppercase tracking-widest text-surface-400/80">Sections</h2>
             </div>
             <div className="flex-1 overflow-y-auto py-2">
               <Sidebar
@@ -103,12 +105,17 @@ export function App(): React.ReactElement {
 
         {/* Center content area */}
         <div className="flex-1 flex flex-col min-w-0">
+          {/* Prompt preview */}
+          <PromptPreview
+            prompt={currentMeta?.prompt ?? null}
+          />
+
           {/* Panes */}
           <div className="flex-1 flex min-h-0">
             {/* Canvas pane */}
-            <div data-testid="pane-canvas" className={`flex-1 flex flex-col min-w-0 border-r border-surface-700/50 ${changedPanes.has('canvas') ? 'pane-updated' : ''}`}>
+            <div data-testid="pane-canvas" className={`flex-1 flex flex-col min-w-0 border-r border-surface-700/40 ${changedPanes.has('canvas') ? 'pane-updated' : ''}`}>
               <PaneHeader title="Canvas" />
-              <div className="flex-1 overflow-auto p-5 flex items-start justify-center">
+              <div className="flex-1 overflow-auto p-6 flex items-start justify-center">
                 <Canvas content={activeSection?.canvas ?? null} />
               </div>
             </div>
@@ -116,7 +123,7 @@ export function App(): React.ReactElement {
             {/* Explanation pane */}
             <div data-testid="pane-explanation" className={`flex-1 flex flex-col min-w-0 ${changedPanes.has('explanation') ? 'pane-updated' : ''}`}>
               <PaneHeader title="Explanation" />
-              <div className="flex-1 overflow-auto p-5">
+              <div className="flex-1 overflow-auto p-6">
                 <Explanation
                   explanation={activeSection?.explanation ?? null}
                   checks={activeSection?.checks ?? []}
@@ -127,13 +134,8 @@ export function App(): React.ReactElement {
             </div>
           </div>
 
-          {/* Prompt preview */}
-          <PromptPreview
-            prompt={currentMeta?.prompt ?? null}
-          />
-
           {/* Breadcrumb path */}
-          <div data-testid="pane-timeline" className="shrink-0 border-t border-surface-700/50 bg-surface-800/30 relative">
+          <div data-testid="pane-timeline" className="shrink-0 border-t border-surface-700/40 bg-surface-800/20 relative">
             <Breadcrumb
               path={path}
               versions={versions}
@@ -154,15 +156,17 @@ export function App(): React.ReactElement {
           </div>
 
           {/* Chat bar */}
-          <div data-testid="pane-chatbar" className="shrink-0 border-t border-surface-700">
+          <div data-testid="pane-chatbar" className="shrink-0 border-t border-surface-700/40">
             <ChatBar
               onSubmit={submitPrompt}
               isProcessing={isProcessing}
               providers={providers}
               selectedProvider={selectedProvider}
               selectedModel={selectedModel}
+              selectedReasoningEffort={selectedReasoningEffort}
               onProviderChange={setSelectedProvider}
               onModelChange={setSelectedModel}
+              onReasoningEffortChange={setSelectedReasoningEffort}
             />
           </div>
         </div>

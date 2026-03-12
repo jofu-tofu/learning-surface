@@ -1,9 +1,13 @@
 // === REPL Provider Abstraction ===
 
+export type ReasoningEffort = 'none' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+
 export interface ModelConfig {
   id: string;
   name: string;
   displayName?: string;
+  reasoningEfforts?: ReasoningEffort[];
+  defaultEffort?: ReasoningEffort;
 }
 
 export interface ProviderConfig {
@@ -48,6 +52,7 @@ export interface ReplProvider {
     tools?: ToolDefinition[];
     model: string;
     sessionDir: string;
+    reasoningEffort?: ReasoningEffort;
     onToolCall?: (call: ProviderToolCall) => Promise<ToolCallResult>;
   }): Promise<void>;
 }

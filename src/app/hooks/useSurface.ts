@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useRef } from 'react';
 import type { LearningDocument, VersionMeta, WsMessage, Chat } from '../../shared/types.js';
-import type { ProviderInfo } from '../../shared/providers.js';
+import type { ProviderInfo, ReasoningEffort } from '../../shared/providers.js';
 import { getVersionPath, getForwardPath } from '../../shared/version-tree.js';
 import { useWebSocket } from './useWebSocket.js';
 
@@ -30,8 +30,10 @@ export interface UseSurfaceReturn {
   providers: ProviderInfo[];
   selectedProvider: string | null;
   selectedModel: string | null;
+  selectedReasoningEffort: ReasoningEffort | null;
   setSelectedProvider: (id: string) => void;
   setSelectedModel: (id: string) => void;
+  setSelectedReasoningEffort: (effort: ReasoningEffort) => void;
 }
 
 const WS_URL = 'ws://localhost:8080';
@@ -47,6 +49,7 @@ export function useSurface(): UseSurfaceReturn {
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
   const [selectedProvider, setSelectedProviderState] = useState<string | null>(null);
   const [selectedModel, setSelectedModelState] = useState<string | null>(null);
+  const [selectedReasoningEffort, setSelectedReasoningEffortState] = useState<ReasoningEffort | null>(null);
   const prevDocRef = useRef<LearningDocument | null>(null);
   const settleRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const flashRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -79,7 +82,9 @@ export function useSurface(): UseSurfaceReturn {
             setSelectedProviderState((prev) => {
               if (prev) return prev;
               const p = msg.providers![0];
-              setSelectedModelState((prevM) => prevM ?? p.models[0]?.id ?? null);
+              const firstModel = p.models[0];
+              setSelectedModelState((prevM) => prevM ?? firstModel?.id ?? null);
+              setSelectedReasoningEffortState((prevE) => prevE ?? firstModel?.defaultEffort ?? null);
               return p.id;
             });
           }
@@ -178,8 +183,9 @@ export function useSurface(): UseSurfaceReturn {
       fromVersion: currentVersion,
       provider: selectedProvider,
       model: selectedModel,
+      reasoningEffort: selectedReasoningEffort ?? undefined,
     });
-  }, [send, currentVersion, selectedProvider, selectedModel]);
+  }, [send, currentVersion, selectedProvider, selectedModel, selectedReasoningEffort]);
 
   const selectVersion = useCallback((version: number) => {
     setCurrentVersion(version);
@@ -205,17 +211,28 @@ export function useSurface(): UseSurfaceReturn {
 
   const setSelectedProvider = useCallback((id: string) => {
     setSelectedProviderState(id);
-    // Auto-select first model of the new provider
+    // Auto-select first model of the new provider and its default effort
     const p = providers.find((p) => p.id === id);
     if (p && p.models.length > 0) {
-      setSelectedModelState(p.models[0].id);
+      const firstModel = p.models[0];
+      setSelectedModelState(firstModel.id);
+      setSelectedReasoningEffortState(firstModel.defaultEffort ?? null);
     } else {
       setSelectedModelState(null);
+      setSelectedReasoningEffortState(null);
     }
   }, [providers]);
 
   const setSelectedModel = useCallback((id: string) => {
     setSelectedModelState(id);
+    // Auto-select default effort for the new model
+    const p = providers.find((p) => p.id === selectedProvider);
+    const model = p?.models.find((m) => m.id === id);
+    setSelectedReasoningEffortState(model?.defaultEffort ?? null);
+  }, [providers, selectedProvider]);
+
+  const setSelectedReasoningEffort = useCallback((effort: ReasoningEffort) => {
+    setSelectedReasoningEffortState(effort);
   }, []);
 
   return {
@@ -224,7 +241,7 @@ export function useSurface(): UseSurfaceReturn {
     submitPrompt, selectVersion, selectSection,
     newChat, switchChat, deleteChat,
     isProcessing, changedPanes,
-    providers, selectedProvider, selectedModel,
-    setSelectedProvider, setSelectedModel,
+    providers, selectedProvider, selectedModel, selectedReasoningEffort,
+    setSelectedProvider, setSelectedModel, setSelectedReasoningEffort,
   };
 }

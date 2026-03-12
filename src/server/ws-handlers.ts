@@ -143,9 +143,9 @@ export async function routeMessage(
     }
 
     case 'prompt': {
-      const { provider: providerId, model: modelId, text } = msg;
+      const { provider: providerId, model: modelId, reasoningEffort, text } = msg;
       const from = msg.fromVersion ? ` (from v${msg.fromVersion})` : '';
-      console.log(`[prompt]${from} "${text}" provider=${providerId ?? 'none'} model=${modelId ?? 'none'}`);
+      console.log(`[prompt]${from} "${text}" provider=${providerId ?? 'none'} model=${modelId ?? 'none'} effort=${reasoningEffort ?? 'default'}`);
 
       if (!providerId || !modelId) {
         console.log('  No provider/model selected — waiting for REPL to call MCP tools');
@@ -164,6 +164,7 @@ export async function routeMessage(
           text,
           providerId,
           modelId,
+          reasoningEffort,
           chatDir,
           latestDocument: state.latestDocument,
           versionStore: state.activeVersionStore,

@@ -104,20 +104,25 @@ Why three steps instead of one?
 \`\`\`
 `;
 
-export function createCliProvider(): ReplProvider {
+export function createClaudeCodeProvider(): ReplProvider {
   const config: ProviderConfig = {
-    id: 'codex',
-    name: 'Codex',
+    id: 'claude-code',
+    name: 'Claude Code',
     type: 'cli',
     models: [
       {
-        id: 'gpt-5.3-codex-spark', name: 'Spark', displayName: '5.3 Spark',
+        id: 'haiku', name: 'Haiku', displayName: 'Haiku',
         reasoningEfforts: ['low', 'medium', 'high'],
-        defaultEffort: 'medium',
+        defaultEffort: 'high',
       },
       {
-        id: 'gpt-5.4', name: '5.4', displayName: '5.4',
-        reasoningEfforts: ['none', 'low', 'medium', 'high', 'xhigh'],
+        id: 'sonnet', name: 'Sonnet', displayName: 'Sonnet',
+        reasoningEfforts: ['low', 'medium', 'high'],
+        defaultEffort: 'high',
+      },
+      {
+        id: 'opus', name: 'Opus', displayName: 'Opus',
+        reasoningEfforts: ['low', 'medium', 'high', 'max'],
         defaultEffort: 'high',
       },
     ],
@@ -126,47 +131,44 @@ export function createCliProvider(): ReplProvider {
   return {
     config,
 
-    async complete({ prompt, systemPrompt, model, sessionDir, reasoningEffort }) {
-      // Combine our CLI-specific instructions with the context from the handler
+    async complete({ prompt, systemPrompt, model, sessionDir }) {
       const fullPrompt = `${CLI_SYSTEM_PROMPT}\n\n## Current Surface State\n${systemPrompt.split('## Current Surface State\n').pop() ?? ''}\n\n---\nUser request: ${prompt}`;
 
       const args = [
-        'exec',
-        '--full-auto',
-        '--skip-git-repo-check',
-        '--ephemeral',
-        '-m', model,
-        '-C', sessionDir,
+        '--print',
+        '--dangerously-skip-permissions',
+        '--model', model,
+        '--tools', 'Read,Edit,Write',
+        '--no-session-persistence',
       ];
-      if (reasoningEffort) {
-        args.push('--reasoning-effort', reasoningEffort);
-      }
+      // Claude Code CLI does not support reasoning effort flags
       args.push(fullPrompt);
 
       return new Promise<void>((resolve, reject) => {
-        const child = spawn('codex', args, {
+        const child = spawn('claude', args, {
           stdio: ['pipe', 'pipe', 'pipe'],
+          cwd: sessionDir,
         });
 
         child.stdout.on('data', (data: Buffer) => {
           const text = data.toString().trim();
-          if (text) console.log(`[codex-cli] ${text}`);
+          if (text) console.log(`[claude-code] ${text}`);
         });
 
         child.stderr.on('data', (data: Buffer) => {
           const text = data.toString().trim();
-          if (text) console.error(`[codex-cli stderr] ${text}`);
+          if (text) console.error(`[claude-code stderr] ${text}`);
         });
 
         child.on('error', (err) => {
-          reject(new Error(`Failed to spawn codex: ${err.message}`));
+          reject(new Error(`Failed to spawn claude: ${err.message}`));
         });
 
         child.on('close', (code) => {
           if (code === 0) {
             resolve();
           } else {
-            reject(new Error(`codex exec exited with code ${code}`));
+            reject(new Error(`claude exited with code ${code}`));
           }
         });
       });

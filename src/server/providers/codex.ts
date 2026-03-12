@@ -5,9 +5,25 @@ import type {
   ToolDefinition,
   ProviderToolCall,
   ToolCallResult,
+  ReasoningEffort,
 } from '../../shared/providers.js';
 
 const MAX_TOOL_ROUNDS = 20;
+
+type OpenAIReasoningEffort = NonNullable<OpenAI.ChatCompletionCreateParams['reasoning_effort']>;
+
+/** Map our unified effort levels to the OpenAI API reasoning_effort values. */
+function toOpenAIEffort(effort: ReasoningEffort): OpenAIReasoningEffort | undefined {
+  const map: Record<ReasoningEffort, OpenAIReasoningEffort | undefined> = {
+    none: 'none',
+    low: 'low',
+    medium: 'medium',
+    high: 'high',
+    xhigh: 'xhigh',
+    max: 'xhigh',
+  };
+  return map[effort];
+}
 
 export function createCodexProvider(): ReplProvider {
   const config: ProviderConfig = {
@@ -15,8 +31,16 @@ export function createCodexProvider(): ReplProvider {
     name: 'Codex (API)',
     type: 'api',
     models: [
-      { id: 'spark', name: 'Spark', displayName: '5.3 Spark' },
-      { id: '5.4-low', name: '5.4 Low', displayName: '5.4 Low' },
+      {
+        id: 'spark', name: 'Spark', displayName: '5.3 Spark',
+        reasoningEfforts: ['low', 'medium', 'high'],
+        defaultEffort: 'medium',
+      },
+      {
+        id: '5.4-low', name: '5.4 Low', displayName: '5.4 Low',
+        reasoningEfforts: ['none', 'low', 'medium', 'high', 'xhigh'],
+        defaultEffort: 'high',
+      },
     ],
   };
 
@@ -25,7 +49,7 @@ export function createCodexProvider(): ReplProvider {
   return {
     config,
 
-    async complete({ prompt, systemPrompt, tools, model, onToolCall }) {
+    async complete({ prompt, systemPrompt, tools, model, reasoningEffort, onToolCall }) {
       const openaiTools: OpenAI.ChatCompletionTool[] = (tools ?? []).map((t) => ({
         type: 'function' as const,
         function: {
@@ -41,10 +65,12 @@ export function createCodexProvider(): ReplProvider {
       ];
 
       for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+        const apiEffort = reasoningEffort ? toOpenAIEffort(reasoningEffort) : undefined;
         const response = await client.chat.completions.create({
           model,
           messages,
           tools: openaiTools,
+          ...(apiEffort ? { reasoning_effort: apiEffort } : {}),
         });
 
         const choice = response.choices[0];

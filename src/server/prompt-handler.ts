@@ -2,7 +2,7 @@ import { createContextCompiler } from './context.js';
 import { createDocumentService, type DocumentService } from './document-service.js';
 import { getProvider as getProviderFromRegistry } from './providers/registry.js';
 import { TOOL_DEFS, zodToJsonSchema } from '../shared/schemas.js';
-import type { ReplProvider, ToolDefinition } from '../shared/providers.js';
+import type { ReplProvider, ToolDefinition, ReasoningEffort } from '../shared/providers.js';
 import type { ContextCompiler, LearningDocument, SurfaceContext, VersionStore } from '../shared/types.js';
 
 // === Pure constants and functions (functional core) ===
@@ -73,6 +73,7 @@ export interface PromptRequest {
   text: string;
   providerId: string;
   modelId: string;
+  reasoningEffort?: ReasoningEffort;
   chatDir: string;
   latestDocument: LearningDocument | null;
   versionStore: VersionStore;
@@ -102,7 +103,7 @@ export async function handlePrompt(
   req: PromptRequest,
   deps: PromptDeps = defaultDeps,
 ): Promise<PromptResult> {
-  const { text, providerId, modelId, chatDir, versionStore } = req;
+  const { text, providerId, modelId, reasoningEffort, chatDir, versionStore } = req;
   const { docService, contextCompiler, getProvider } = deps;
 
   const provider = getProvider(providerId);
@@ -129,6 +130,7 @@ export async function handlePrompt(
       tools: providerTools,
       model: modelId,
       sessionDir: chatDir,
+      reasoningEffort,
       async onToolCall(call) {
         const applied = docService.applyTool(
           filePath,
@@ -150,6 +152,7 @@ export async function handlePrompt(
       systemPrompt,
       model: modelId,
       sessionDir: chatDir,
+      reasoningEffort,
     });
   }
 

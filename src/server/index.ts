@@ -36,14 +36,8 @@ export async function startServer(options: {
   watcher.onDocumentChange(async (doc) => {
     latestDocument = doc;
 
-    // Create a version snapshot
-    const content = serialize(doc);
-    await versionStore.createVersion(content, {
-      prompt: null,
-      timestamp: new Date().toISOString(),
-      source: 'user-edit',
-    });
-
+    // Just broadcast the live document state — versions are created by the MCP server,
+    // not the file watcher. Re-read versions from disk so the UI stays in sync.
     const versions = await versionStore.listVersions();
     broadcast({ type: 'document-update', document: doc, versions });
   });

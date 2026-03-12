@@ -25,6 +25,16 @@ export function createVersionStore(): VersionStore {
     async init(sessionDir: string): Promise<void> {
       dir = sessionDir;
       await mkdir(dir, { recursive: true });
+      // Scan existing version files to resume from the correct counter
+      const files = await readdir(dir);
+      const metaFiles = files.filter((f) => f.endsWith('.meta.json'));
+      for (const file of metaFiles) {
+        const match = file.match(/^v(\d+)\.meta\.json$/);
+        if (match) {
+          const v = parseInt(match[1], 10);
+          if (v > currentVersion) currentVersion = v;
+        }
+      }
     },
 
     async createVersion(content: string, meta: Omit<VersionMeta, 'version'>): Promise<number> {

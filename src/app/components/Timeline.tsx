@@ -7,74 +7,62 @@ export interface TimelineProps {
   onVersionSelect?: (version: number) => void;
 }
 
-export function Timeline({ versions, currentVersion, onVersionSelect }: TimelineProps): React.ReactElement {
-  const currentMeta = versions.find((v) => v.version === currentVersion);
+function formatTime(timestamp: string): string {
+  try {
+    const d = new Date(timestamp);
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return '';
+  }
+}
 
+export function Timeline({ versions, currentVersion, onVersionSelect }: TimelineProps): React.ReactElement {
   if (versions.length === 0) {
     return (
       <div className="px-5 py-3">
-        <p className="text-xs text-surface-500 italic">No versions yet</p>
+        <p className="text-xs text-surface-500 italic">No history yet — send a prompt to begin</p>
       </div>
     );
   }
 
   return (
-    <div className="px-5 py-3">
-      {/* Version dots with connecting line */}
-      <div className="flex items-center gap-1">
-        <span className="text-xs text-surface-500 mr-2 shrink-0">v{versions[0]?.version ?? 1}</span>
-        <div className="flex items-center flex-1">
-          {versions.map((v, i) => {
-            const isCurrent = v.version === currentVersion;
-            return (
-              <React.Fragment key={v.version}>
-                {i > 0 && (
-                  <div className={`h-0.5 flex-1 min-w-3 max-w-12 ${
-                    v.version <= currentVersion ? 'bg-accent-500' : 'bg-surface-600'
-                  }`} />
-                )}
-                <button
-                  data-testid={`version-dot-${v.version}`}
-                  data-current={isCurrent ? 'true' : undefined}
-                  onClick={() => onVersionSelect?.(v.version)}
-                  title={v.prompt ? `v${v.version}: ${v.prompt}` : `Version ${v.version}`}
-                  className={`
-                    shrink-0 rounded-full transition-all cursor-pointer border-2
-                    ${isCurrent
-                      ? 'w-4 h-4 bg-accent-500 border-accent-400 shadow-[0_0_8px_rgba(59,130,246,0.4)]'
-                      : 'w-2.5 h-2.5 border-transparent hover:scale-125'
-                    }
-                    ${!isCurrent && v.version < currentVersion ? 'bg-accent-600' : ''}
-                    ${!isCurrent && v.version > currentVersion ? 'bg-surface-500 hover:bg-surface-400' : ''}
-                  `}
-                />
-              </React.Fragment>
-            );
-          })}
-        </div>
-        <span className="text-xs text-surface-500 ml-2 shrink-0">v{versions[versions.length - 1]?.version ?? 1}</span>
-      </div>
+    <div className="px-5 py-2.5">
+      <div className="flex items-center gap-2 overflow-x-auto pb-1">
+        {versions.map((v, i) => {
+          const isCurrent = v.version === currentVersion;
+          const label = v.prompt || (i === 0 ? 'Initial' : `Step ${v.version}`);
 
-      {/* Current version info */}
-      {currentMeta && (
-        <div className="mt-2 flex items-center gap-3 text-xs text-surface-400">
-          <span className="font-medium text-surface-300">Version {currentMeta.version}</span>
-          {currentMeta.prompt && (
-            <>
-              <span className="text-surface-600">|</span>
-              <span className="truncate">{currentMeta.prompt}</span>
-            </>
-          )}
-          <span className="text-surface-600">|</span>
-          <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium uppercase tracking-wide ${
-            currentMeta.source === 'ai'
-              ? 'bg-accent-600/20 text-accent-400'
-              : 'bg-surface-700 text-surface-400'
-          }`}>
-            {currentMeta.source}
-          </span>
-        </div>
-      )}
+          return (
+            <React.Fragment key={v.version}>
+              {i > 0 && (
+                <svg className="shrink-0 w-4 h-4 text-surface-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              )}
+              <button
+                data-testid={`version-dot-${v.version}`}
+                data-current={isCurrent ? 'true' : undefined}
+                onClick={() => onVersionSelect?.(v.version)}
+                className={`
+                  shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs transition-colors cursor-pointer border
+                  ${isCurrent
+                    ? 'bg-accent-600/20 border-accent-500/40 text-accent-300'
+                    : 'bg-surface-800/50 border-surface-700 text-surface-400 hover:bg-surface-700/50 hover:text-surface-300'
+                  }
+                `}
+              >
+                <span className={`shrink-0 w-1.5 h-1.5 rounded-full ${
+                  isCurrent ? 'bg-accent-400' : v.source === 'ai' ? 'bg-emerald-500' : 'bg-surface-500'
+                }`} />
+                <span className="truncate max-w-40">{label}</span>
+                {v.timestamp && (
+                  <span className="text-[10px] text-surface-500 shrink-0">{formatTime(v.timestamp)}</span>
+                )}
+              </button>
+            </React.Fragment>
+          );
+        })}
+      </div>
     </div>
   );
 }

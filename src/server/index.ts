@@ -65,12 +65,24 @@ export async function startServer(options: {
     ws.send(JSON.stringify(initMsg));
 
     // Handle incoming messages from the frontend
-    ws.on('message', (raw) => {
+    ws.on('message', async (raw) => {
       try {
         const msg = JSON.parse(String(raw));
         const filePath = join(sessionDir, 'current.md');
 
-        if (msg.type === 'select-section') {
+        if (msg.type === 'select-version') {
+          // Reconstruct document at the requested version and send it back
+          const versionContent = await versionStore.getVersion(msg.version);
+          const doc = parse(versionContent);
+          const versionList = await versionStore.listVersions();
+          const reply: WsMessage = {
+            type: 'version-change',
+            document: doc,
+            version: msg.version,
+            versions: versionList,
+          };
+          ws.send(JSON.stringify(reply));
+        } else if (msg.type === 'select-section') {
           // Update active section in the document
           const content = readFileSync(filePath, 'utf-8');
           const doc = parse(content);

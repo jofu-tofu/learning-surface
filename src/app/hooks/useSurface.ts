@@ -40,8 +40,14 @@ export function useSurface(): UseSurfaceReturn {
         }
         break;
       case 'version-change':
+        if (msg.document) {
+          setDocument(msg.document);
+        }
         if (msg.version !== undefined) {
           setCurrentVersion(msg.version);
+        }
+        if (msg.versions) {
+          setVersions(msg.versions);
         }
         break;
     }

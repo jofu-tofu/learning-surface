@@ -1,6 +1,5 @@
-import { spawn } from 'node:child_process';
 import type { ReplProvider, ProviderConfig } from '../../shared/providers.js';
-import { CLI_SYSTEM_PROMPT } from '../system-prompt.js';
+import { buildCliPrompt, spawnCli } from './spawn-cli.js';
 
 export function createClaudeCodeProvider(): ReplProvider {
   const config: ProviderConfig = {
@@ -30,46 +29,15 @@ export function createClaudeCodeProvider(): ReplProvider {
     config,
 
     async complete({ prompt, systemPrompt, model, sessionDir }) {
-      const fullPrompt = `${CLI_SYSTEM_PROMPT}\n\n## Current Surface State\n${systemPrompt.split('## Current Surface State\n').pop() ?? ''}\n\n---\nUser request: ${prompt}`;
-
       const args = [
-        '--print',
-        '--dangerously-skip-permissions',
+        '--print', '--dangerously-skip-permissions',
         '--model', model,
         '--tools', 'Read,Edit,Write',
         '--no-session-persistence',
+        buildCliPrompt(systemPrompt, prompt),
       ];
       // Claude Code CLI does not support reasoning effort flags
-      args.push(fullPrompt);
-
-      return new Promise<void>((resolve, reject) => {
-        const child = spawn('claude', args, {
-          stdio: ['pipe', 'pipe', 'pipe'],
-          cwd: sessionDir,
-        });
-
-        child.stdout.on('data', (data: Buffer) => {
-          const text = data.toString().trim();
-          if (text) console.log(`[claude-code] ${text}`);
-        });
-
-        child.stderr.on('data', (data: Buffer) => {
-          const text = data.toString().trim();
-          if (text) console.error(`[claude-code stderr] ${text}`);
-        });
-
-        child.on('error', (err) => {
-          reject(new Error(`Failed to spawn claude: ${err.message}`));
-        });
-
-        child.on('close', (code) => {
-          if (code === 0) {
-            resolve();
-          } else {
-            reject(new Error(`claude exited with code ${code}`));
-          }
-        });
-      });
+      return spawnCli('claude', args, 'claude-code', { cwd: sessionDir });
     },
   };
 }

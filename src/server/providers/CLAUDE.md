@@ -21,7 +21,7 @@ AI provider abstraction — strategy pattern for REPL integration.
 
 ## Gotchas
 
-- All system prompts are defined in `server/system-prompt.ts` — `TEACHING_PRINCIPLES` (shared pedagogy), `SYSTEM_PROMPT` (API mode), `CLI_SYSTEM_PROMPT` (CLI mode). If prompt content changes, update that one file.
+- All system prompts are defined in `server/system-prompt.ts` — `TEACHING_PROMPT` (shared persona + pedagogy), `SYSTEM_PROMPT` (API mode), `CLI_SYSTEM_PROMPT` (CLI mode). If prompt content changes, update that one file.
 - Each provider's model list is hardcoded in `config.models`. Update when new models become available.
 - Each model declares `reasoningEfforts` (available levels) and `defaultEffort`. Codex CLI passes `--reasoning-effort` flag; Claude Code CLI has no effort flag (ignored); Codex API passes `reasoning_effort` to the OpenAI SDK.
 - `ReasoningEffort` is a union type in `shared/providers.ts`: `'none' | 'low' | 'medium' | 'high' | 'xhigh' | 'max'`. Not all values are valid for all models — the per-model `reasoningEfforts` array controls what the UI shows.

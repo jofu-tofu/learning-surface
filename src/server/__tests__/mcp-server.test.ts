@@ -8,30 +8,8 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createMcpServer } from '../mcp-server.js';
 import { toolSchemaMap } from '../../shared/schemas.js';
 import { parse, serialize } from '../markdown.js';
-import { MINIMAL_DOC, buildDocument, buildSection, buildCanvasContent } from '../../test/helpers.js';
-import type { VersionStore } from '../../shared/types.js';
-
-function stubVersionStore(): VersionStore {
-  return {
-    async init() {},
-    async createVersion() { return 1; },
-    async getVersion() { return ''; },
-    async getCurrentVersion() { return 0; },
-    async listVersions() { return []; },
-    async getDiff() { return ''; },
-  };
-}
-
-function spyVersionStore(): VersionStore & { createVersion: ReturnType<typeof vi.fn> } {
-  return {
-    async init() {},
-    createVersion: vi.fn(async () => 1),
-    async getVersion() { return ''; },
-    async getCurrentVersion() { return 0; },
-    async listVersions() { return []; },
-    async getDiff() { return ''; },
-  };
-}
+import { MINIMAL_DOC, buildDocument, buildSection, buildCanvasContent, stubVersionStore, spyVersionStore } from '../../test/helpers.js';
+import type { VersionStore } from '../../test/helpers.js';
 
 describe('MCP Server', () => {
   const TOOL_NAMES = [

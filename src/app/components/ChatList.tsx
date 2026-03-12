@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { Chat } from '../../shared/types.js';
+import { listContainer, listItemBase, listItemActive, listItemInactive, focusRing } from '../utils/styles.js';
 
 export interface ChatListProps {
   chats: Chat[];
@@ -23,7 +24,7 @@ export function ChatList({
   );
 
   return (
-    <div className="flex flex-col gap-1 px-2">
+    <div className={listContainer}>
       {sorted.map((chat) => {
         const isActive = chat.id === activeChatId;
         const isConfirming = confirmDelete === chat.id;
@@ -43,13 +44,13 @@ export function ChatList({
                     onDeleteChat?.(chat.id);
                     setConfirmDelete(null);
                   }}
-                  className="text-xs px-2 py-0.5 rounded bg-red-600 text-white hover:bg-red-500 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent-400"
+                  className={`text-xs px-2 py-0.5 rounded bg-red-600 text-white hover:bg-red-500 cursor-pointer ${focusRing}`}
                 >
                   Yes
                 </button>
                 <button
                   onClick={() => setConfirmDelete(null)}
-                  className="text-xs px-2 py-0.5 rounded bg-surface-700 text-surface-300 hover:bg-surface-600 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent-400"
+                  className={`text-xs px-2 py-0.5 rounded bg-surface-700 text-surface-300 hover:bg-surface-600 cursor-pointer ${focusRing}`}
                 >
                   No
                 </button>
@@ -57,14 +58,7 @@ export function ChatList({
             ) : (
               <button
                 onClick={() => onChatSelect?.(chat.id)}
-                className={`
-                  flex items-center gap-2.5 w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all duration-150 cursor-pointer
-                  focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent-400
-                  ${isActive
-                    ? 'bg-accent-600/15 text-accent-400 font-medium shadow-sm shadow-accent-500/5'
-                    : 'text-surface-300 hover:bg-surface-700/40 hover:text-surface-100'
-                  }
-                `}
+                className={`${listItemBase} ${isActive ? listItemActive : listItemInactive}`}
               >
                 {/* Chat icon */}
                 <svg className={`shrink-0 w-3.5 h-3.5 ${isActive ? 'text-accent-500/60' : 'text-surface-500'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -96,7 +90,7 @@ export function ChatList({
       <button
         data-testid="new-chat-btn"
         onClick={() => onNewChat?.()}
-        className="flex items-center gap-2.5 w-full text-left px-3 py-2.5 rounded-lg text-sm text-surface-400 hover:bg-surface-700/40 hover:text-surface-200 transition-colors cursor-pointer mt-1 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent-400"
+        className={`flex items-center gap-2.5 w-full text-left px-3 py-2.5 rounded-lg text-sm text-surface-400 hover:bg-surface-700/40 hover:text-surface-200 transition-colors cursor-pointer mt-1 ${focusRing}`}
       >
         <svg className="shrink-0 w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <line x1="12" y1="5" x2="12" y2="19" />

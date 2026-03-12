@@ -6,3 +6,6 @@ export const listContainer = 'flex flex-col gap-1 px-2';
 
 /** Section heading style used across sidebar and content areas. */
 export const sectionHeading = 'text-[11px] font-semibold uppercase tracking-widest text-surface-400/80';
+
+/** Focus-visible ring applied to interactive elements. */
+export const focusRing = 'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent-400';

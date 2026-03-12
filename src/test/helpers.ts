@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 import type {
   CanvasContent,
   Check,
@@ -5,7 +6,9 @@ import type {
   Section,
   SurfaceContext,
   VersionMeta,
+  VersionStore,
 } from '../shared/types.js';
+export type { VersionStore };
 import { slugify } from '../shared/slugify.js';
 
 // === Builders ===
@@ -196,5 +199,29 @@ function hello(): string {
 ### explanation
 A simple TypeScript function.
 `;
+
+// === Test Doubles ===
+
+export function stubVersionStore(): VersionStore {
+  return {
+    async init() {},
+    async createVersion() { return 1; },
+    async getVersion() { return ''; },
+    async getCurrentVersion() { return 0; },
+    async listVersions() { return []; },
+    async getDiff() { return ''; },
+  };
+}
+
+export function spyVersionStore(): VersionStore & { createVersion: ReturnType<typeof vi.fn> } {
+  return {
+    async init() {},
+    createVersion: vi.fn(async () => 1),
+    async getVersion() { return ''; },
+    async getCurrentVersion() { return 0; },
+    async listVersions() { return []; },
+    async getDiff() { return ''; },
+  };
+}
 
 

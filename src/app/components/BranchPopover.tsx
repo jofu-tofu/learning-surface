@@ -1,7 +1,9 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useRef } from 'react';
 import type { VersionMeta } from '../../shared/types.js';
 import { getChildren } from '../../shared/version-tree.js';
+import { useClickOutside } from '../hooks/useClickOutside.js';
 import { formatTime } from '../utils/formatTime.js';
+import { getVersionLabel } from '../utils/versionLabel.js';
 import { VersionDot } from './VersionDot.js';
 
 export interface BranchPopoverProps {
@@ -21,13 +23,7 @@ export function BranchPopover({
 }: BranchPopoverProps): React.ReactElement {
   const panelRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) onClose();
-    }
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [onClose]);
+  useClickOutside(panelRef, onClose);
 
   const children = getChildren(parentVersion, versions);
 
@@ -42,7 +38,7 @@ export function BranchPopover({
         <div className="px-1.5 pb-1.5">
           {children.map(v => {
             const isActive = v.version === currentVersion;
-            const label = v.summary || v.prompt || `Step ${v.version}`;
+            const label = getVersionLabel(v);
 
             return (
               <button

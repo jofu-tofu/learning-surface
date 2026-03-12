@@ -1,6 +1,7 @@
 import React from 'react';
 import type { VersionMeta } from '../../shared/types.js';
 import { getChildren } from '../../shared/version-tree.js';
+import { getVersionLabel } from '../utils/versionLabel.js';
 import { VersionDot } from './VersionDot.js';
 
 export interface BreadcrumbProps {
@@ -29,7 +30,7 @@ export function Breadcrumb({
   }
 
   const renderCrumb = (v: VersionMeta, idx: number, isCurrent: boolean, faded: boolean) => {
-    const label = v.summary || v.prompt || (v.version === 1 || (idx === 0 && !faded) ? 'Initial' : `Step ${v.version}`);
+    const label = getVersionLabel(v, v.version === 1 || (idx === 0 && !faded));
     const branches = getChildren(v.version, versions).length;
 
     return (

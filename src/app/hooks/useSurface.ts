@@ -3,6 +3,8 @@ import type { LearningDocument, VersionMeta, WsMessage, Chat } from '../../share
 import type { ProviderInfo, ReasoningEffort } from '../../shared/providers.js';
 import { getVersionPath, getForwardPath } from '../../shared/version-tree.js';
 import { useWebSocket } from './useWebSocket.js';
+import { detectChangedPanes } from '../utils/detectChangedPanes.js';
+import { useProviderSelection } from './useProviderSelection.js';
 
 export interface UseSurfaceReturn {
   document: LearningDocument | null;
@@ -46,10 +48,11 @@ export function useSurface(): UseSurfaceReturn {
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [changedPanes, setChangedPanes] = useState<Set<string>>(new Set());
-  const [providers, setProviders] = useState<ProviderInfo[]>([]);
-  const [selectedProvider, setSelectedProviderState] = useState<string | null>(null);
-  const [selectedModel, setSelectedModelState] = useState<string | null>(null);
-  const [selectedReasoningEffort, setSelectedReasoningEffortState] = useState<ReasoningEffort | null>(null);
+  const {
+    providers, selectedProvider, selectedModel, selectedReasoningEffort,
+    setProviders, setSelectedProvider, setSelectedModel, setSelectedReasoningEffort,
+    autoSelect: autoSelectProvider,
+  } = useProviderSelection();
   const prevDocRef = useRef<LearningDocument | null>(null);
   const settleRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const flashRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -76,18 +79,7 @@ export function useSurface(): UseSurfaceReturn {
           setActiveChatId(msg.activeChatId);
         }
         if (msg.providers) {
-          setProviders(msg.providers);
-          // Auto-select first provider and its first model if nothing selected
-          if (msg.providers.length > 0) {
-            setSelectedProviderState((prev) => {
-              if (prev) return prev;
-              const p = msg.providers![0];
-              const firstModel = p.models[0];
-              setSelectedModelState((prevM) => prevM ?? firstModel?.id ?? null);
-              setSelectedReasoningEffortState((prevE) => prevE ?? firstModel?.defaultEffort ?? null);
-              return p.id;
-            });
-          }
+          autoSelectProvider(msg.providers);
         }
         prevDocRef.current = msg.document ?? null;
         setIsProcessing(false);
@@ -98,22 +90,8 @@ export function useSurface(): UseSurfaceReturn {
         if (msg.document) {
           const prev = prevDocRef.current;
           const next = msg.document;
-          // Detect which panes changed
           if (prev) {
-            const changed = new Set<string>();
-            const prevActive = prev.sections.find(s => s.id === prev.activeSection);
-            const nextActive = next.sections.find(s => s.id === next.activeSection);
-            if (JSON.stringify(prevActive?.canvas ?? null) !== JSON.stringify(nextActive?.canvas ?? null)) {
-              changed.add('canvas');
-            }
-            if ((prevActive?.explanation ?? null) !== (nextActive?.explanation ?? null) ||
-                JSON.stringify(prevActive?.checks ?? []) !== JSON.stringify(nextActive?.checks ?? []) ||
-                JSON.stringify(prevActive?.followups ?? []) !== JSON.stringify(nextActive?.followups ?? [])) {
-              changed.add('explanation');
-            }
-            if (prev.sections.length !== next.sections.length) {
-              changed.add('sections');
-            }
+            const changed = detectChangedPanes(prev, next);
             if (changed.size > 0) {
               setChangedPanes(changed);
               clearTimeout(flashRef.current);
@@ -208,32 +186,6 @@ export function useSurface(): UseSurfaceReturn {
   const deleteChat = useCallback((chatId: string) => {
     send({ type: 'delete-chat', chatId });
   }, [send]);
-
-  const setSelectedProvider = useCallback((id: string) => {
-    setSelectedProviderState(id);
-    // Auto-select first model of the new provider and its default effort
-    const p = providers.find((p) => p.id === id);
-    if (p && p.models.length > 0) {
-      const firstModel = p.models[0];
-      setSelectedModelState(firstModel.id);
-      setSelectedReasoningEffortState(firstModel.defaultEffort ?? null);
-    } else {
-      setSelectedModelState(null);
-      setSelectedReasoningEffortState(null);
-    }
-  }, [providers]);
-
-  const setSelectedModel = useCallback((id: string) => {
-    setSelectedModelState(id);
-    // Auto-select default effort for the new model
-    const p = providers.find((p) => p.id === selectedProvider);
-    const model = p?.models.find((m) => m.id === id);
-    setSelectedReasoningEffortState(model?.defaultEffort ?? null);
-  }, [providers, selectedProvider]);
-
-  const setSelectedReasoningEffort = useCallback((effort: ReasoningEffort) => {
-    setSelectedReasoningEffortState(effort);
-  }, []);
 
   return {
     document, versions, currentVersion, path, forwardPath,

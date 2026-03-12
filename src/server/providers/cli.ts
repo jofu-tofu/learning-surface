@@ -1,6 +1,5 @@
-import { spawn } from 'node:child_process';
 import type { ReplProvider, ProviderConfig } from '../../shared/providers.js';
-import { CLI_SYSTEM_PROMPT } from '../system-prompt.js';
+import { buildCliPrompt, spawnCli } from './spawn-cli.js';
 
 export function createCliProvider(): ReplProvider {
   const config: ProviderConfig = {
@@ -25,49 +24,14 @@ export function createCliProvider(): ReplProvider {
     config,
 
     async complete({ prompt, systemPrompt, model, sessionDir, reasoningEffort }) {
-      // Combine our CLI-specific instructions with the context from the handler
-      const fullPrompt = `${CLI_SYSTEM_PROMPT}\n\n## Current Surface State\n${systemPrompt.split('## Current Surface State\n').pop() ?? ''}\n\n---\nUser request: ${prompt}`;
-
       const args = [
-        'exec',
-        '--full-auto',
-        '--skip-git-repo-check',
-        '--ephemeral',
-        '-m', model,
-        '-C', sessionDir,
+        'exec', '--full-auto', '--skip-git-repo-check', '--ephemeral',
+        '-m', model, '-C', sessionDir,
       ];
-      if (reasoningEffort) {
-        args.push('--reasoning-effort', reasoningEffort);
-      }
-      args.push(fullPrompt);
+      if (reasoningEffort) args.push('--reasoning-effort', reasoningEffort);
+      args.push(buildCliPrompt(systemPrompt, prompt));
 
-      return new Promise<void>((resolve, reject) => {
-        const child = spawn('codex', args, {
-          stdio: ['pipe', 'pipe', 'pipe'],
-        });
-
-        child.stdout.on('data', (data: Buffer) => {
-          const text = data.toString().trim();
-          if (text) console.log(`[codex-cli] ${text}`);
-        });
-
-        child.stderr.on('data', (data: Buffer) => {
-          const text = data.toString().trim();
-          if (text) console.error(`[codex-cli stderr] ${text}`);
-        });
-
-        child.on('error', (err) => {
-          reject(new Error(`Failed to spawn codex: ${err.message}`));
-        });
-
-        child.on('close', (code) => {
-          if (code === 0) {
-            resolve();
-          } else {
-            reject(new Error(`codex exec exited with code ${code}`));
-          }
-        });
-      });
+      return spawnCli('codex', args, 'codex-cli');
     },
   };
 }

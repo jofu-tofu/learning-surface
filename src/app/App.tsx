@@ -3,6 +3,7 @@ import { Canvas } from './components/Canvas.js';
 import { Explanation } from './components/Explanation.js';
 import { Sidebar } from './components/Sidebar.js';
 import { ChatList } from './components/ChatList.js';
+import { SidebarPanel } from './components/SidebarPanel.js';
 import { Breadcrumb } from './components/Breadcrumb.js';
 import { BranchPopover } from './components/BranchPopover.js';
 import { ChatBar } from './components/ChatBar.js';
@@ -67,40 +68,30 @@ export function App(): React.ReactElement {
         {/* Sidebar — split into Chats (top) and Sections (bottom) */}
         <aside data-testid="pane-sidebar" className="w-60 shrink-0 bg-surface-800/40 border-r border-surface-700/50 flex flex-col">
           {/* Chats panel */}
-          <div className="flex flex-col min-h-0">
-            <div className="px-4 py-3 border-b border-surface-700/30">
-              <h2 className="text-[11px] font-semibold uppercase tracking-widest text-surface-400/80">Chats</h2>
-            </div>
-            <div className="flex-1 overflow-y-auto py-2">
-              <ChatList
-                chats={chats}
-                activeChatId={activeChatId}
-                onChatSelect={switchChat}
-                onNewChat={newChat}
-                onDeleteChat={deleteChat}
-              />
-            </div>
-          </div>
+          <SidebarPanel title="Chats">
+            <ChatList
+              chats={chats}
+              activeChatId={activeChatId}
+              onChatSelect={switchChat}
+              onNewChat={newChat}
+              onDeleteChat={deleteChat}
+            />
+          </SidebarPanel>
 
           {/* Divider */}
           <div className="border-t border-surface-700/30" />
 
           {/* Sections panel */}
-          <div className={`flex flex-col min-h-0 flex-1 ${changedPanes.has('sections') ? 'pane-updated' : ''}`}>
-            <div className="px-4 py-3 border-b border-surface-700/30">
-              <h2 className="text-[11px] font-semibold uppercase tracking-widest text-surface-400/80">Sections</h2>
-            </div>
-            <div className="flex-1 overflow-y-auto py-2">
-              <Sidebar
-                sections={sectionList}
-                activeSection={doc?.activeSection ?? ''}
-                onSectionClick={selectSection}
-              />
-              {sectionList.length === 0 && (
-                <p className="px-4 text-sm text-surface-500 italic">No sections yet. Send a prompt to begin.</p>
-              )}
-            </div>
-          </div>
+          <SidebarPanel title="Sections" className={`flex-1 ${changedPanes.has('sections') ? 'pane-updated' : ''}`}>
+            <Sidebar
+              sections={sectionList}
+              activeSection={doc?.activeSection ?? ''}
+              onSectionClick={selectSection}
+            />
+            {sectionList.length === 0 && (
+              <p className="px-4 text-sm text-surface-500 italic">No sections yet. Send a prompt to begin.</p>
+            )}
+          </SidebarPanel>
         </aside>
 
         {/* Center content area */}

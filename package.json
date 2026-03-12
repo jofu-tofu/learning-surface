@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "concurrently -n server,ui -c blue,green \"npx tsx src/server/index.ts ./session 8080\" \"vite\"",
+    "dev": "concurrently -n server,ui -c blue,green \"npx tsx src/server/cli.ts ./session 8080\" \"vite\"",
     "dev:ui": "vite",
-    "dev:server": "npx tsx src/server/index.ts ./session 8080",
+    "dev:server": "npx tsx src/server/cli.ts ./session 8080",
     "build": "tsc && vite build",
     "test": "vitest run",
     "test:watch": "vitest",

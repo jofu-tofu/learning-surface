@@ -2,6 +2,7 @@ import React from 'react';
 import type { Check } from '../../shared/types.js';
 import { useMarkdown } from '../hooks/useMarkdown.js';
 import { EmptyState } from './EmptyState.js';
+import { sectionHeading, focusRing } from '../utils/styles.js';
 
 export interface ExplanationProps {
   explanation: string | null;
@@ -35,7 +36,7 @@ export function Explanation({ explanation, checks, followups, onFollowupClick }:
       {/* Concept checks */}
       {checks.length > 0 && (
         <div className="space-y-3">
-          <h3 className="text-[11px] font-semibold uppercase tracking-widest text-surface-400/80 flex items-center gap-2">
+          <h3 className={`${sectionHeading} flex items-center gap-2`}>
             <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10" />
               <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
@@ -62,7 +63,7 @@ export function Explanation({ explanation, checks, followups, onFollowupClick }:
       {/* Follow-up questions */}
       {followups.length > 0 && (
         <div className="space-y-3">
-          <h3 className="text-[11px] font-semibold uppercase tracking-widest text-surface-400/80 flex items-center gap-2">
+          <h3 className={`${sectionHeading} flex items-center gap-2`}>
             <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="22" y1="2" x2="11" y2="13" />
               <polygon points="22 2 15 22 11 13 2 9 22 2" />
@@ -74,7 +75,7 @@ export function Explanation({ explanation, checks, followups, onFollowupClick }:
               <button
                 key={q}
                 onClick={() => onFollowupClick?.(q)}
-                className="px-3.5 py-2 text-xs font-medium rounded-xl bg-accent-600/10 text-accent-400 border border-accent-500/20 hover:bg-accent-600/20 hover:border-accent-500/40 hover:shadow-sm hover:shadow-accent-500/5 transition-all duration-150 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent-400"
+                className={`px-3.5 py-2 text-xs font-medium rounded-xl bg-accent-600/10 text-accent-400 border border-accent-500/20 hover:bg-accent-600/20 hover:border-accent-500/40 hover:shadow-sm hover:shadow-accent-500/5 transition-all duration-150 cursor-pointer ${focusRing}`}
               >
                 {q}
               </button>

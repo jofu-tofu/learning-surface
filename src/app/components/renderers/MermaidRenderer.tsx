@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAsyncRender } from '../../hooks/useAsyncRender.js';
+import { ErrorBanner } from '../ErrorBanner.js';
 
 const MERMAID_KEYWORDS = /^\s*(graph|flowchart|sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|pie|journey|gitGraph|mindmap|timeline|sankey|xy|block|quadrant|requirement|C4Context|C4Container|C4Component|C4Deployment|C4Dynamic)\b/;
 
@@ -36,11 +37,7 @@ export function MermaidRenderer({ content }: { content: string }): React.ReactEl
           Loading diagram...
         </div>
       )}
-      {error && (
-        <div className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg p-3">
-          {error}
-        </div>
-      )}
+      {error && <ErrorBanner message={error} />}
       {svg && <div dangerouslySetInnerHTML={{ __html: svg }} />}
     </div>
   );

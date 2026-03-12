@@ -15,8 +15,8 @@ export function createCodexProvider(): ReplProvider {
     name: 'Codex (API)',
     type: 'api',
     models: [
-      { id: 'spark', name: 'Spark' },
-      { id: '5.4-low', name: '5.4 Low' },
+      { id: 'spark', name: 'Spark', displayName: '5.3 Spark' },
+      { id: '5.4-low', name: '5.4 Low', displayName: '5.4 Low' },
     ],
   };
 

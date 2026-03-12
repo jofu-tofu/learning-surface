@@ -2,10 +2,9 @@ import React, { useState } from 'react';
 
 export interface PromptPreviewProps {
   prompt: string | null;
-  version: number;
 }
 
-export function PromptPreview({ prompt, version }: PromptPreviewProps): React.ReactElement | null {
+export function PromptPreview({ prompt }: PromptPreviewProps): React.ReactElement | null {
   const [collapsed, setCollapsed] = useState(false);
 
   if (!prompt) return null;
@@ -29,7 +28,7 @@ export function PromptPreview({ prompt, version }: PromptPreviewProps): React.Re
           >
             <polyline points="6 9 12 15 18 9" />
           </svg>
-          v{version}
+          Prompt
         </button>
         {!collapsed && (
           <p className="text-sm text-surface-200 leading-relaxed whitespace-pre-wrap break-words min-w-0">

@@ -3,6 +3,7 @@
 export interface ModelConfig {
   id: string;
   name: string;
+  displayName?: string;
 }
 
 export interface ProviderConfig {

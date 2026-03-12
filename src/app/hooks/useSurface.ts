@@ -1,3 +1,4 @@
+import { useState, useCallback } from 'react';
 import type { LearningDocument, VersionMeta } from '../../shared/types.js';
 
 export interface UseSurfaceReturn {
@@ -10,5 +11,32 @@ export interface UseSurfaceReturn {
 }
 
 export function useSurface(): UseSurfaceReturn {
-  throw new Error('Not implemented');
+  const [document, setDocument] = useState<LearningDocument | null>(null);
+  const [versions, setVersions] = useState<VersionMeta[]>([]);
+  const [currentVersion, setCurrentVersion] = useState(0);
+
+  const submitPrompt = useCallback((_text: string) => {
+    // TODO: send prompt to server
+  }, []);
+
+  const selectVersion = useCallback((version: number) => {
+    setCurrentVersion(version);
+  }, []);
+
+  const selectSection = useCallback((_sectionId: string) => {
+    // TODO: update active section
+  }, []);
+
+  // Suppress unused setter warnings
+  void setDocument;
+  void setVersions;
+
+  return {
+    document,
+    versions,
+    currentVersion,
+    submitPrompt,
+    selectVersion,
+    selectSection,
+  };
 }

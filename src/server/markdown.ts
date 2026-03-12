@@ -5,17 +5,9 @@ import type {
   CanvasContent,
   Check,
 } from '../shared/types.js';
+import { slugify } from '../shared/slugify.js';
 
 // === Helpers ===
-
-function slugify(title: string): string {
-  return title
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '');
-}
 
 interface RawBlock {
   header: string; // the full ### line, e.g. "### canvas: mermaid"
@@ -140,10 +132,10 @@ export function parse(raw: string): LearningDocument {
   // Split content into sections by ## headings
   const sectionRegex = /^## (.+)$/gm;
   const matches: { title: string; start: number }[] = [];
-  let m: RegExpExecArray | null;
+  let match: RegExpExecArray | null;
 
-  while ((m = sectionRegex.exec(content)) !== null) {
-    matches.push({ title: m[1].trim(), start: m.index + m[0].length });
+  while ((match = sectionRegex.exec(content)) !== null) {
+    matches.push({ title: match[1].trim(), start: match.index + match[0].length });
   }
 
   const sections: Section[] = [];
@@ -211,8 +203,8 @@ export function serialize(doc: LearningDocument): string {
 
     if (section.followups) {
       lines.push('### followups');
-      for (const f of section.followups) {
-        lines.push(`- ${f}`);
+      for (const followup of section.followups) {
+        lines.push(`- ${followup}`);
       }
       lines.push('');
     }
@@ -227,7 +219,7 @@ export function applyToolCall(
   params: Record<string, unknown>,
 ): LearningDocument {
   // Deep clone the document
-  const result: LearningDocument = JSON.parse(JSON.stringify(doc));
+  const result: LearningDocument = structuredClone(doc);
 
   const findActive = (): Section | undefined =>
     result.sections.find(s => s.id === result.activeSection);

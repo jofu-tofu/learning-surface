@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { WebSocketServer } from 'ws';
+import { WebSocket, WebSocketServer } from 'ws';
 import { createFileWatcher } from './watcher.js';
 import { createVersionStore } from './versions.js';
 import { parse, serialize, applyToolCall } from './markdown.js';
@@ -24,7 +24,7 @@ export async function startServer(options: {
   function broadcast(msg: WsMessage): void {
     const data = JSON.stringify(msg);
     for (const client of wss.clients) {
-      if (client.readyState === 1) {
+      if (client.readyState === WebSocket.OPEN) {
         client.send(data);
       }
     }

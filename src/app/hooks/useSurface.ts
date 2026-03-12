@@ -22,14 +22,6 @@ export function useSurface(): UseSurfaceReturn {
   const onMessage = useCallback((msg: WsMessage) => {
     switch (msg.type) {
       case 'session-init':
-        if (msg.document) {
-          setDocument(msg.document);
-          setCurrentVersion(msg.document.version);
-        }
-        if (msg.versions) {
-          setVersions(msg.versions);
-        }
-        break;
       case 'document-update':
         if (msg.document) {
           setDocument(msg.document);
@@ -65,11 +57,9 @@ export function useSurface(): UseSurfaceReturn {
   }, [send]);
 
   const selectSection = useCallback((sectionId: string) => {
-    if (document) {
-      setDocument({ ...document, activeSection: sectionId });
-    }
+    setDocument(prev => prev ? { ...prev, activeSection: sectionId } : prev);
     send({ type: 'select-section', sectionId });
-  }, [document, send]);
+  }, [send]);
 
   return {
     document,

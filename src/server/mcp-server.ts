@@ -10,9 +10,6 @@ import { TOOL_DEFS, toolSchemaMap, zodToJsonSchema } from '../shared/schemas.js'
 import { parse, serialize, applyToolCall } from './markdown.js';
 import { createVersionStore } from './versions.js';
 
-// Re-export for tests
-export { toolSchemaMap } from '../shared/schemas.js';
-
 // --- Factory ---
 
 export function createMcpServer(options: {
@@ -76,11 +73,11 @@ export function createMcpServer(options: {
       updated.version = doc.version + 1;
 
       // Write back
-      const content = serialize(updated);
-      writeFileSync(filePath, content, 'utf-8');
+      const serialized = serialize(updated);
+      writeFileSync(filePath, serialized, 'utf-8');
 
       // Create version
-      await versionStore.createVersion(content, {
+      await versionStore.createVersion(serialized, {
         prompt: null,
         timestamp: new Date().toISOString(),
         source: 'ai',

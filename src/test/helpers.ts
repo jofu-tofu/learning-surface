@@ -6,6 +6,7 @@ import type {
   SurfaceContext,
   VersionMeta,
 } from '../shared/types.js';
+import { slugify } from '../shared/slugify.js';
 
 // === Builders ===
 
@@ -199,13 +200,4 @@ function hello(): string {
 A simple TypeScript function.
 `;
 
-// === Helpers ===
 
-function slugify(title: string): string {
-  return title
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '');
-}

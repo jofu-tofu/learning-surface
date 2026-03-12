@@ -79,8 +79,6 @@ export type {
 
 // === WebSocket Message Types ===
 
-export type PaneType = 'canvas' | 'explanation' | 'sidebar' | 'timeline' | 'interaction';
-
 export interface WsMessage {
   type: 'document-update' | 'version-change' | 'session-init';
   document?: LearningDocument;

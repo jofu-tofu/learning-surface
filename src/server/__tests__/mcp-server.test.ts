@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { createMcpServer, toolSchemaMap } from '../mcp-server.js';
+import { createMcpServer } from '../mcp-server.js';
+import { toolSchemaMap } from '../../shared/schemas.js';
 
 describe('MCP Server', () => {
   const TOOL_NAMES = [

@@ -1,18 +1,10 @@
 import React from 'react';
+import { slugify } from '../../shared/slugify.js';
 
 export interface SidebarProps {
   sections: Array<{ title: string; status: string }>;
   activeSection: string;
   onSectionClick?: (sectionId: string) => void;
-}
-
-function slugify(title: string): string {
-  return title
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '');
 }
 
 export function Sidebar({ sections, activeSection, onSectionClick }: SidebarProps): React.ReactElement {

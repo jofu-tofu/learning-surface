@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { CanvasContent } from '../../shared/types.js';
 
 export interface CanvasProps {
@@ -12,7 +12,6 @@ function isMermaidSyntaxValid(content: string): boolean {
 }
 
 function MermaidRenderer({ content }: { content: string }) {
-  const containerRef = useRef<HTMLDivElement>(null);
   const [svg, setSvg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(() =>
     isMermaidSyntaxValid(content) ? null : 'Error: invalid mermaid syntax'
@@ -57,7 +56,7 @@ function MermaidRenderer({ content }: { content: string }) {
   }, [content]);
 
   return (
-    <div data-testid="canvas-mermaid" ref={containerRef} className="canvas-container">
+    <div data-testid="canvas-mermaid" className="canvas-container">
       {loading && (
         <div className="flex items-center gap-2 text-sm text-surface-400">
           <div className="w-4 h-4 border-2 border-surface-500 border-t-accent-400 rounded-full animate-spin" />
@@ -79,21 +78,21 @@ function KatexRenderer({ content }: { content: string }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    try {
-      const katex = require('katex');
-      setHtml(katex.renderToString(content, { throwOnError: false }));
-    } catch (e) {
+    let cancelled = false;
+
+    (async () => {
       try {
-        import('katex').then((mod) => {
-          const k = mod.default || mod;
-          setHtml(k.renderToString(content, { throwOnError: false }));
-        }).catch((err) => {
-          setError(`Error: ${err instanceof Error ? err.message : String(err)}`);
-        });
-      } catch {
-        setError(`Error rendering KaTeX`);
+        const katex = (await import('katex')).default;
+        const rendered = katex.renderToString(content, { throwOnError: false });
+        if (!cancelled) setHtml(rendered);
+      } catch (err) {
+        if (!cancelled) setError(`Error: ${err instanceof Error ? err.message : String(err)}`);
       }
-    }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [content]);
 
   return (

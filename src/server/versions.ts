@@ -69,7 +69,7 @@ export function createVersionStore(): VersionStore {
 
     async listVersions(): Promise<VersionMeta[]> {
       const files = await readdir(dir);
-      const metaFiles = files.filter((f) => f.endsWith('.meta.json')).sort();
+      const metaFiles = files.filter((f) => f.endsWith('.meta.json'));
       const metas: VersionMeta[] = [];
       for (const file of metaFiles) {
         const raw = await readFile(join(dir, file), 'utf-8');

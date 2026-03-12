@@ -1,6 +1,6 @@
 ---
 version: 2
-active_section: the-three-way-handshake
+active_section: what-is-tcp
 ---
 
 ## What is TCP?

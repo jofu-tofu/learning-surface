@@ -21,9 +21,9 @@ export function App(): React.ReactElement {
   const sectionList = doc?.sections.map((s) => ({ title: s.title, status: s.status })) ?? [];
 
   return (
-    <div className="h-screen flex flex-col bg-surface-900 text-surface-100 overflow-hidden">
+    <div className="h-dvh flex flex-col bg-surface-900 text-surface-100 overflow-hidden">
       {/* Header */}
-      <header className="flex items-center justify-between px-5 py-3 bg-surface-800 border-b border-surface-700">
+      <header className="shrink-0 flex items-center justify-between px-5 py-3 bg-surface-800 border-b border-surface-700">
         <div className="flex items-center gap-3">
           <div className="w-7 h-7 rounded-lg bg-accent-600 flex items-center justify-center">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -89,7 +89,7 @@ export function App(): React.ReactElement {
           </div>
 
           {/* Timeline */}
-          <div data-testid="pane-timeline" className="border-t border-surface-700/50 bg-surface-800/30">
+          <div data-testid="pane-timeline" className="shrink-0 border-t border-surface-700/50 bg-surface-800/30">
             <Timeline
               versions={versions}
               currentVersion={currentVersion}
@@ -98,7 +98,7 @@ export function App(): React.ReactElement {
           </div>
 
           {/* Chat bar */}
-          <div data-testid="pane-chatbar" className="border-t border-surface-700">
+          <div data-testid="pane-chatbar" className="shrink-0 border-t border-surface-700">
             <ChatBar onSubmit={submitPrompt} />
           </div>
         </div>

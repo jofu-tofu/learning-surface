@@ -29,7 +29,7 @@ export function ChatBar({ onSubmit, fillPrompt }: ChatBarProps): React.ReactElem
   };
 
   return (
-    <div className="flex items-center gap-3 px-5 py-3 bg-surface-800">
+    <div className="flex items-center gap-3 px-5 py-3 pb-4 bg-surface-800">
       <div className="flex-1 relative">
         <input
           ref={inputRef}

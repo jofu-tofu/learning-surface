@@ -53,6 +53,11 @@ html, body {
   height: 100%;
 }
 
+/* dvh fallback for older browsers */
+@supports not (height: 1dvh) {
+  .h-dvh { height: 100vh; }
+}
+
 /* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 6px;

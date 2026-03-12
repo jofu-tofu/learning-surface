@@ -1,5 +1,6 @@
 import type { ReplProvider, ProviderInfo } from '../../shared/providers.js';
 import { createCliProvider } from './cli.js';
+import { createClaudeCodeProvider } from './claude-code.js';
 
 const providers = new Map<string, ReplProvider>();
 
@@ -9,6 +10,9 @@ function register(provider: ReplProvider): void {
 
 // Register CLI provider (default — uses codex CLI, no API key needed)
 register(createCliProvider());
+
+// Register Claude Code provider (uses claude CLI auth, no API key needed)
+register(createClaudeCodeProvider());
 
 // Register API provider if OPENAI_API_KEY is available
 try {

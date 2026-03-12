@@ -9,7 +9,7 @@ export interface SidebarProps {
 
 export function Sidebar({ sections, activeSection, onSectionClick }: SidebarProps): React.ReactElement {
   return (
-    <nav className="flex flex-col gap-0.5 px-2">
+    <nav className="flex flex-col gap-1 px-2">
       {sections.map((section) => {
         const id = slugify(section.title);
         const isActive = id === activeSection;
@@ -20,10 +20,11 @@ export function Sidebar({ sections, activeSection, onSectionClick }: SidebarProp
             data-testid={isActive ? `section-active-${id}` : `section-${id}`}
             onClick={() => onSectionClick?.(id)}
             className={`
-              flex items-center gap-2.5 w-full text-left px-3 py-2 rounded-lg text-sm transition-colors cursor-pointer
+              flex items-center gap-2.5 w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all duration-150 cursor-pointer
+              focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent-400
               ${isActive
-                ? 'bg-accent-600/20 text-accent-400 font-medium'
-                : 'text-surface-300 hover:bg-surface-700/50 hover:text-surface-100'
+                ? 'bg-accent-600/15 text-accent-400 font-medium shadow-sm shadow-accent-500/5'
+                : 'text-surface-300 hover:bg-surface-700/40 hover:text-surface-100'
               }
             `}
           >

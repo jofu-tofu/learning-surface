@@ -35,7 +35,7 @@ export function Explanation({ explanation, checks, followups, onFollowupClick }:
       {/* Concept checks */}
       {checks.length > 0 && (
         <div className="space-y-3">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-surface-400 flex items-center gap-2">
+          <h3 className="text-[11px] font-semibold uppercase tracking-widest text-surface-400/80 flex items-center gap-2">
             <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10" />
               <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
@@ -46,16 +46,11 @@ export function Explanation({ explanation, checks, followups, onFollowupClick }:
           {checks.map((check) => (
             <div
               key={check.id}
-              className="rounded-lg border border-surface-700 bg-surface-800/50 p-4"
+              className="rounded-xl border border-surface-700/60 bg-surface-800/40 p-4"
             >
-              <p className="text-sm text-surface-200 mb-3">{check.question}</p>
-              {check.status === 'unanswered' && (
-                <button className="px-3 py-1.5 text-xs font-medium rounded-md bg-amber-500/15 text-amber-500 border border-amber-500/30 hover:bg-amber-500/25 transition-colors cursor-pointer">
-                  Think
-                </button>
-              )}
-              {check.status === 'revealed' && check.answer && (
-                <div className="mt-2 pt-3 border-t border-surface-700">
+              <p className="text-sm text-surface-200 mb-3 leading-relaxed">{check.question}</p>
+              {check.answer && (
+                <div className="mt-2 pt-3 border-t border-surface-700/50">
                   <p className="text-sm text-emerald-400">{check.answer}</p>
                 </div>
               )}
@@ -66,8 +61,8 @@ export function Explanation({ explanation, checks, followups, onFollowupClick }:
 
       {/* Follow-up questions */}
       {followups.length > 0 && (
-        <div className="space-y-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-surface-400 flex items-center gap-2">
+        <div className="space-y-3">
+          <h3 className="text-[11px] font-semibold uppercase tracking-widest text-surface-400/80 flex items-center gap-2">
             <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="22" y1="2" x2="11" y2="13" />
               <polygon points="22 2 15 22 11 13 2 9 22 2" />
@@ -79,7 +74,7 @@ export function Explanation({ explanation, checks, followups, onFollowupClick }:
               <button
                 key={q}
                 onClick={() => onFollowupClick?.(q)}
-                className="px-3 py-1.5 text-xs font-medium rounded-full bg-accent-600/15 text-accent-400 border border-accent-500/30 hover:bg-accent-600/25 hover:border-accent-500/50 transition-colors cursor-pointer"
+                className="px-3.5 py-2 text-xs font-medium rounded-xl bg-accent-600/10 text-accent-400 border border-accent-500/20 hover:bg-accent-600/20 hover:border-accent-500/40 hover:shadow-sm hover:shadow-accent-500/5 transition-all duration-150 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent-400"
               >
                 {q}
               </button>

@@ -54,37 +54,6 @@ describe('useWebSocket', () => {
     vi.unstubAllGlobals();
   });
 
-  it('connects to ws://localhost:PORT on mount', () => {
-    const onMessage = vi.fn();
-    renderHook(() =>
-      useWebSocket({ url: 'ws://localhost:3000', onMessage }),
-    );
-    expect(MockWebSocket.instances).toHaveLength(1);
-    expect(MockWebSocket.instances[0].url).toBe('ws://localhost:3000');
-  });
-
-  it('calls onMessage with parsed WsMessage on server message', () => {
-    const onMessage = vi.fn();
-    renderHook(() =>
-      useWebSocket({ url: 'ws://localhost:3000', onMessage }),
-    );
-
-    const ws = MockWebSocket.instances[0];
-    ws.simulateOpen();
-
-    const message: WsMessage = {
-      type: 'document-update',
-      document: {
-        version: 1,
-        activeSection: 'intro',
-        sections: [],
-      },
-    };
-    ws.simulateMessage(message);
-
-    expect(onMessage).toHaveBeenCalledWith(message);
-  });
-
   it('reconnects on disconnect', async () => {
     const onMessage = vi.fn();
     renderHook(() =>

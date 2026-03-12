@@ -1,0 +1,51 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`parse snapshots > DUPLICATE_BLOCK_DOC 1`] = `
+{
+  "activeSection": "test",
+  "sections": [
+    {
+      "explanation": "Second explanation.",
+      "id": "test",
+      "status": "active",
+      "title": "Test",
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`parse snapshots > EMPTY_SECTION_DOC 1`] = `
+{
+  "activeSection": "empty",
+  "sections": [
+    {
+      "id": "empty",
+      "status": "active",
+      "title": "Empty",
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`parse snapshots > UNKNOWN_BLOCK_DOC 1`] = `
+{
+  "activeSection": "test",
+  "sections": [
+    {
+      "_unknownBlocks": [
+        {
+          "content": "Some content here.",
+          "header": "### unknown_block",
+        },
+      ],
+      "explanation": "Known block.",
+      "id": "test",
+      "status": "active",
+      "title": "Test",
+    },
+  ],
+  "version": 1,
+}
+`;

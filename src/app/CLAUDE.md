@@ -18,8 +18,8 @@ Sidebar (ChatList + Sections) | Canvas          | (stacked vertically)
 
 All application state flows through `useSurface()` hook — document, versions, chats, provider selection, WebSocket communication. Components are pure renderers consuming this hook's return value.
 
-- `useSurface` composes `useWebSocket` internally
-- Pane change detection via JSON comparison with 1.2s flash timeout (`changedPanes`)
+- `useSurface` composes `useWebSocket` and `useProviderSelection` internally
+- Pane change detection extracted to `utils/detectChangedPanes.ts`, 1.2s flash timeout (`changedPanes`)
 - Processing state with 2.5s settle timeout
 - Version path/forward-path computed from `shared/version-tree.ts`
 

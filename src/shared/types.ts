@@ -62,21 +62,6 @@ export interface SurfaceContext {
   promptHistory: string[];
 }
 
-// === MCP Tool Parameter Types (derived from Zod schemas — single source of truth) ===
-
-export type {
-  ShowVisualParams,
-  BuildVisualParams,
-  ExplainParams,
-  ExtendParams,
-  ChallengeParams,
-  RevealParams,
-  SuggestFollowupsParams,
-  NewSectionParams,
-  SetActiveParams,
-  ClearParams,
-} from './schemas.js';
-
 // === Chat Types ===
 
 export interface Chat {
@@ -114,12 +99,6 @@ export interface WsMessage {
 }
 
 // === Module Interface Contracts ===
-
-export interface MarkdownEngine {
-  parse(raw: string): LearningDocument;
-  serialize(doc: LearningDocument): string;
-  applyToolCall(doc: LearningDocument, tool: string, params: Record<string, unknown>): LearningDocument;
-}
 
 export interface VersionStore {
   init(sessionDir: string): Promise<void>;

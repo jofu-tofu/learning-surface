@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { ProviderSelector } from './ProviderSelector.js';
 import type { ProviderInfo, ReasoningEffort } from '../../shared/providers.js';
 
 export interface ChatBarProps {
   onSubmit?: (text: string) => void;
-  fillPrompt?: string;
   isProcessing?: boolean;
   providers?: ProviderInfo[];
   selectedProvider?: string | null;
@@ -17,7 +16,6 @@ export interface ChatBarProps {
 
 export function ChatBar({
   onSubmit,
-  fillPrompt,
   isProcessing,
   providers = [],
   selectedProvider = null,
@@ -27,14 +25,7 @@ export function ChatBar({
   onModelChange,
   onReasoningEffortChange,
 }: ChatBarProps): React.ReactElement {
-  const [value, setValue] = useState(fillPrompt ?? '');
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (fillPrompt !== undefined) {
-      setValue(fillPrompt);
-    }
-  }, [fillPrompt]);
+  const [value, setValue] = useState('');
 
   const handleSubmit = () => {
     if (!value.trim() || isProcessing) return;
@@ -53,7 +44,6 @@ export function ChatBar({
     <div className="flex items-center gap-2.5 px-5 py-2 pb-3 bg-surface-800/80">
       <div className="flex-1 relative">
         <input
-          ref={inputRef}
           type="text"
           role="textbox"
           value={value}

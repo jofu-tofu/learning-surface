@@ -31,9 +31,9 @@ src/
     providers/         # AI provider abstraction (CLI via codex exec, API via OpenAI SDK)
     utils/             # WebSocket helpers, version meta reader
   app/                 # React frontend — multi-pane tutoring surface
-    components/        # Canvas, Explanation, Sidebar, ChatList, Breadcrumb, ChatBar, ProviderSelector
-    hooks/             # useSurface (central state), useWebSocket, useMarkdown, useAsyncRender
-    utils/             # versionLabel, styles, formatTime
+    components/        # Canvas, Explanation, Sidebar, SidebarPanel, ChatList, Breadcrumb, ChatBar, ProviderSelector, ErrorBanner
+    hooks/             # useSurface (central state), useWebSocket, useMarkdown, useAsyncRender, useProviderSelection, useClickOutside
+    utils/             # versionLabel, styles, formatTime, detectChangedPanes
   test/                # Test data builders, mock factories, markdown fixtures
 ```
 

@@ -60,27 +60,12 @@ export function useSurface(): UseSurfaceReturn {
   const onMessage = useCallback((msg: WsMessage) => {
     switch (msg.type) {
       case 'session-init':
-        if (msg.document) {
-          setDocument(msg.document);
-          setCurrentVersion(msg.document.version);
-        } else {
-          setDocument(null);
-          setCurrentVersion(0);
-        }
-        if (msg.versions) {
-          setVersions(msg.versions);
-        } else {
-          setVersions([]);
-        }
-        if (msg.chats) {
-          setChats(msg.chats);
-        }
-        if (msg.activeChatId) {
-          setActiveChatId(msg.activeChatId);
-        }
-        if (msg.providers) {
-          autoSelectProvider(msg.providers);
-        }
+        setDocument(msg.document ?? null);
+        setCurrentVersion(msg.document?.version ?? 0);
+        setVersions(msg.versions ?? []);
+        if (msg.chats) setChats(msg.chats);
+        if (msg.activeChatId) setActiveChatId(msg.activeChatId);
+        if (msg.providers) autoSelectProvider(msg.providers);
         prevDocRef.current = msg.document ?? null;
         setIsProcessing(false);
         setChangedPanes(new Set());
@@ -129,10 +114,6 @@ export function useSurface(): UseSurfaceReturn {
         if (msg.activeChatId) {
           setActiveChatId(msg.activeChatId);
         }
-        break;
-
-      case 'chat-deleted':
-        // Handled via session-init or chat-list that follows
         break;
 
       case 'provider-list':

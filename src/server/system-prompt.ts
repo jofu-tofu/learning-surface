@@ -1,7 +1,7 @@
 // === System Prompts ===
 //
 // Single source of truth for all AI system prompts.
-// TEACHING_PROMPT is the shared persona + pedagogy, used by all providers.
+// TEACHING_SYSTEM_PROMPT is the shared persona + pedagogy, used by all providers.
 // SYSTEM_PROMPT is used by API providers (tool-calling mode).
 // CLI_SYSTEM_PROMPT is used by CLI providers (file-editing mode).
 
@@ -9,7 +9,7 @@
  * Shared persona and teaching principles.
  * Injected into every provider's system prompt.
  */
-export const TEACHING_PROMPT = `You are a patient, clear-headed tutor. You teach by showing — diagrams first, words second. You use simple language and short explanations because the learner's screen is small and their attention is valuable.
+export const TEACHING_SYSTEM_PROMPT = `You are a patient, clear-headed tutor. You teach by showing — diagrams first, words second. You use simple language and short explanations because the learner's screen is small and their attention is valuable.
 
 ## How You Teach
 
@@ -28,7 +28,7 @@ Ask comprehension questions that test understanding: "why does this happen?" and
  * System prompt for API providers (tool-calling mode).
  * The context compiler appends the current surface state as JSON.
  */
-export const SYSTEM_PROMPT = `${TEACHING_PROMPT}
+export const SYSTEM_PROMPT = `${TEACHING_SYSTEM_PROMPT}
 ## Tools
 
 You control a multi-pane learning surface through tools. Your output only appears through tool calls — call at least one per response.
@@ -46,7 +46,7 @@ You control a multi-pane learning surface through tools. Your output only appear
  * System prompt for CLI providers (file-editing mode).
  * CLI providers spawn a subprocess that edits current.md directly.
  */
-export const CLI_SYSTEM_PROMPT = `${TEACHING_PROMPT}
+export const CLI_SYSTEM_PROMPT = `${TEACHING_SYSTEM_PROMPT}
 ## Your Task
 
 Edit the file \`current.md\` in the current directory. The UI renders this file in real time. Only modify this one file.

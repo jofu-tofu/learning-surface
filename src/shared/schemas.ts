@@ -48,19 +48,6 @@ export const ClearSchema = z.object({
   section: z.string().optional(),
 });
 
-// === Inferred TypeScript Types ===
-
-export type ShowVisualParams = z.infer<typeof ShowVisualSchema>;
-export type BuildVisualParams = z.infer<typeof BuildVisualSchema>;
-export type ExplainParams = z.infer<typeof ExplainSchema>;
-export type ExtendParams = z.infer<typeof ExtendSchema>;
-export type ChallengeParams = z.infer<typeof ChallengeSchema>;
-export type RevealParams = z.infer<typeof RevealSchema>;
-export type SuggestFollowupsParams = z.infer<typeof SuggestFollowupsSchema>;
-export type NewSectionParams = z.infer<typeof NewSectionSchema>;
-export type SetActiveParams = z.infer<typeof SetActiveSchema>;
-export type ClearParams = z.infer<typeof ClearSchema>;
-
 // === Tool Definitions ===
 
 export interface ToolDef {

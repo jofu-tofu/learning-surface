@@ -33,7 +33,3 @@ export function listProviders(): ProviderInfo[] {
     models: p.config.models,
   }));
 }
-
-export function getDefaultProvider(): ReplProvider | undefined {
-  return providers.values().next().value;
-}

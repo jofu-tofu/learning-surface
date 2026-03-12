@@ -5,8 +5,8 @@ Data contracts and shared abstractions consumed by both server and app.
 ## Conventions
 
 - **Zod is the single source of truth** for all data shapes. Types in `types.ts` are re-exported `z.infer<>` results from `schemas.ts` — never define data types manually.
-- `types.ts` also defines **behavioral interfaces** (`MarkdownEngine`, `VersionStore`, `ContextCompiler`, `FileWatcherService`) — these are the DI seams used throughout the server.
-- `schemas.ts` contains `TOOL_DEFS` (all 11 MCP tool definitions with name/description/Zod schema) and `zodToJsonSchema()` for MCP SDK integration.
+- `types.ts` also defines **behavioral interfaces** (`VersionStore`, `ContextCompiler`, `FileWatcherService`) — these are the DI seams used throughout the server.
+- `schemas.ts` contains `TOOL_DEFS` (all 10 MCP tool definitions with name/description/Zod schema) and `zodToJsonSchema()` for MCP SDK integration.
 - `providers.ts` defines the `ReplProvider` interface (strategy pattern) — `complete()` accepts an `onToolCall` callback for API-mode tool execution loops.
 
 ## Structured Markdown Format
@@ -41,7 +41,7 @@ The data contract between all modules. Documents use YAML frontmatter + `##` sec
 ## Gotchas
 
 - Changes to `schemas.ts` tool definitions must stay in sync with `server/tool-handlers.ts` (the handler registry) and `server/markdown.ts` (the parser/serializer).
-- The structured markdown format is also inlined as a prompt constant in `server/providers/cli.ts` — if the format changes, update that constant too.
+- The structured markdown format is inlined in `server/system-prompt.ts` (`CLI_SYSTEM_PROMPT`) — if the format changes, update that constant too.
 
 ---
 ## Context Maintenance

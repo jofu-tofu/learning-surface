@@ -1,0 +1,53 @@
+# App
+
+React frontend — multi-pane tutoring surface. Vite build, Tailwind CSS v4, jsdom test environment.
+
+## Layout
+
+```
+Sidebar (ChatList + Sections) | Canvas          | (stacked vertically)
+                              | Explanation     |
+                              | PromptPreview   |
+                              | Breadcrumb      |
+                              | ChatBar         |
+```
+
+**Why multi-pane, not single-document:** A single scrollable document serializes things that should be simultaneous. The diagram must stay visible during explanation — spatial contiguity (Mayer) enforced by layout, not scroll proximity. The canvas is the persistent "whiteboard"; explanation and interaction happen alongside it.
+
+## State Management
+
+All application state flows through `useSurface()` hook — document, versions, chats, provider selection, WebSocket communication. Components are pure renderers consuming this hook's return value.
+
+- `useSurface` composes `useWebSocket` internally
+- Pane change detection via JSON comparison with 1.2s flash timeout (`changedPanes`)
+- Processing state with 2.5s settle timeout
+- Version path/forward-path computed from `shared/version-tree.ts`
+
+## Key Components
+
+| Component | Pane | Role |
+|-----------|------|------|
+| `Canvas` | Upper main | Renders Mermaid diagrams, KaTeX math, code blocks |
+| `Explanation` | Lower main | Markdown text, concept checks, follow-up questions |
+| `Sidebar` | Left (bottom) | Section TOC with status indicators |
+| `ChatList` | Left (top) | Chat list with create/switch/delete |
+| `Breadcrumb` | Below main | Version timeline with dot navigation |
+| `ChatBar` | Bottom | Prompt input with provider/model selector |
+| `ProviderSelector` | In ChatBar | Provider and model dropdown |
+
+Renderers (`components/renderers/`): `MermaidRenderer`, `KatexRenderer`, `CodeRenderer` — each handles async rendering with loading/error states via `useAsyncRender`.
+
+## Conventions
+
+- Tailwind classes co-located in components — no separate CSS files
+- `@tailwindcss/typography` `prose` class for reading-optimized text in Explanation pane
+- Shared Tailwind constants in `utils/styles.ts`
+- Component tests use React Testing Library + jsdom (no browser needed)
+
+---
+## Context Maintenance
+
+**After modifying files in this directory:** scan the entries above — if any claim is now
+false or incomplete, update this file before ending the task. Do not defer.
+
+**Staleness anchor:** This file assumes `App.tsx` exists. If it doesn't, this file is stale.

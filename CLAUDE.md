@@ -2,57 +2,67 @@
 
 A comprehension engine that transforms AI output into a multi-pane learning surface. Not a chat UI, not a note-taking app — a pedagogy layer between AI and the learner, controlled via semantic MCP tools.
 
-**Status:** Implemented — all server modules functional (markdown, versions, chat-store, context, mcp-server, watcher, index, providers). Multi-pane UI with split sidebar (chat list + sections), breadcrumb version timeline, multi-chat persistence, and REPL provider integration with provider/model selector. All tests pass (140 tests across 14 files).
+## Commands
 
-## Project Structure
+| Command | Purpose |
+|---------|---------|
+| `npm test` | Run all tests (vitest) |
+| `npx tsc --noEmit` | Type check |
+| `npm run dev` | Start Vite dev server (frontend) |
+
+Server tests run in node environment; component tests run in jsdom.
+
+## Testing Philosophy
+
+**Boundary tests only.** Tests cover edge cases, error conditions, empty/null/missing inputs, invalid data, fallback behavior, and guard clauses. No happy-path "it works" tests — those add noise without catching regressions at the boundaries where bugs live. When adding tests, ask: "does this test a boundary condition?" If not, don't write it.
+
+## Architecture
 
 ```
-spec/                  # Product specification (read spec/CLAUDE.md first)
-  PHILOSOPHY.md        # Why this exists, core principles, constraints
-  RESEARCH.md          # Competitive landscape, academic foundations, gap analysis
-  DESIGN_BRIEF.md      # What to build — architecture, interaction model, MVP definition
 src/
-  shared/
-    types.ts           # All shared TypeScript types and interface contracts
-    providers.ts       # REPL provider abstraction (ReplProvider interface, ProviderInfo)
-    FORMAT.md          # Structured markdown format specification (data contract)
-  server/
-    markdown.ts        # parse/serialize/applyToolCall for structured markdown
-    versions.ts        # Version store (v1.md + patches + meta.json)
-    chat-store.ts      # Chat persistence (multi-chat CRUD, chats.json index)
-    context.ts         # Context compiler (surface state → JSON for AI)
-    mcp-server.ts      # MCP server exposing semantic teaching tools
-    watcher.ts         # File watcher (chokidar → WebSocket)
-    index.ts           # Server entry point (multi-chat aware, provider-integrated)
-    providers/
-      registry.ts      # Provider registry (register, lookup, list)
-      codex.ts         # Codex provider (OpenAI API with tool calling)
-  app/
-    components/        # React components: Canvas, Explanation, Sidebar, ChatList, Timeline, ChatBar, ProviderSelector
-    hooks/             # useWebSocket, useSurface
-    App.tsx            # Root component with multi-pane grid layout
-    main.tsx           # Vite entry point
-  test/
-    helpers.ts         # Test data builders and markdown fixtures
+  shared/              # Data contracts, Zod schemas, shared types and utilities
+  server/              # Node.js server — WebSocket hub, document I/O, versioning, AI orchestration
+    providers/         # AI provider abstraction (CLI via codex exec, API via OpenAI SDK)
+    utils/             # WebSocket helpers, version meta reader
+  app/                 # React frontend — multi-pane tutoring surface
+    components/        # Canvas, Explanation, Sidebar, ChatList, Breadcrumb, ChatBar, ProviderSelector
+    hooks/             # useSurface (central state), useWebSocket, useMarkdown, useAsyncRender
+    utils/             # versionLabel, styles, formatTime
+  test/                # Test data builders, mock factories, markdown fixtures
 ```
+
+**Content pipeline:** User prompt -> AI provider -> semantic MCP tools -> structured markdown file -> file watcher -> WebSocket -> rendered surface
+
+**Data model:** `chats.json` index -> per-chat directories -> `v1.md` + patches + `meta.json` -> version reconstruction
 
 ## Constraints
 
 - Single window — no tab-switching, no separate apps
-- Must work with existing REPL subscriptions — no separate API keys required (provider integration uses OPENAI_API_KEY env var)
+- Must work with existing REPL subscriptions — CLI provider uses codex CLI auth (default, no API key); API provider uses `OPENAI_API_KEY` env var
 - Use existing libraries (markdown-it, Mermaid, KaTeX, chokidar) — do not build custom parsers or renderers
 - Desktop-first (VS Code / browser)
 
-## Development
+## Design Principles
 
-- `npm test` — run all tests (vitest)
-- `npx tsc --noEmit` — type check
-- Server tests run in node environment; component tests run in jsdom
+These shape every implementation decision — violating them means the code is wrong:
+
+- **Semantic tools, not document-editing primitives.** The AI calls teaching verbs (`show_visual`, `explain`, `challenge`), not text-manipulation mechanics. Tool definitions ARE the prompt engineering.
+- **Stateless AI agent.** No conversation history carried between interactions. The app compiles a structured JSON context from the current surface state.
+- **Filesystem as source of truth.** Structured markdown files on disk, diffs as patches, file watcher pushes changes to frontend.
+- **Multi-pane, not single-document.** Diagram stays visible during explanation. Spatial contiguity (Mayer) enforced by layout, not scroll proximity.
+- **Create vs. append.** New topics use creation tools (full write). Follow-ups use append tools (incremental, token-efficient). No find/replace tools — too fragile.
+
+## Roadmap (not yet built)
+
+Cross-session concept linking, PDF side-by-side viewer, spaced repetition scheduling, flashcard generation, concept graph, progressive disclosure within panes, user-editable explanations, timeline branching UX.
 
 ## Context Tree
 
 Read the relevant CLAUDE.md before working in that directory:
-- `spec/CLAUDE.md` — key decisions, MVP scope, architecture summary, open questions
+- `src/shared/CLAUDE.md` — data contracts, structured markdown format, Zod conventions
+- `src/server/CLAUDE.md` — server architecture, MCP tool philosophy, DI patterns
+- `src/server/providers/CLAUDE.md` — provider abstraction, CLI vs API mode
+- `src/app/CLAUDE.md` — frontend architecture, multi-pane layout, component roles
 
 ---
 ## Context Maintenance
@@ -61,9 +71,11 @@ Read the relevant CLAUDE.md before working in that directory:
 false or incomplete, update this file before ending the task. Do not defer.
 
 **Add** an entry only if an agent would fail without knowing it, it is not obvious from
-the code, and it belongs at this scope (project-wide → here; spec-specific → `spec/CLAUDE.md`).
+the code, and it belongs at this scope (project-wide rule -> root CLAUDE.md; WHY decision
+-> inline comment or ADR; inferable from code -> nowhere).
 
 **Remove** any entry that fails the falsifiability test: if removing it would not change
-how an agent acts, remove it.
+how an agent acts, remove it. If a convention here conflicts with the codebase,
+the codebase wins — update this file, do not work around it. Prune aggressively.
 
-**Staleness anchor:** This file assumes `spec/DESIGN_BRIEF.md` exists. If it doesn't, this file is stale.
+**Staleness anchor:** This file assumes `src/server/index.ts` exists. If it doesn't, this file is stale.

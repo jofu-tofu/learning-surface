@@ -37,7 +37,7 @@ summary: <string>            # (optional) AI-generated short label for this vers
 |-------|--------|-----------|-----------------|----------------|
 | Canvas | `### canvas: TYPE` where TYPE is `mermaid`, `katex`, or `code` | No | 1 | Raw content until next `##` or `###` heading. For `code`, an optional ` ```language` fence may wrap the content. |
 | Explanation | `### explanation` | No | 1 | Markdown text (may contain inline formatting, links, lists). Terminated by next `###` or `##` heading or EOF. |
-| Check | `### check: ID` | No | Unlimited | First line after header = question text. Followed by optional `<!-- status: unanswered|attempted|revealed -->`. If revealed, `<!-- answer: ... -->` and `<!-- explanation: ... -->` follow. |
+| Check | `### check: ID` | No | Unlimited | First line after header = question text. Followed by `<!-- status: unanswered|attempted|revealed -->`. Optional `<!-- hints: ["h1","h2"] -->` (JSON array). If revealed, `<!-- answer: ... -->` and `<!-- explanation: ... -->` follow. |
 | Followups | `### followups` | No | 1 | Markdown unordered list (`- item`). Each item is a follow-up question string. |
 
 ## Block ordering

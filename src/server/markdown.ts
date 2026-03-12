@@ -72,18 +72,34 @@ function parseSection(title: string, body: string): Section & { _unknownBlocks?:
     if (checkMatch) {
       const checkId = checkMatch[1];
       const checkLines = block.content.split('\n');
-      // First non-empty line is the question
+      // First non-empty, non-comment line is the question
       let question = '';
       let checkStatus: Check['status'] = 'unanswered';
+      let hints: string[] | undefined;
+      let answer: string | undefined;
+      let answerExplanation: string | undefined;
+
       const nonEmpty = checkLines.filter(l => l.trim() !== '');
-      if (nonEmpty.length > 0) {
-        question = nonEmpty[0].trim();
+      for (const line of nonEmpty) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('<!--')) {
+          const statusM = trimmed.match(/<!--\s*status:\s*(unanswered|attempted|revealed)\s*-->/);
+          if (statusM) { checkStatus = statusM[1] as Check['status']; continue; }
+          const hintsM = trimmed.match(/<!--\s*hints:\s*(.*?)\s*-->/);
+          if (hintsM) { try { hints = JSON.parse(hintsM[1]); } catch { /* ignore malformed */ } continue; }
+          const answerM = trimmed.match(/<!--\s*answer:\s*(.*?)\s*-->/);
+          if (answerM) { answer = answerM[1]; continue; }
+          const explM = trimmed.match(/<!--\s*explanation:\s*(.*?)\s*-->/);
+          if (explM) { answerExplanation = explM[1]; continue; }
+        }
+        if (!question) { question = trimmed; }
       }
-      const checkStatusMatch = block.content.match(/<!--\s*status:\s*(unanswered|attempted|revealed)\s*-->/);
-      if (checkStatusMatch) {
-        checkStatus = checkStatusMatch[1] as Check['status'];
-      }
-      checks.push({ id: checkId, question, status: checkStatus });
+
+      const check: Check = { id: checkId, question, status: checkStatus };
+      if (hints) check.hints = hints;
+      if (answer !== undefined) check.answer = answer;
+      if (answerExplanation !== undefined) check.answerExplanation = answerExplanation;
+      checks.push(check);
       continue;
     }
 
@@ -202,6 +218,15 @@ export function serialize(doc: LearningDocument): string {
         lines.push(`### check: ${check.id}`);
         lines.push(check.question);
         lines.push(`<!-- status: ${check.status} -->`);
+        if (check.hints && check.hints.length > 0) {
+          lines.push(`<!-- hints: ${JSON.stringify(check.hints)} -->`);
+        }
+        if (check.answer !== undefined) {
+          lines.push(`<!-- answer: ${check.answer} -->`);
+        }
+        if (check.answerExplanation !== undefined) {
+          lines.push(`<!-- explanation: ${check.answerExplanation} -->`);
+        }
         lines.push('');
       }
     }

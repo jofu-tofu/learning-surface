@@ -13,7 +13,7 @@ Quick-reference for agents working in the `spec/` directory.
 
 ## MVP Scope
 
-12 must-haves (see DESIGN_BRIEF.md §10): multi-pane layout, semantic MCP tools, creation+edit tools, real-time streaming, rich rendering, version timeline, diff tracking, chat list + section TOC, structured JSON context, reading-optimized layout, multi-chat persistence, summary field.
+12 must-haves (see DESIGN_BRIEF.md §10): multi-pane layout, semantic MCP tools, creation+append tools, real-time streaming, rich rendering, version timeline, diff tracking, chat list + section TOC, structured JSON context, reading-optimized layout, multi-chat persistence, summary field.
 
 ## Architecture Summary
 

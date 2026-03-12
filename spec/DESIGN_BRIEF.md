@@ -248,7 +248,7 @@ Each layer is independently testable:
 
 | Temptation | Why to Avoid |
 |-----------|-------------|
-| Full pane regeneration per prompt | Too slow, too expensive. Use edit tools (`edit_visual`, `extend`) for follow-ups, not creation tools. |
+| Full pane regeneration per prompt | Too slow, too expensive. Use append tools (`build_visual`, `extend`) for follow-ups, not creation tools. |
 | Separate API key / AI subscription | Use the REPL subscription the user already has. |
 | Custom markdown parser | Use markdown-it or remark. Solved problem. |
 | Custom diagram renderer | Use Mermaid. Solved problem. |
@@ -268,9 +268,9 @@ The hardest design question isn't technical — it's pedagogical. What should th
 
 **Build up, don't dump.** Tutors on whiteboards draw one thing at a time. They don't reveal the complete diagram first — they draw the first arrow, explain it, add the next. The whiteboard is built incrementally, exactly like our streaming MCP tool calls.
 
-**Point and reference.** Tutors point at something already on the board while explaining the next thing. The whiteboard is persistent context. This maps directly to the multi-pane model — the canvas stays visible with the diagram while the explanation pane references specific elements via `annotate`.
+**Point and reference.** Tutors point at something already on the board while explaining the next thing. The whiteboard is persistent context. This maps directly to the multi-pane model — the canvas stays visible with the diagram while the explanation pane references specific elements.
 
-**Erase and redraw.** When the student doesn't get it, the tutor doesn't add more text — they erase and try a different representation. This is the `edit_visual` / `show_visual` tool pattern — replace the canvas with a different approach.
+**Erase and redraw.** When the student doesn't get it, the tutor doesn't add more text — they erase and try a different representation. This is `show_visual` — replace the canvas with a different approach entirely.
 
 **Test before reveal.** Quantum Country embeds spaced repetition cards directly inline — you read a few paragraphs, then a card asks you to recall what you just read. Bjork's "desirable difficulty" research: making the learner predict before revealing produces dramatically better retention.
 
@@ -412,7 +412,7 @@ The surface is a **multi-pane tutoring environment that the AI controls via sema
 
 ### Key Properties
 
-**Edits, not rewrites.** The AI has both creation tools (`show_visual`, `explain`) and edit tools (`edit_visual`, `edit_explanation`, `build_visual`, `extend`). For new topics, it creates. For follow-ups and refinements, it edits. The edit tools take `find`/`replace` or `additions` parameters — the AI outputs only the delta, not the full content. This is fast and token-efficient.
+**Incremental, not rewrites.** The AI has creation tools (`show_visual`, `explain`) and append tools (`build_visual`, `extend`). For new topics, it creates. For follow-ups and elaboration, it appends. The append tools take only the new content — the AI outputs only the delta, not the full content. This is fast and token-efficient.
 
 **Real-time streaming.** As the AI streams its tool calls, each pane re-renders live. You watch the canvas diagram get built up. The explanation text appears alongside it. The concept check materializes in the interaction area. The surface is alive.
 
@@ -503,21 +503,26 @@ This is still human-readable markdown. Each learning section has a consistent st
 
 The AI calls **semantic MCP tools** that map to teaching actions, not document editing primitives. Each tool targets a specific pane. The MCP server translates tool calls into edits on the structured markdown file.
 
+**Tool design philosophy — three criteria for every tool:**
+
+1. **Semantic clarity.** Each tool must map to a meaningful teaching action ("show a visual," "extend the explanation," "challenge the learner"). If a tool maps to a text-manipulation mechanic (find/replace, insert-at-offset), it doesn't belong — that's a document-editing primitive, not a pedagogical verb.
+2. **Token efficiency.** Tools should minimize the tokens the AI needs to output to express its delta. Full-replacement tools (`show_visual`, `explain`) are for creation. Append tools (`build_visual`, `extend`) are for incremental elaboration — the AI outputs only the new content, not the entire existing canvas or explanation again. But find/replace tools fail this test in practice: they're fragile (silent no-op on mismatch) and the AI can't reliably target the right substring.
+3. **Natural legibility.** The AI should understand what a tool does from its name alone, without reading documentation. `show_visual` → "show them a visual." `extend` → "extend the explanation." `challenge` → "pose a challenge." If the name requires explanation, the tool is wrong.
+
+Tools that fail any criterion get dropped. This is why there are no `edit_visual(find, replace)`, `edit_explanation(find, replace)`, or `annotate(element, label)` tools — they map to text mechanics, not teaching actions. When the AI needs to correct content, it uses the creation tool (`show_visual` or `explain`) to rewrite. The extra tokens are worth the reliability.
+
 **Canvas tools** (visual pane):
 
 ```
-show_visual(type, content, title)         # New visual for a new section (full write)
-edit_visual(find, replace)                # Surgical change to existing visual (incremental)
-build_visual(additions)                   # Add elements to existing visual (incremental)
-annotate(element, label)                  # Label/highlight element in visual (tiny edit)
+show_visual(type, content)                # Set/replace the visual (full write)
+build_visual(additions)                   # Add elements to existing visual (append)
 ```
 
 **Explanation tools** (explanation pane):
 
 ```
-explain(content)                          # New explanation for a new section (full write)
-edit_explanation(find, replace)           # Surgical change to existing explanation (incremental)
-extend(content, position?)                # Append or prepend detail (incremental)
+explain(content)                          # Set/replace the explanation (full write)
+extend(content)                           # Elaborate on the explanation (append)
 ```
 
 **Interaction tools** (interaction area):
@@ -537,9 +542,9 @@ set_active(section)                       # Switch focus to a different section
 ```
 
 **Why semantic tools over document-editing tools:**
-- **The tool definitions ARE the prompt engineering.** The AI sees `edit_visual(find, replace)` and naturally produces minimal output. It sees `show_visual(content)` and knows to produce full content. The tool interface constrains the output format without needing elaborate instructions.
+- **The tool definitions ARE the prompt engineering.** The AI sees `show_visual(content)` and knows to produce full content. It sees `build_visual(additions)` and knows to produce only the new part. The tool interface constrains the output format without needing elaborate instructions.
 - **Each tool targets a pane.** The AI doesn't need to know about layout — `show_visual` goes to the canvas, `explain` goes to the explanation pane, `challenge` goes to the interaction area. The MCP server handles the mapping.
-- **Creation and edit variants preserve performance.** New topics use creation tools (full write, unavoidable). Follow-ups use edit tools (incremental, fast). The AI naturally picks the right one based on context.
+- **Create vs. append preserves performance.** New topics use creation tools (full write, unavoidable). Follow-ups use append tools (incremental, fast). The AI naturally picks the right one based on context.
 - **Teaching-oriented vocabulary.** The AI thinks in terms of "show a visual, explain it, challenge the learner" rather than "insert text at line 47." This produces better pedagogical output because the tools frame the task as teaching, not editing.
 
 **Performance profile:**
@@ -548,7 +553,6 @@ set_active(section)                       # Switch focus to a different section
 |---|---|---|---|
 | "Explain TCP" (new topic) | `new_section` + `show_visual` + `explain` + `suggest_followups` | ~500 tokens (full write, expected) | New section added |
 | "Go deeper on the handshake" | `build_visual` + `extend` | ~100 tokens (incremental) | Few lines changed/added |
-| "Annotate the SYN arrow" | `annotate` | ~15 tokens | One line added |
 | "Why three steps?" | `challenge` | ~30 tokens | Check block added |
 | "Now explain UDP" (new topic) | `complete_section` + `new_section` + `show_visual` + `explain` | ~400 tokens (full write, new topic) | Old section marked complete, new section added |
 
@@ -558,11 +562,11 @@ The only full writes are for genuinely new content. Everything else is increment
 
 Learning content is mostly things the AI already knows well — it can generate Mermaid diagrams, LaTeX, explanations, and cross-references quickly. The rendering model takes advantage of this with a two-pass approach that prioritizes perceived speed.
 
-**Pass 1 — Paint.** The AI calls creation and edit tools fast. Visuals, explanations, concept checks — stream them all in and render across panes immediately. The user sees the surface populate within seconds.
+**Pass 1 — Paint.** The AI calls creation and append tools fast. Visuals, explanations, concept checks — stream them all in and render across panes immediately. The user sees the surface populate within seconds.
 
-**Pass 2 — Verify.** The AI reviews what it just painted. It checks factual accuracy, validates diagram correctness, ensures the explanation matches the visual. If something is wrong, it calls the edit tools to fix it — `edit_visual`, `edit_explanation`. The user sees the correction applied smoothly with the pane highlight indicating where the fix is happening.
+**Pass 2 — Verify.** The AI reviews what it just painted. It checks factual accuracy, validates diagram correctness, ensures the explanation matches the visual. If something is wrong, it calls the creation tools to rewrite (`show_visual`, `explain`). The user sees the correction applied smoothly with the pane highlight indicating where the fix is happening.
 
-**The same edit tools handle both passes.** There's no special "correction" path. A verification fix uses the same `edit_visual` or `edit_explanation` tools as a user-prompted refinement. The abstraction is unified.
+**The same creation tools handle both passes.** There's no special "correction" path. A verification fix uses the same `show_visual` or `explain` tools as a user-prompted refinement. The abstraction is unified.
 
 ### Context Management: Stateless Agent + Compiled Context
 
@@ -608,7 +612,7 @@ The REPL agent starts fresh on every prompt. No conversation history is carried 
 **Why structured JSON instead of raw markdown:**
 - **The AI sees exactly what's on screen.** `canvas.content` is what's in the canvas pane. `explanation` is what's in the explanation pane. No parsing ambiguity.
 - **Compact.** The JSON state for a learning session is typically a few hundred tokens — far smaller than the full markdown file with all accumulated sections.
-- **Edit tools make sense.** When the AI sees `canvas.content` and the user asks to "annotate the SYN arrow," it knows exactly what to reference in `annotate(element, label)`.
+- **Append tools make sense.** When the AI sees `canvas.content` and the user asks to "add detail to the diagram," it calls `build_visual` with only the new elements. When the user asks to change the diagram entirely, it calls `show_visual` with the full replacement.
 - **Sections give navigation context.** The AI sees what's been covered (`completed`) and what's active. It can make informed decisions about whether to extend the current section or start a new one.
 
 **How it handles the conversational feel:**
@@ -646,7 +650,7 @@ The smallest thing that tests the core hypothesis: **"A multi-pane tutoring surf
 ### MVP Must Have
 1. Web app with **multi-pane layout**: navigation sidebar (chat list + section list), canvas pane, explanation + interaction pane, chat bar, version timeline
 2. User types a prompt → AI calls **semantic MCP tools** to populate/edit panes (not full rewrites)
-3. **Both creation and edit tools**: `show_visual` / `edit_visual`, `explain` / `edit_explanation` / `extend`, etc. — new topics get creation tools, follow-ups get incremental edit tools
+3. **Creation and append tools**: `show_visual` / `build_visual`, `explain` / `extend`, etc. — new topics get creation tools (full write), follow-ups get append tools (incremental)
 4. **Real-time streaming**: panes re-render live as AI streams tool calls
 5. Rich rendering: Mermaid diagrams, KaTeX math, syntax-highlighted code (within panes)
 6. **Version timeline**: scrub back and forth through surface states

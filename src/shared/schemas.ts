@@ -5,36 +5,19 @@ import { z } from 'zod';
 export const ShowVisualSchema = z.object({
   type: z.enum(['mermaid', 'katex', 'code']),
   content: z.string(),
-  title: z.string().optional(),
   language: z.string().optional(),
-});
-
-export const EditVisualSchema = z.object({
-  find: z.string(),
-  replace: z.string(),
 });
 
 export const BuildVisualSchema = z.object({
   additions: z.string(),
 });
 
-export const AnnotateSchema = z.object({
-  element: z.string(),
-  label: z.string(),
-});
-
 export const ExplainSchema = z.object({
   content: z.string(),
 });
 
-export const EditExplanationSchema = z.object({
-  find: z.string(),
-  replace: z.string(),
-});
-
 export const ExtendSchema = z.object({
   content: z.string(),
-  position: z.enum(['before', 'after']).optional(),
 });
 
 export const ChallengeSchema = z.object({
@@ -64,14 +47,16 @@ export const SetActiveSchema = z.object({
   section: z.string(),
 });
 
+export const ClearSchema = z.object({
+  target: z.enum(['canvas', 'explanation', 'checks', 'followups', 'section', 'all']),
+  section: z.string().optional(),
+});
+
 // === Inferred TypeScript Types ===
 
 export type ShowVisualParams = z.infer<typeof ShowVisualSchema>;
-export type EditVisualParams = z.infer<typeof EditVisualSchema>;
 export type BuildVisualParams = z.infer<typeof BuildVisualSchema>;
-export type AnnotateParams = z.infer<typeof AnnotateSchema>;
 export type ExplainParams = z.infer<typeof ExplainSchema>;
-export type EditExplanationParams = z.infer<typeof EditExplanationSchema>;
 export type ExtendParams = z.infer<typeof ExtendSchema>;
 export type ChallengeParams = z.infer<typeof ChallengeSchema>;
 export type RevealParams = z.infer<typeof RevealSchema>;
@@ -79,6 +64,7 @@ export type SuggestFollowupsParams = z.infer<typeof SuggestFollowupsSchema>;
 export type NewSectionParams = z.infer<typeof NewSectionSchema>;
 export type CompleteSectionParams = z.infer<typeof CompleteSectionSchema>;
 export type SetActiveParams = z.infer<typeof SetActiveSchema>;
+export type ClearParams = z.infer<typeof ClearSchema>;
 
 // === Tool Definitions ===
 
@@ -91,68 +77,58 @@ export interface ToolDef {
 export const TOOL_DEFS: ToolDef[] = [
   {
     name: 'show_visual',
-    description: 'Display a visual (diagram, equation, or code) in the canvas pane',
+    description: 'Replace the canvas pane with a new visual. Erases any existing visual in the active section. Use this for the first visual or to redraw from scratch. For code visuals, set language for syntax highlighting.',
     schema: ShowVisualSchema,
   },
   {
-    name: 'edit_visual',
-    description: 'Find-and-replace within the current canvas visual',
-    schema: EditVisualSchema,
-  },
-  {
     name: 'build_visual',
-    description: 'Append content to the current canvas visual incrementally',
+    description: 'Append content to the existing canvas visual line by line. Requires a prior show_visual — does nothing if the canvas is empty. Use this to build up a diagram or code block incrementally.',
     schema: BuildVisualSchema,
   },
   {
-    name: 'annotate',
-    description: 'Add an annotation label to a canvas element',
-    schema: AnnotateSchema,
-  },
-  {
     name: 'explain',
-    description: 'Set the explanation pane content',
+    description: 'Replace the explanation pane with new content. Erases any existing explanation in the active section. Use this for the first explanation or to rewrite from scratch.',
     schema: ExplainSchema,
   },
   {
-    name: 'edit_explanation',
-    description: 'Find-and-replace within the explanation pane',
-    schema: EditExplanationSchema,
-  },
-  {
     name: 'extend',
-    description: 'Append or prepend content to the explanation pane',
+    description: 'Append content to the existing explanation. Creates the explanation if it does not exist yet. Use this to elaborate or add detail without rewriting.',
     schema: ExtendSchema,
   },
   {
     name: 'challenge',
-    description: 'Add a comprehension check question to the sidebar',
+    description: 'Add a new comprehension check question to the active section. Each call adds one question (does not replace existing checks). Provide optional hints for the learner.',
     schema: ChallengeSchema,
   },
   {
     name: 'reveal',
-    description: 'Reveal the answer for a comprehension check',
+    description: 'Reveal the answer for an existing comprehension check by its ID. Sets the check status to revealed and stores the answer and explanation.',
     schema: RevealSchema,
   },
   {
     name: 'suggest_followups',
-    description: 'Suggest follow-up questions in the sidebar',
+    description: 'Replace the follow-up questions list in the active section. Overwrites any existing follow-ups.',
     schema: SuggestFollowupsSchema,
   },
   {
     name: 'new_section',
-    description: 'Create a new learning section',
+    description: 'Create a new learning section. The section is added but does not become active — call set_active to switch to it. The section ID is the slugified title.',
     schema: NewSectionSchema,
   },
   {
     name: 'complete_section',
-    description: 'Mark a section as completed',
+    description: 'Mark a section as completed by its section ID (slugified title, e.g. "the-three-way-handshake").',
     schema: CompleteSectionSchema,
   },
   {
     name: 'set_active',
-    description: 'Set the active section',
+    description: 'Switch the active section by its section ID (slugified title). All content tools (show_visual, explain, etc.) operate on the active section.',
     schema: SetActiveSchema,
+  },
+  {
+    name: 'clear',
+    description: 'Erase content from the learning surface. Target a specific pane (canvas, explanation, checks, followups) in the active section, remove an entire section, or use "all" to wipe the entire document and start fresh. Defaults to the active section; pass section ID to target a different one. Cannot remove the last remaining section (use "all" instead to reset everything).',
+    schema: ClearSchema,
   },
 ];
 

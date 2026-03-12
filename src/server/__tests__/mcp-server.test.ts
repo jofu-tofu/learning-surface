@@ -1,6 +1,14 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { mkdtemp, rm, writeFile } from 'fs/promises';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import { tmpdir } from 'os';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createMcpServer } from '../mcp-server.js';
 import { toolSchemaMap } from '../../shared/schemas.js';
+import { parse, serialize } from '../markdown.js';
+import { MINIMAL_DOC, buildDocument, buildSection, buildCanvasContent } from '../../test/helpers.js';
 import type { VersionStore } from '../../shared/types.js';
 
 function stubVersionStore(): VersionStore {
@@ -14,14 +22,22 @@ function stubVersionStore(): VersionStore {
   };
 }
 
+function spyVersionStore(): VersionStore & { createVersion: ReturnType<typeof vi.fn> } {
+  return {
+    async init() {},
+    createVersion: vi.fn(async () => 1),
+    async getVersion() { return ''; },
+    async getCurrentVersion() { return 0; },
+    async listVersions() { return []; },
+    async getDiff() { return ''; },
+  };
+}
+
 describe('MCP Server', () => {
   const TOOL_NAMES = [
     'show_visual',
-    'edit_visual',
     'build_visual',
-    'annotate',
     'explain',
-    'edit_explanation',
     'extend',
     'challenge',
     'reveal',
@@ -38,6 +54,12 @@ describe('MCP Server', () => {
     expect(server.stop).toBeDefined();
   });
 
+  it('exposes flushVersionBatch', () => {
+    const server = createMcpServer({ sessionDir: '/tmp/test', versionStore: stubVersionStore() });
+    expect(server.flushVersionBatch).toBeDefined();
+    expect(typeof server.flushVersionBatch).toBe('function');
+  });
+
   describe('tool schemas', () => {
     for (const toolName of TOOL_NAMES) {
       it(`${toolName} has a valid Zod schema registered`, () => {
@@ -50,11 +72,8 @@ describe('MCP Server', () => {
   describe('tool schema validation', () => {
     const validParams: Record<string, Record<string, unknown>> = {
       show_visual: { type: 'mermaid', content: 'graph LR\n  A-->B' },
-      edit_visual: { find: 'A', replace: 'B' },
       build_visual: { additions: 'C --> D' },
-      annotate: { element: 'A', label: 'Node A' },
       explain: { content: 'This explains it.' },
-      edit_explanation: { find: 'old', replace: 'new' },
       extend: { content: 'More text.' },
       challenge: { question: 'Why?' },
       reveal: { checkId: 'c1', answer: 'Because.', explanation: 'Detailed.' },
@@ -88,6 +107,116 @@ describe('MCP Server', () => {
       const schema = toolSchemaMap.get('extend')!;
       const result = schema.safeParse({ content: 'More.', position: 'before' });
       expect(result.success).toBe(true);
+    });
+  });
+
+  describe('batch versioning', () => {
+    let sessionDir: string;
+    let store: VersionStore & { createVersion: ReturnType<typeof vi.fn> };
+    let client: Client;
+    let mcpServer: ReturnType<typeof createMcpServer>;
+
+    beforeEach(async () => {
+      sessionDir = await mkdtemp(join(tmpdir(), 'ls-mcp-test-'));
+      await writeFile(join(sessionDir, 'current.md'), MINIMAL_DOC, 'utf-8');
+
+      store = spyVersionStore();
+      const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+
+      mcpServer = createMcpServer({
+        sessionDir,
+        versionStore: store,
+        debounceMs: 50,
+        transport: serverTransport,
+      });
+
+      client = new Client({ name: 'test-client', version: '1.0.0' });
+      await Promise.all([mcpServer.start(), client.connect(clientTransport)]);
+    });
+
+    afterEach(async () => {
+      // Cancel any pending debounce timers before deleting the temp directory
+      await mcpServer.flushVersionBatch();
+      await client.close();
+      await rm(sessionDir, { recursive: true, force: true });
+    });
+
+    it('flushVersionBatch is a no-op when no batch is pending', async () => {
+      await mcpServer.flushVersionBatch();
+      expect(store.createVersion).not.toHaveBeenCalled();
+    });
+
+    it('single tool call creates one version after flush', async () => {
+      await client.callTool({ name: 'explain', arguments: { content: 'Hello world.' } });
+
+      // Version not created yet (debounce hasn't fired)
+      expect(store.createVersion).not.toHaveBeenCalled();
+
+      // Flush to create the version
+      await mcpServer.flushVersionBatch();
+      expect(store.createVersion).toHaveBeenCalledTimes(1);
+    });
+
+    it('multiple tool calls in a batch create only one version', async () => {
+      await client.callTool({ name: 'explain', arguments: { content: 'Step 1.' } });
+      await client.callTool({ name: 'challenge', arguments: { question: 'Why?' } });
+      await client.callTool({ name: 'suggest_followups', arguments: { questions: ['What next?'] } });
+
+      expect(store.createVersion).not.toHaveBeenCalled();
+
+      await mcpServer.flushVersionBatch();
+      expect(store.createVersion).toHaveBeenCalledTimes(1);
+    });
+
+    it('all tool calls in a batch share the same version number', async () => {
+      await client.callTool({ name: 'explain', arguments: { content: 'Step 1.' } });
+      const midDoc = parse(readFileSync(join(sessionDir, 'current.md'), 'utf-8'));
+
+      await client.callTool({ name: 'challenge', arguments: { question: 'Why?' } });
+      const finalDoc = parse(readFileSync(join(sessionDir, 'current.md'), 'utf-8'));
+
+      // Both should have version 2 (original was 1)
+      expect(midDoc.version).toBe(2);
+      expect(finalDoc.version).toBe(2);
+    });
+
+    it('debounce timer auto-flushes after quiet period', async () => {
+      await client.callTool({ name: 'explain', arguments: { content: 'Auto flush test.' } });
+
+      // Wait for the debounce (50ms) + some buffer
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      expect(store.createVersion).toHaveBeenCalledTimes(1);
+    });
+
+    it('stop() flushes any pending batch', async () => {
+      await client.callTool({ name: 'explain', arguments: { content: 'Stopping soon.' } });
+      expect(store.createVersion).not.toHaveBeenCalled();
+
+      await mcpServer.stop();
+      expect(store.createVersion).toHaveBeenCalledTimes(1);
+    });
+
+    it('separate batches create separate versions', async () => {
+      // First batch
+      await client.callTool({ name: 'explain', arguments: { content: 'Batch 1.' } });
+      await mcpServer.flushVersionBatch();
+      expect(store.createVersion).toHaveBeenCalledTimes(1);
+
+      // Second batch
+      await client.callTool({ name: 'challenge', arguments: { question: 'Why?' } });
+      await mcpServer.flushVersionBatch();
+      expect(store.createVersion).toHaveBeenCalledTimes(2);
+    });
+
+    it('version in document increments correctly across batches', async () => {
+      // Batch 1: version 1 → 2
+      await client.callTool({ name: 'explain', arguments: { content: 'First.' } });
+      await mcpServer.flushVersionBatch();
+
+      // Batch 2: version 2 → 3
+      await client.callTool({ name: 'challenge', arguments: { question: 'Why?' } });
+      const doc = parse(readFileSync(join(sessionDir, 'current.md'), 'utf-8'));
+      expect(doc.version).toBe(3);
     });
   });
 });

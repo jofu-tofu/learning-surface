@@ -1,5 +1,6 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import type { LearningDocument, VersionMeta, WsMessage, Chat } from '../../shared/types.js';
+import type { ProviderInfo } from '../../shared/providers.js';
 import { getVersionPath, getForwardPath } from '../../shared/version-tree.js';
 import { useWebSocket } from './useWebSocket.js';
 
@@ -21,6 +22,16 @@ export interface UseSurfaceReturn {
   newChat: () => void;
   switchChat: (chatId: string) => void;
   deleteChat: (chatId: string) => void;
+  /** True from prompt submission until updates settle */
+  isProcessing: boolean;
+  /** Which panes changed in the most recent document-update */
+  changedPanes: Set<string>;
+  /** Provider/model selection */
+  providers: ProviderInfo[];
+  selectedProvider: string | null;
+  selectedModel: string | null;
+  setSelectedProvider: (id: string) => void;
+  setSelectedModel: (id: string) => void;
 }
 
 const WS_URL = 'ws://localhost:8080';
@@ -31,6 +42,14 @@ export function useSurface(): UseSurfaceReturn {
   const [currentVersion, setCurrentVersion] = useState(0);
   const [chats, setChats] = useState<Chat[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [changedPanes, setChangedPanes] = useState<Set<string>>(new Set());
+  const [providers, setProviders] = useState<ProviderInfo[]>([]);
+  const [selectedProvider, setSelectedProviderState] = useState<string | null>(null);
+  const [selectedModel, setSelectedModelState] = useState<string | null>(null);
+  const prevDocRef = useRef<LearningDocument | null>(null);
+  const settleRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const flashRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const onMessage = useCallback((msg: WsMessage) => {
     switch (msg.type) {
@@ -53,12 +72,55 @@ export function useSurface(): UseSurfaceReturn {
         if (msg.activeChatId) {
           setActiveChatId(msg.activeChatId);
         }
+        if (msg.providers) {
+          setProviders(msg.providers);
+          // Auto-select first provider and its first model if nothing selected
+          if (msg.providers.length > 0) {
+            setSelectedProviderState((prev) => {
+              if (prev) return prev;
+              const p = msg.providers![0];
+              setSelectedModelState((prevM) => prevM ?? p.models[0]?.id ?? null);
+              return p.id;
+            });
+          }
+        }
+        prevDocRef.current = msg.document ?? null;
+        setIsProcessing(false);
+        setChangedPanes(new Set());
         break;
 
       case 'document-update':
         if (msg.document) {
-          setDocument(msg.document);
-          setCurrentVersion(msg.document.version);
+          const prev = prevDocRef.current;
+          const next = msg.document;
+          // Detect which panes changed
+          if (prev) {
+            const changed = new Set<string>();
+            const prevActive = prev.sections.find(s => s.id === prev.activeSection);
+            const nextActive = next.sections.find(s => s.id === next.activeSection);
+            if (JSON.stringify(prevActive?.canvas ?? null) !== JSON.stringify(nextActive?.canvas ?? null)) {
+              changed.add('canvas');
+            }
+            if ((prevActive?.explanation ?? null) !== (nextActive?.explanation ?? null) ||
+                JSON.stringify(prevActive?.checks ?? []) !== JSON.stringify(nextActive?.checks ?? []) ||
+                JSON.stringify(prevActive?.followups ?? []) !== JSON.stringify(nextActive?.followups ?? [])) {
+              changed.add('explanation');
+            }
+            if (prev.sections.length !== next.sections.length) {
+              changed.add('sections');
+            }
+            if (changed.size > 0) {
+              setChangedPanes(changed);
+              clearTimeout(flashRef.current);
+              flashRef.current = setTimeout(() => setChangedPanes(new Set()), 1200);
+            }
+          }
+          prevDocRef.current = next;
+          setDocument(next);
+          setCurrentVersion(next.version);
+          // Reset settle timer
+          clearTimeout(settleRef.current);
+          settleRef.current = setTimeout(() => setIsProcessing(false), 2500);
         }
         if (msg.versions) {
           setVersions(msg.versions);
@@ -89,6 +151,17 @@ export function useSurface(): UseSurfaceReturn {
       case 'chat-deleted':
         // Handled via session-init or chat-list that follows
         break;
+
+      case 'provider-list':
+        if (msg.providers) {
+          setProviders(msg.providers);
+        }
+        break;
+
+      case 'provider-error':
+        console.error('[provider-error]', msg.error);
+        setIsProcessing(false);
+        break;
     }
   }, []);
 
@@ -98,8 +171,15 @@ export function useSurface(): UseSurfaceReturn {
   const forwardPath = useMemo(() => getForwardPath(currentVersion, versions), [currentVersion, versions]);
 
   const submitPrompt = useCallback((text: string) => {
-    send({ type: 'prompt', text, fromVersion: currentVersion });
-  }, [send, currentVersion]);
+    setIsProcessing(true);
+    send({
+      type: 'prompt',
+      text,
+      fromVersion: currentVersion,
+      provider: selectedProvider,
+      model: selectedModel,
+    });
+  }, [send, currentVersion, selectedProvider, selectedModel]);
 
   const selectVersion = useCallback((version: number) => {
     setCurrentVersion(version);
@@ -123,10 +203,28 @@ export function useSurface(): UseSurfaceReturn {
     send({ type: 'delete-chat', chatId });
   }, [send]);
 
+  const setSelectedProvider = useCallback((id: string) => {
+    setSelectedProviderState(id);
+    // Auto-select first model of the new provider
+    const p = providers.find((p) => p.id === id);
+    if (p && p.models.length > 0) {
+      setSelectedModelState(p.models[0].id);
+    } else {
+      setSelectedModelState(null);
+    }
+  }, [providers]);
+
+  const setSelectedModel = useCallback((id: string) => {
+    setSelectedModelState(id);
+  }, []);
+
   return {
     document, versions, currentVersion, path, forwardPath,
     connected, chats, activeChatId,
     submitPrompt, selectVersion, selectSection,
     newChat, switchChat, deleteChat,
+    isProcessing, changedPanes,
+    providers, selectedProvider, selectedModel,
+    setSelectedProvider, setSelectedModel,
   };
 }

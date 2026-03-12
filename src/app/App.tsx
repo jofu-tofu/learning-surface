@@ -26,6 +26,13 @@ export function App(): React.ReactElement {
     newChat,
     switchChat,
     deleteChat,
+    isProcessing,
+    changedPanes,
+    providers,
+    selectedProvider,
+    selectedModel,
+    setSelectedProvider,
+    setSelectedModel,
   } = useSurface();
 
   const [branchPopover, setBranchPopover] = useState<number | null>(null);
@@ -77,7 +84,7 @@ export function App(): React.ReactElement {
           <div className="border-t border-surface-700/50" />
 
           {/* Sections panel */}
-          <div className="flex flex-col min-h-0 flex-1">
+          <div className={`flex flex-col min-h-0 flex-1 ${changedPanes.has('sections') ? 'pane-updated' : ''}`}>
             <div className="px-4 py-3 border-b border-surface-700/50">
               <h2 className="text-xs font-semibold uppercase tracking-wider text-surface-400">Sections</h2>
             </div>
@@ -99,7 +106,7 @@ export function App(): React.ReactElement {
           {/* Panes */}
           <div className="flex-1 flex min-h-0">
             {/* Canvas pane */}
-            <div data-testid="pane-canvas" className="flex-1 flex flex-col min-w-0 border-r border-surface-700/50">
+            <div data-testid="pane-canvas" className={`flex-1 flex flex-col min-w-0 border-r border-surface-700/50 ${changedPanes.has('canvas') ? 'pane-updated' : ''}`}>
               <PaneHeader title="Canvas" />
               <div className="flex-1 overflow-auto p-5 flex items-start justify-center">
                 <Canvas content={activeSection?.canvas ?? null} />
@@ -107,7 +114,7 @@ export function App(): React.ReactElement {
             </div>
 
             {/* Explanation pane */}
-            <div data-testid="pane-explanation" className="flex-1 flex flex-col min-w-0">
+            <div data-testid="pane-explanation" className={`flex-1 flex flex-col min-w-0 ${changedPanes.has('explanation') ? 'pane-updated' : ''}`}>
               <PaneHeader title="Explanation" />
               <div className="flex-1 overflow-auto p-5">
                 <Explanation
@@ -149,7 +156,15 @@ export function App(): React.ReactElement {
 
           {/* Chat bar */}
           <div data-testid="pane-chatbar" className="shrink-0 border-t border-surface-700">
-            <ChatBar onSubmit={submitPrompt} />
+            <ChatBar
+              onSubmit={submitPrompt}
+              isProcessing={isProcessing}
+              providers={providers}
+              selectedProvider={selectedProvider}
+              selectedModel={selectedModel}
+              onProviderChange={setSelectedProvider}
+              onModelChange={setSelectedModel}
+            />
           </div>
         </div>
       </div>

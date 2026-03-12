@@ -1,3 +1,5 @@
+import type { ProviderInfo } from './providers.js';
+
 // === Core Data Types ===
 
 export interface CanvasContent {
@@ -65,11 +67,8 @@ export interface SurfaceContext {
 
 export type {
   ShowVisualParams,
-  EditVisualParams,
   BuildVisualParams,
-  AnnotateParams,
   ExplainParams,
-  EditExplanationParams,
   ExtendParams,
   ChallengeParams,
   RevealParams,
@@ -77,6 +76,7 @@ export type {
   NewSectionParams,
   CompleteSectionParams,
   SetActiveParams,
+  ClearParams,
 } from './schemas.js';
 
 // === Chat Types ===
@@ -91,7 +91,7 @@ export interface Chat {
 // === WebSocket Message Types ===
 
 export interface WsMessage {
-  type: 'document-update' | 'version-change' | 'session-init' | 'chat-list' | 'chat-deleted';
+  type: 'document-update' | 'version-change' | 'session-init' | 'chat-list' | 'chat-deleted' | 'provider-list' | 'provider-error';
   document?: LearningDocument;
   version?: number;
   versions?: VersionMeta[];
@@ -99,6 +99,8 @@ export interface WsMessage {
   chats?: Chat[];
   activeChatId?: string;
   chatId?: string;
+  providers?: ProviderInfo[];
+  error?: string;
 }
 
 // === Module Interface Contracts ===

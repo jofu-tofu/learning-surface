@@ -206,25 +206,6 @@ describe('applyToolCall()', () => {
     expect(active?.explanation).toBe('This is an explanation.');
   });
 
-  it('edit_visual modifies canvas content with find/replace', () => {
-    const doc = buildDocument({
-      sections: [
-        buildSection({
-          title: 'Intro',
-          canvas: buildCanvasContent({ content: 'graph LR\n  A --> B' }),
-        }),
-      ],
-      activeSection: 'intro',
-    });
-    const result = applyToolCall(doc, 'edit_visual', {
-      find: 'A --> B',
-      replace: 'A --> C',
-    });
-    const active = result.sections.find((s) => s.id === result.activeSection);
-    expect(active?.canvas?.content).toContain('A --> C');
-    expect(active?.canvas?.content).not.toContain('A --> B');
-  });
-
   it('extend appends to explanation', () => {
     const doc = buildDocument({
       sections: [
@@ -259,6 +240,40 @@ describe('applyToolCall()', () => {
     expect(active?.checks![0].status).toBe('unanswered');
   });
 
+  it('challenge hints survive serialize→parse round-trip', () => {
+    const doc = buildDocument({
+      sections: [buildSection({ title: 'Intro' })],
+      activeSection: 'intro',
+    });
+    const after = applyToolCall(doc, 'challenge', {
+      question: 'Why?',
+      hints: ['Hint one', 'Hint two'],
+    });
+    const roundTripped = parse(serialize(after));
+    const check = roundTripped.sections[0].checks![0];
+    expect(check.hints).toEqual(['Hint one', 'Hint two']);
+  });
+
+  it('reveal answer survives serialize→parse round-trip', () => {
+    const doc = buildDocument({
+      sections: [buildSection({
+        title: 'Intro',
+        checks: [buildCheck({ id: 'c1', question: 'Why?', status: 'unanswered' })],
+      })],
+      activeSection: 'intro',
+    });
+    const after = applyToolCall(doc, 'reveal', {
+      checkId: 'c1',
+      answer: 'Because reasons.',
+      explanation: 'Detailed reasoning here.',
+    });
+    const roundTripped = parse(serialize(after));
+    const check = roundTripped.sections[0].checks![0];
+    expect(check.status).toBe('revealed');
+    expect(check.answer).toBe('Because reasons.');
+    expect(check.answerExplanation).toBe('Detailed reasoning here.');
+  });
+
   it('suggest_followups sets followups on the active section', () => {
     const doc = buildDocument({
       sections: [buildSection({ title: 'Intro' })],
@@ -290,5 +305,125 @@ describe('applyToolCall()', () => {
     });
     const result = applyToolCall(doc, 'set_active', { section: 'second' });
     expect(result.activeSection).toBe('second');
+  });
+
+  describe('clear', () => {
+    it('clears canvas from the active section', () => {
+      const doc = buildDocument({
+        sections: [buildSection({ title: 'Intro', canvas: buildCanvasContent() })],
+        activeSection: 'intro',
+      });
+      const result = applyToolCall(doc, 'clear', { target: 'canvas' });
+      const active = result.sections.find(s => s.id === 'intro');
+      expect(active?.canvas).toBeUndefined();
+    });
+
+    it('clears explanation from the active section', () => {
+      const doc = buildDocument({
+        sections: [buildSection({ title: 'Intro', explanation: 'Some text.' })],
+        activeSection: 'intro',
+      });
+      const result = applyToolCall(doc, 'clear', { target: 'explanation' });
+      const active = result.sections.find(s => s.id === 'intro');
+      expect(active?.explanation).toBeUndefined();
+    });
+
+    it('clears checks from the active section', () => {
+      const doc = buildDocument({
+        sections: [buildSection({ title: 'Intro', checks: [buildCheck()] })],
+        activeSection: 'intro',
+      });
+      const result = applyToolCall(doc, 'clear', { target: 'checks' });
+      const active = result.sections.find(s => s.id === 'intro');
+      expect(active?.checks).toBeUndefined();
+    });
+
+    it('clears followups from the active section', () => {
+      const doc = buildDocument({
+        sections: [buildSection({ title: 'Intro', followups: ['Q1', 'Q2'] })],
+        activeSection: 'intro',
+      });
+      const result = applyToolCall(doc, 'clear', { target: 'followups' });
+      const active = result.sections.find(s => s.id === 'intro');
+      expect(active?.followups).toBeUndefined();
+    });
+
+    it('removes a section by id', () => {
+      const doc = buildDocument({
+        sections: [
+          buildSection({ title: 'First' }),
+          buildSection({ title: 'Second' }),
+        ],
+        activeSection: 'second',
+      });
+      const result = applyToolCall(doc, 'clear', { target: 'section', section: 'first' });
+      expect(result.sections).toHaveLength(1);
+      expect(result.sections[0].id).toBe('second');
+      expect(result.activeSection).toBe('second');
+    });
+
+    it('removes the active section and falls back to the last remaining', () => {
+      const doc = buildDocument({
+        sections: [
+          buildSection({ title: 'First' }),
+          buildSection({ title: 'Second' }),
+        ],
+        activeSection: 'first',
+      });
+      const result = applyToolCall(doc, 'clear', { target: 'section' });
+      expect(result.sections).toHaveLength(1);
+      expect(result.sections[0].id).toBe('second');
+      expect(result.activeSection).toBe('second');
+    });
+
+    it('targets a specific section when section param is provided', () => {
+      const doc = buildDocument({
+        sections: [
+          buildSection({ title: 'First', canvas: buildCanvasContent() }),
+          buildSection({ title: 'Second', canvas: buildCanvasContent() }),
+        ],
+        activeSection: 'first',
+      });
+      const result = applyToolCall(doc, 'clear', { target: 'canvas', section: 'second' });
+      expect(result.sections.find(s => s.id === 'first')?.canvas).toBeDefined();
+      expect(result.sections.find(s => s.id === 'second')?.canvas).toBeUndefined();
+    });
+
+    it('is a no-op when targeting a nonexistent section', () => {
+      const doc = buildDocument({
+        sections: [buildSection({ title: 'Intro', canvas: buildCanvasContent() })],
+        activeSection: 'intro',
+      });
+      const result = applyToolCall(doc, 'clear', { target: 'canvas', section: 'nonexistent' });
+      expect(result.sections[0].canvas).toBeDefined();
+    });
+
+    it('refuses to remove the last section', () => {
+      const doc = buildDocument({
+        sections: [buildSection({ title: 'Only' })],
+        activeSection: 'only',
+      });
+      const result = applyToolCall(doc, 'clear', { target: 'section' });
+      expect(result.sections).toHaveLength(1);
+      expect(result.sections[0].id).toBe('only');
+    });
+
+    it('wipes entire document with target "all"', () => {
+      const doc = buildDocument({
+        sections: [
+          buildSection({ title: 'First', canvas: buildCanvasContent(), explanation: 'text' }),
+          buildSection({ title: 'Second', checks: [buildCheck()] }),
+        ],
+        activeSection: 'second',
+      });
+      doc.summary = 'Old summary';
+      const result = applyToolCall(doc, 'clear', { target: 'all' });
+      expect(result.sections).toHaveLength(1);
+      expect(result.sections[0].id).toBe('start');
+      expect(result.sections[0].title).toBe('Start');
+      expect(result.sections[0].status).toBe('active');
+      expect(result.activeSection).toBe('start');
+      expect(result.summary).toBeUndefined();
+    });
   });
 });

@@ -1,10 +1,15 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { WebSocket, WebSocketServer } from 'ws';
+import envPaths from 'env-paths';
 import { createFileWatcher } from './watcher.js';
 import { createVersionStore } from './versions.js';
 import { createChatStore } from './chat-store.js';
+import { createContextCompiler } from './context.js';
 import { parse, serialize, applyToolCall } from './markdown.js';
+import { TOOL_DEFS, zodToJsonSchema } from '../shared/schemas.js';
+import { getProvider, listProviders } from './providers/registry.js';
+import type { ToolDefinition } from '../shared/providers.js';
 import type { LearningDocument, WsMessage, VersionStore } from '../shared/types.js';
 
 export async function startServer(options: {
@@ -24,6 +29,37 @@ export async function startServer(options: {
 
   // File watcher — set up once, re-pointed when switching chats
   const watcher = createFileWatcher();
+
+  // Context compiler for building AI system prompts
+  const contextCompiler = createContextCompiler();
+
+  // Convert MCP tool defs to provider tool definitions (done once)
+  const providerTools: ToolDefinition[] = TOOL_DEFS.map((def) => ({
+    name: def.name,
+    description: def.description,
+    parameters: zodToJsonSchema(def.schema),
+  }));
+
+  const SYSTEM_PROMPT = `You are a teaching assistant that uses a learning surface — a multi-pane visual environment for teaching concepts. You have access to tools that control different panes of the surface.
+
+## Available Panes
+- **Canvas**: Shows visuals (Mermaid diagrams, KaTeX math, code blocks)
+- **Explanation**: Shows text explanations in markdown
+- **Checks**: Comprehension check questions
+- **Follow-ups**: Suggested follow-up questions
+
+## Guidelines
+- Start each new topic by creating a section with \`new_section\`, then setting it active with \`set_active\`
+- Use \`show_visual\` to create diagrams or code visuals that complement your explanations
+- Use \`explain\` for clear, concise explanations in markdown
+- Add comprehension checks with \`challenge\` to verify understanding
+- Suggest follow-up questions with \`suggest_followups\`
+- Build up complex visuals incrementally with \`build_visual\`
+- Use \`extend\` to add to explanations without rewriting
+- Always call at least one tool per response — your output only appears through tools
+
+## Current Surface State
+`;
 
   async function initVersionStoreForChat(chatId: string): Promise<VersionStore> {
     const dir = chatStore.getChatDir(chatId);
@@ -117,7 +153,7 @@ export async function startServer(options: {
       }
     }
 
-    // Send current state: chat list + active chat's document + versions
+    // Send current state: chat list + active chat's document + versions + providers
     const versions = activeVersionStore ? await activeVersionStore.listVersions() : [];
     const initMsg: WsMessage = {
       type: 'session-init',
@@ -126,6 +162,7 @@ export async function startServer(options: {
       versions,
       chats: chatStore.listChats(),
       activeChatId: activeChatId ?? undefined,
+      providers: listProviders(),
     };
     ws.send(JSON.stringify(initMsg));
 
@@ -237,8 +274,103 @@ export async function startServer(options: {
           writeFileSync(filePath, serialize(updated), 'utf-8');
 
         } else if (msg.type === 'prompt') {
+          const providerId = msg.provider as string | undefined;
+          const modelId = msg.model as string | undefined;
           const from = msg.fromVersion ? ` (from v${msg.fromVersion})` : '';
-          console.log(`[prompt]${from} "${msg.text}" — waiting for REPL to call MCP tools`);
+          console.log(`[prompt]${from} "${msg.text}" provider=${providerId ?? 'none'} model=${modelId ?? 'none'}`);
+
+          if (!providerId || !modelId) {
+            console.log('  No provider/model selected — waiting for REPL to call MCP tools');
+            return;
+          }
+
+          const provider = getProvider(providerId);
+          if (!provider) {
+            const errMsg: WsMessage = { type: 'provider-error', error: `Unknown provider: ${providerId}` };
+            ws.send(JSON.stringify(errMsg));
+            return;
+          }
+
+          const filePath = getCurrentFilePath();
+          if (!filePath || !activeChatId) {
+            const errMsg: WsMessage = { type: 'provider-error', error: 'No active chat' };
+            ws.send(JSON.stringify(errMsg));
+            return;
+          }
+
+          // Ensure current.md exists with a blank document
+          if (!existsSync(filePath)) {
+            const blankDoc: LearningDocument = {
+              version: 0,
+              activeSection: 'untitled',
+              sections: [{ id: 'untitled', title: 'Untitled', status: 'active' }],
+            };
+            writeFileSync(filePath, serialize(blankDoc), 'utf-8');
+            latestDocument = blankDoc;
+          }
+
+          // Build context-aware system prompt
+          const chatDir = chatStore.getChatDir(activeChatId);
+          const currentDoc = latestDocument ?? parse(readFileSync(filePath, 'utf-8'));
+          const context = await contextCompiler.compile(currentDoc, chatDir);
+          const systemPrompt = SYSTEM_PROMPT + JSON.stringify(context, null, 2);
+
+          // Track the version before this batch of tool calls
+          const startVersion = currentDoc.version;
+
+          // Call the AI provider
+          try {
+            await provider.complete({
+              prompt: msg.text,
+              systemPrompt,
+              tools: providerTools,
+              model: modelId,
+              async onToolCall(call) {
+                // Read the latest document from disk (may have been updated by previous tool calls)
+                const raw = readFileSync(filePath, 'utf-8');
+                const doc = parse(raw);
+
+                // Apply the tool call
+                const updated = applyToolCall(doc, call.tool, call.params);
+                updated.version = startVersion + 1;
+
+                // Write back — the file watcher will broadcast the update
+                writeFileSync(filePath, serialize(updated), 'utf-8');
+
+                return {
+                  success: true,
+                  message: `Applied ${call.tool} → version ${updated.version}`,
+                };
+              },
+            });
+
+            // Create a version snapshot after the AI finishes
+            if (activeVersionStore) {
+              const finalContent = readFileSync(filePath, 'utf-8');
+              const finalDoc = parse(finalContent);
+              if (finalDoc.version > startVersion) {
+                await activeVersionStore.createVersion(finalContent, {
+                  prompt: msg.text,
+                  summary: finalDoc.summary ?? null,
+                  timestamp: new Date().toISOString(),
+                  source: 'ai',
+                });
+                // Re-write to trigger watcher with updated version list
+                writeFileSync(filePath, finalContent, 'utf-8');
+              }
+            }
+          } catch (err) {
+            console.error('Provider error:', err);
+            const errMsg: WsMessage = {
+              type: 'provider-error',
+              error: err instanceof Error ? err.message : String(err),
+            };
+            broadcast(errMsg);
+          }
+
+        } else if (msg.type === 'get-providers') {
+          const reply: WsMessage = { type: 'provider-list', providers: listProviders() };
+          ws.send(JSON.stringify(reply));
         }
       } catch (err) {
         console.error('Error handling client message:', err);
@@ -261,7 +393,11 @@ export async function startServer(options: {
 }
 
 // CLI entry point
-const sessionDir = process.argv[2] || './session';
+const paths = envPaths('learning-surface', { suffix: '' });
+const sessionDir =
+  process.argv[2] ||                       // explicit CLI arg
+  process.env.LEARNING_SURFACE_DATA ||     // env var override
+  (process.env.NODE_ENV === 'production' ? paths.data : './session');
 const port = parseInt(process.argv[3] || '8080', 10);
 
 startServer({ sessionDir, port }).catch((err) => {

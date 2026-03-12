@@ -2,7 +2,7 @@
 
 A comprehension engine that transforms AI output into a multi-pane learning surface. Not a chat UI, not a note-taking app — a pedagogy layer between AI and the learner, controlled via semantic MCP tools.
 
-**Status:** Implemented — all server modules functional (markdown, versions, chat-store, context, mcp-server, watcher, index). Multi-pane UI with split sidebar (chat list + sections), breadcrumb version timeline, and multi-chat persistence. All tests pass (126 tests across 14 files).
+**Status:** Implemented — all server modules functional (markdown, versions, chat-store, context, mcp-server, watcher, index, providers). Multi-pane UI with split sidebar (chat list + sections), breadcrumb version timeline, multi-chat persistence, and REPL provider integration with provider/model selector. All tests pass (140 tests across 14 files).
 
 ## Project Structure
 
@@ -14,6 +14,7 @@ spec/                  # Product specification (read spec/CLAUDE.md first)
 src/
   shared/
     types.ts           # All shared TypeScript types and interface contracts
+    providers.ts       # REPL provider abstraction (ReplProvider interface, ProviderInfo)
     FORMAT.md          # Structured markdown format specification (data contract)
   server/
     markdown.ts        # parse/serialize/applyToolCall for structured markdown
@@ -22,9 +23,12 @@ src/
     context.ts         # Context compiler (surface state → JSON for AI)
     mcp-server.ts      # MCP server exposing semantic teaching tools
     watcher.ts         # File watcher (chokidar → WebSocket)
-    index.ts           # Server entry point (multi-chat aware)
+    index.ts           # Server entry point (multi-chat aware, provider-integrated)
+    providers/
+      registry.ts      # Provider registry (register, lookup, list)
+      codex.ts         # Codex provider (OpenAI API with tool calling)
   app/
-    components/        # React components: Canvas, Explanation, Sidebar, ChatList, Timeline, ChatBar
+    components/        # React components: Canvas, Explanation, Sidebar, ChatList, Timeline, ChatBar, ProviderSelector
     hooks/             # useWebSocket, useSurface
     App.tsx            # Root component with multi-pane grid layout
     main.tsx           # Vite entry point
@@ -35,7 +39,7 @@ src/
 ## Constraints
 
 - Single window — no tab-switching, no separate apps
-- Must work with existing REPL subscriptions — no separate API keys
+- Must work with existing REPL subscriptions — no separate API keys required (provider integration uses OPENAI_API_KEY env var)
 - Use existing libraries (markdown-it, Mermaid, KaTeX, chokidar) — do not build custom parsers or renderers
 - Desktop-first (VS Code / browser)
 

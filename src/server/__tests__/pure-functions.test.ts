@@ -182,40 +182,23 @@ describe('applyTool edge cases', () => {
     expect(added.answerExplanation).toBeUndefined();
   });
 
-  it('clear target=canvas deletes canvas only', () => {
+  it.each([
+    ['canvas',      { canvas: undefined, explanation: 'Some text', checks: 1, followups: ['Follow 1'] }],
+    ['explanation', { canvas: true,      explanation: undefined,   checks: 1, followups: ['Follow 1'] }],
+    ['checks',     { canvas: true,      explanation: 'Some text', checks: undefined, followups: ['Follow 1'] }],
+    ['followups',  { canvas: true,      explanation: 'Some text', checks: 1, followups: undefined }],
+  ] as const)('clear target=%s deletes only that pane', (target, expected) => {
     const doc = makeDoc();
-    applyTool(doc, 'clear', { target: 'canvas' });
-    expect(doc.sections[0].canvas).toBeUndefined();
-    expect(doc.sections[0].explanation).toBe('Some text');
-    expect(doc.sections[0].checks).toHaveLength(1);
-    expect(doc.sections[0].followups).toEqual(['Follow 1']);
-  });
-
-  it('clear target=explanation deletes explanation only', () => {
-    const doc = makeDoc();
-    applyTool(doc, 'clear', { target: 'explanation' });
-    expect(doc.sections[0].explanation).toBeUndefined();
-    expect(doc.sections[0].canvas).toBeDefined();
-    expect(doc.sections[0].checks).toHaveLength(1);
-    expect(doc.sections[0].followups).toEqual(['Follow 1']);
-  });
-
-  it('clear target=checks deletes checks only', () => {
-    const doc = makeDoc();
-    applyTool(doc, 'clear', { target: 'checks' });
-    expect(doc.sections[0].checks).toBeUndefined();
-    expect(doc.sections[0].canvas).toBeDefined();
-    expect(doc.sections[0].explanation).toBe('Some text');
-    expect(doc.sections[0].followups).toEqual(['Follow 1']);
-  });
-
-  it('clear target=followups deletes followups only', () => {
-    const doc = makeDoc();
-    applyTool(doc, 'clear', { target: 'followups' });
-    expect(doc.sections[0].followups).toBeUndefined();
-    expect(doc.sections[0].canvas).toBeDefined();
-    expect(doc.sections[0].explanation).toBe('Some text');
-    expect(doc.sections[0].checks).toHaveLength(1);
+    applyTool(doc, 'clear', { target });
+    const s = doc.sections[0];
+    if (expected.canvas === undefined) expect(s.canvas).toBeUndefined();
+    else expect(s.canvas).toBeDefined();
+    if (expected.explanation === undefined) expect(s.explanation).toBeUndefined();
+    else expect(s.explanation).toBe(expected.explanation);
+    if (expected.checks === undefined) expect(s.checks).toBeUndefined();
+    else expect(s.checks).toHaveLength(expected.checks);
+    if (expected.followups === undefined) expect(s.followups).toBeUndefined();
+    else expect(s.followups).toEqual(expected.followups);
   });
 });
 

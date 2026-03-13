@@ -9,6 +9,29 @@ import {
   spyVersionStore,
 } from '../../test/helpers.js';
 
+function setup(opts: {
+  toolCalls?: Array<{ toolName: string; params: Record<string, unknown> }>;
+  providerType?: 'api' | 'cli';
+  initialDoc?: string;
+} = {}) {
+  const io = fakeFileIO(new Map([
+    ['/chat/current.md', opts.initialDoc ?? MINIMAL_DOC],
+  ]));
+  const documentService = createDocumentService(io);
+  const store = spyVersionStore();
+  const provider = fakeProvider(opts.toolCalls ?? [], {
+    type: opts.providerType ?? 'api',
+  });
+
+  const deps = {
+    documentService,
+    contextCompiler: fakeContextCompiler(),
+    getProvider: (id: string) => id === 'fake' ? provider : undefined,
+  };
+
+  return { io, documentService, store, provider, deps };
+}
+
 /**
  * Integration tests for handlePrompt — the orchestration layer that wires
  * provider tool calls → DocumentService → version store. All side effects
@@ -16,29 +39,6 @@ import {
  * fakes so we test the pipeline without CLI/API invocations.
  */
 describe('handlePrompt integration', () => {
-  function setup(opts: {
-    toolCalls?: Array<{ toolName: string; params: Record<string, unknown> }>;
-    providerType?: 'api' | 'cli';
-    initialDoc?: string;
-  } = {}) {
-    const io = fakeFileIO(new Map([
-      ['/chat/current.md', opts.initialDoc ?? MINIMAL_DOC],
-    ]));
-    const docService = createDocumentService(io);
-    const store = spyVersionStore();
-    const provider = fakeProvider(opts.toolCalls ?? [], {
-      type: opts.providerType ?? 'api',
-    });
-
-    const deps = {
-      docService,
-      contextCompiler: fakeContextCompiler(),
-      getProvider: (id: string) => id === 'fake' ? provider : undefined,
-    };
-
-    return { io, docService, store, provider, deps };
-  }
-
   it('unknown provider id throws', async () => {
     const { deps, store } = setup();
     await expect(
@@ -140,7 +140,7 @@ describe('handlePrompt integration', () => {
     const io = fakeFileIO(new Map([
       ['/chat/current.md', MINIMAL_DOC],
     ]));
-    const docService = createDocumentService(io);
+    const documentService = createDocumentService(io);
     const store = spyVersionStore();
 
     // Fake CLI provider that writes new content to the file during complete()
@@ -155,7 +155,7 @@ describe('handlePrompt integration', () => {
     };
 
     const deps = {
-      docService,
+      documentService,
       contextCompiler: fakeContextCompiler(),
       getProvider: (id: string) => id === 'cli-fake' ? cliProvider : undefined,
     };
@@ -176,7 +176,7 @@ describe('handlePrompt integration', () => {
     const io = fakeFileIO(new Map([
       ['/chat/current.md', MINIMAL_DOC],
     ]));
-    const docService = createDocumentService(io);
+    const documentService = createDocumentService(io);
     const store = spyVersionStore();
 
     // CLI provider that does nothing (content unchanged)
@@ -184,7 +184,7 @@ describe('handlePrompt integration', () => {
     cliProvider.complete = async () => {};
 
     const deps = {
-      docService,
+      documentService,
       contextCompiler: fakeContextCompiler(),
       getProvider: (id: string) => id === 'cli-noop' ? cliProvider : undefined,
     };
@@ -203,28 +203,6 @@ describe('handlePrompt integration', () => {
 });
 
 describe('handlePrompt onProgress', () => {
-  function setup(opts: {
-    toolCalls?: Array<{ toolName: string; params: Record<string, unknown> }>;
-    providerType?: 'api' | 'cli';
-  } = {}) {
-    const io = fakeFileIO(new Map([
-      ['/chat/current.md', MINIMAL_DOC],
-    ]));
-    const docService = createDocumentService(io);
-    const store = spyVersionStore();
-    const provider = fakeProvider(opts.toolCalls ?? [], {
-      type: opts.providerType ?? 'api',
-    });
-
-    const deps = {
-      docService,
-      contextCompiler: fakeContextCompiler(),
-      getProvider: (id: string) => id === 'fake' ? provider : undefined,
-    };
-
-    return { io, docService, store, provider, deps };
-  }
-
   it('API mode: emits thinking then each tool call with incrementing step', async () => {
     const onProgress = vi.fn();
     const { deps, store } = setup({
@@ -275,13 +253,13 @@ describe('handlePrompt onProgress', () => {
     const io = fakeFileIO(new Map([
       ['/chat/current.md', MINIMAL_DOC],
     ]));
-    const docService = createDocumentService(io);
+    const documentService = createDocumentService(io);
     const store = spyVersionStore();
     const cliProvider = fakeProvider([], { type: 'cli', id: 'fake' });
     cliProvider.complete = async () => {};
 
     const deps = {
-      docService,
+      documentService,
       contextCompiler: fakeContextCompiler(),
       getProvider: (id: string) => id === 'fake' ? cliProvider : undefined,
     };

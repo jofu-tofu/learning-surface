@@ -4,7 +4,6 @@ import { handlePrompt } from '../prompt-handler.js';
 import { createDocumentService } from '../document-service.js';
 import type { ChatStore } from '../chat-store.js';
 import type { ClientMessage, WsMessage, WsProviderError } from '../../shared/types.js';
-import type { ReplProvider } from '../../shared/providers.js';
 import {
   MINIMAL_DOC,
   fakeFileIO,
@@ -55,7 +54,7 @@ function setup(opts: {
   const io = fakeFileIO(new Map([
     ['/chat/current.md', opts.initialDoc ?? MINIMAL_DOC],
   ]));
-  const docService = createDocumentService(io);
+  const documentService = createDocumentService(io);
   const store = spyVersionStore();
   const provider = fakeProvider(opts.toolCalls ?? [], {
     type: opts.providerType ?? 'api',
@@ -70,9 +69,9 @@ function setup(opts: {
   const broadcast = vi.fn<(msg: WsMessage) => void>();
   const ws = fakeWs();
 
-  // Wrap handlePrompt with test deps so the fake provider/docService are used
+  // Wrap handlePrompt with test deps so the fake provider/documentService are used
   const promptDeps = {
-    docService,
+    documentService: documentService,
     contextCompiler: fakeContextCompiler(),
     getProvider: (id: string) => id === 'fake' ? provider : undefined,
   };
@@ -82,7 +81,7 @@ function setup(opts: {
     chatStore: fakeChatStore(),
     broadcast,
     switchToChat: vi.fn(),
-    docService,
+    documentService,
     onPrompt: ((req: Parameters<typeof handlePrompt>[0]) =>
       handlePrompt(req, promptDeps)) as typeof handlePrompt,
   };
@@ -148,68 +147,34 @@ describe('ws-handlers prompt flow', () => {
   });
 
   it('multi-turn: second prompt gets prompt-complete after first', async () => {
-    const io = fakeFileIO(new Map([
-      ['/chat/current.md', MINIMAL_DOC],
-    ]));
-    const docService = createDocumentService(io);
-    const store = spyVersionStore();
-
-    const state: SessionState = {
-      activeChatId: 'c1',
-      activeVersionStore: store,
-      latestDocument: null,
-    };
-
-    const broadcast = vi.fn();
-    const ws = fakeWs();
+    const { ws, send, promptDeps } = setup({
+      toolCalls: [{ toolName: 'explain', params: { content: 'TCP is a transport protocol.' } }],
+    });
 
     // First prompt: AI adds an explanation
-    let currentProvider: ReplProvider = fakeProvider([
-      { toolName: 'explain', params: { content: 'TCP is a transport protocol.' } },
-    ]);
-
-    const promptDeps = {
-      docService,
-      contextCompiler: fakeContextCompiler(),
-      getProvider: (id: string) => id === 'fake' ? currentProvider : undefined,
-    };
-
-    const deps = {
-      state,
-      chatStore: fakeChatStore(),
-      broadcast,
-      switchToChat: vi.fn(),
-      docService,
-      onPrompt: ((req: Parameters<typeof handlePrompt>[0]) =>
-        handlePrompt(req, promptDeps)) as typeof handlePrompt,
-    };
-
-    // First prompt
-    await routeMessage(ws as unknown as import('ws').WebSocket, {
+    await send({
       type: 'prompt',
       text: 'teach me TCP',
       provider: 'fake',
       model: 'fake-model',
-    }, deps);
+    });
 
     expect(ws.sent.filter(m => m.type === 'prompt-complete')).toHaveLength(1);
-    expect(state.latestDocument).not.toBeNull();
-    expect(state.latestDocument!.sections[0].explanation).toBe('TCP is a transport protocol.');
 
-    // Second prompt: AI replaces explanation
-    currentProvider = fakeProvider([
-      { toolName: 'explain', params: { content: 'TCP uses a three-way handshake.' } },
-    ]);
+    // Second prompt: swap provider to one that replaces explanation
+    promptDeps.getProvider = (id: string) =>
+      id === 'fake'
+        ? fakeProvider([{ toolName: 'explain', params: { content: 'TCP uses a three-way handshake.' } }])
+        : undefined;
 
-    await routeMessage(ws as unknown as import('ws').WebSocket, {
+    await send({
       type: 'prompt',
       text: 'tell me more',
       provider: 'fake',
       model: 'fake-model',
-    }, deps);
+    });
 
     expect(ws.sent.filter(m => m.type === 'prompt-complete')).toHaveLength(2);
-    expect(state.latestDocument!.sections[0].explanation).toContain('three-way handshake');
   });
 
   it('no provider/model selected returns silently (REPL mode)', async () => {

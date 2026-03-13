@@ -1,15 +1,15 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
-  buildSessionInitMsg,
-  buildChatListMsg,
+  buildSessionInitMessage,
+  buildChatListMessage,
   formatError,
   ensureActiveChat,
 } from '../ws-helpers.js';
 import type { ChatStore } from '../../chat-store.js';
 
-describe('buildSessionInitMsg', () => {
+describe('buildSessionInitMessage', () => {
   it('converts null document to undefined', () => {
-    const msg = buildSessionInitMsg({
+    const msg = buildSessionInitMessage({
       sessionDir: '/dir',
       document: null,
       versions: [],
@@ -20,7 +20,7 @@ describe('buildSessionInitMsg', () => {
   });
 
   it('converts null activeChatId to undefined', () => {
-    const msg = buildSessionInitMsg({
+    const msg = buildSessionInitMessage({
       sessionDir: '/dir',
       versions: [],
       chats: [],
@@ -30,15 +30,15 @@ describe('buildSessionInitMsg', () => {
   });
 });
 
-describe('buildChatListMsg', () => {
+describe('buildChatListMessage', () => {
   it('converts null activeChatId to undefined', () => {
-    const msg = buildChatListMsg([], null);
+    const msg = buildChatListMessage([], null);
     expect(msg.type).toBe('chat-list');
     expect(msg.activeChatId).toBeUndefined();
   });
 
   it('preserves activeChatId when provided', () => {
-    const msg = buildChatListMsg([], 'chat-1');
+    const msg = buildChatListMessage([], 'chat-1');
     expect(msg.activeChatId).toBe('chat-1');
   });
 });

@@ -16,7 +16,7 @@ Sidebar (ChatList + Sections) | Canvas          | (stacked vertically)
 
 ## State Management
 
-All application state flows through `useSurface()` hook — document, versions, chats, provider selection, WebSocket communication. Components are pure renderers consuming this hook's return value.
+All application state flows through `useSurface()` hook — document, versions, chats, provider selection, WebSocket communication. State is consolidated into a single `SurfaceState` object managed via `surfaceReducer`, updated with `setState(prev => ...)` functional updates. Components are pure renderers consuming this hook's return value.
 
 - `useSurface` composes `useWebSocket` and `useProviderSelection` internally
 - Pane change detection extracted to `utils/detectChangedPanes.ts`, 1.2s flash timeout (`changedPanes`)
@@ -43,7 +43,7 @@ All application state flows through `useSurface()` hook — document, versions, 
 | `Icon` | Inline | SVG icon system with named icons |
 | `VersionDot` | In Breadcrumb | Colored dot indicating version source (AI vs user) |
 
-Renderers (`components/renderers/`): `MermaidRenderer`, `KatexRenderer`, `CodeRenderer`, `DiagramRenderer` — each handles async or synchronous rendering with loading/error states. All implement the `RendererProps` interface from `registry.ts`. Canvas type -> renderer mapping is managed by a registry (`registry.ts`), not a switch statement — adding a new visual type requires only a new renderer file and a `registerRenderer()` call. `DiagramRenderer` accepts JSON content (`{nodes, edges}`) and renders custom React+SVG diagrams with topological sort layout.
+Renderers (`components/renderers/`): `MermaidRenderer`, `KatexRenderer`, `CodeRenderer`, `DiagramRenderer` — each handles async or synchronous rendering with loading/error states. All implement the `RendererProps` interface from `registry.ts`. Canvas type -> renderer mapping is managed by a registry (`registry.ts`), not a switch statement — adding a new visual type requires only a new renderer file and a `registerRenderer()` call. `DiagramRenderer` accepts JSON content (`{nodes, edges}`) and delegates layout computation (topological sort) to `diagram-layout.ts`.
 
 ## Conventions
 

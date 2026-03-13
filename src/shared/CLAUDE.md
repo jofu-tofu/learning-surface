@@ -5,7 +5,7 @@ Data contracts and shared abstractions consumed by both server and app.
 ## Conventions
 
 - `schemas.ts` defines Zod schemas for MCP tool parameters. `types.ts` defines data model interfaces (`LearningDocument`, `Section`, `Check`, etc.) and behavioral interfaces (`VersionStore`, `ContextCompiler`, `FileWatcherService`) independently — they are not derived from Zod via `z.infer<>`.
-- `schemas.ts` contains `TOOL_DEFS` (all 11 MCP tool definitions with name/description/Zod schema), `toolSchemaMap` (lookup by tool name), and `zodToJsonSchema()` for MCP SDK integration.
+- `schemas.ts` contains `TOOL_DEFS` (all 11 MCP tool definitions with name/label/description/Zod schema, typed `as const satisfies readonly ToolDef[]` so `ToolName` is a literal union), `toolSchemaMap` (lookup by tool name), and `zodToJsonSchema()` for MCP SDK integration.
 - `providers.ts` defines the `ReplProvider` interface (strategy pattern) — `complete()` accepts an `onToolCall` callback for API-mode tool execution loops.
 
 ## Structured Markdown Format
@@ -32,9 +32,9 @@ The data contract between all modules. Documents use YAML frontmatter + `##` sec
 | File | Role |
 |------|------|
 | `schemas.ts` | Zod schemas, tool definitions (`TOOL_DEFS`, `toolSchemaMap`), JSON schema conversion |
-| `types.ts` | Data model interfaces + behavioral interface contracts |
+| `types.ts` | Data model interfaces, behavioral interface contracts, and utility functions (`sortChatsByRecent`, `getActiveSection`) |
 | `providers.ts` | `ReplProvider` interface, `ProviderConfig`, `ToolCallResult` |
-| `tool-labels.ts` | Human-readable tool/phase labels for UI activity display |
+| `tool-labels.ts` | Derives tool labels from `TOOL_DEFS`; only phase labels are defined locally |
 | `version-tree.ts` | Pure tree traversal for version history (parent chain, children, forward path) |
 | `slugify.ts` | Title -> URL-safe slug |
 

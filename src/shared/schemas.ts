@@ -106,7 +106,7 @@ export const TOOL_DEFS = [
   {
     name: 'challenge',
     label: 'Adding comprehension check',
-    description: 'Add a new comprehension check question to the active section. Each call adds one question (does not replace existing checks). Provide optional hints for the learner. Provide answer and answerExplanation so the learner can reveal the answer after attempting the question — answers are hidden by default.',
+    description: 'Add a comprehension check question to the active section. Each call adds one question (does not replace existing checks). The learner sees the question first, then can expand a collapsed section to reveal the answer and explanation — this works best when answer is a short, direct statement (one or two sentences) and answerExplanation gives the reasoning behind it. Keeping the answer concise lets the learner do a quick self-check before reading deeper. Include hints when the question benefits from guided discovery.',
     schema: ChallengeSchema,
   },
   {

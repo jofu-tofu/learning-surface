@@ -47,6 +47,9 @@ export function Explanation({ explanation, checks, followups, onFollowupClick }:
               {check.answer && (
                 <div className="mt-2 pt-3 border-t border-surface-700/50">
                   <p className="text-sm text-emerald-400">{check.answer}</p>
+                  {check.answerExplanation && (
+                    <p className="text-sm text-surface-400 mt-1.5 leading-relaxed">{check.answerExplanation}</p>
+                  )}
                 </div>
               )}
             </div>

@@ -5,7 +5,7 @@ Data contracts and shared abstractions consumed by both server and app.
 ## Conventions
 
 - `schemas.ts` defines Zod schemas for MCP tool parameters. `types.ts` defines data model interfaces (`LearningDocument`, `Section`, `Check`, etc.) and behavioral interfaces (`VersionStore`, `ContextCompiler`, `FileWatcherService`) independently — they are not derived from Zod via `z.infer<>`.
-- `schemas.ts` contains `TOOL_DEFS` (all 11 MCP tool definitions with name/label/description/Zod schema, typed `as const satisfies readonly ToolDef[]` so `ToolName` is a literal union), `toolSchemaMap` (lookup by tool name), and `zodToJsonSchema()` for MCP SDK integration.
+- `schemas.ts` contains `TOOL_DEFS` (all 10 MCP tool definitions with name/label/description/Zod schema, typed `as const satisfies readonly ToolDef[]` so `ToolName` is a literal union), `toolSchemaMap` (lookup by tool name), and `zodToJsonSchema()` for MCP SDK integration.
 - `providers.ts` defines Zod schemas for provider data contracts (`ProviderConfigSchema`, `ModelConfigSchema`, `PreflightResultSchema`, `ProviderToolCallSchema`, `ToolCallResultSchema`, `ToolDefinitionSchema`, `ProviderInfoSchema`) with types derived via `z.infer<>`. The `ReplProvider` interface (strategy pattern, has methods) stays as a plain TypeScript interface.
 
 ## Structured Markdown Format
@@ -37,6 +37,7 @@ The data contract between all modules. Documents use YAML frontmatter + `##` sec
 | `tool-labels.ts` | Derives tool labels from `TOOL_DEFS`; only phase labels are defined locally |
 | `version-tree.ts` | Pure tree traversal for version history (parent chain, children, forward path) |
 | `slugify.ts` | Title -> URL-safe slug |
+| `themes.ts` | Theme definitions (`ThemeTokens`, `THEMES`, `THEME_IDS`), OKLCH surface scale generator, `applyTheme()`/`getStoredTheme()` runtime helpers |
 
 ## Gotchas
 

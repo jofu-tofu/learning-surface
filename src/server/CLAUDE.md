@@ -21,7 +21,7 @@ Tools map to **teaching actions**, not document-editing primitives. Three criter
 
 No find/replace tools — they're fragile (silent no-op on mismatch). When the AI needs to correct content, it uses creation tools to rewrite.
 
-**11 tools:** `new_section`, `show_diagram`, `show_visual`, `build_visual`, `explain`, `extend`, `challenge`, `reveal`, `suggest_followups`, `set_active`, `clear`.
+**10 tools:** `new_section`, `show_diagram`, `show_visual`, `build_visual`, `explain`, `extend`, `challenge`, `suggest_followups`, `set_active`, `clear`.
 
 ## Key Files
 

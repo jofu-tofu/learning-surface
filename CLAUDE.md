@@ -33,7 +33,7 @@ src/
     providers/         # AI provider abstraction (CLI via codex exec, API via OpenAI SDK)
     utils/             # WebSocket helpers, version meta reader
   app/                 # React frontend — multi-pane tutoring surface
-    components/        # Canvas, Explanation, Sidebar, SidebarPanel, ChatList, Breadcrumb, ChatBar, ProviderSelector, PromptPreview, ActivityStatus, BranchPopover, PaneHeader, ErrorBanner, EmptyState, Icon, VersionDot
+    components/        # Canvas, Explanation, Sidebar, SidebarPanel, ChatList, Breadcrumb, ChatBar, ProviderSelector, PromptPreview, ActivityStatus, BranchPopover, PaneHeader, ErrorBanner, EmptyState, Icon, VersionDot, ThemeSelector
       renderers/       # Registry-based visual renderers (Mermaid, KaTeX, Code, Diagram, Sequence)
     hooks/             # useSurface (central state), surfaceReducer (pure state machine), useWebSocket, useMarkdown, useAsyncRender, useProviderSelection, useClickOutside
     utils/             # versionLabel, styles, formatTime, detectChangedPanes

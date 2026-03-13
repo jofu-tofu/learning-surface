@@ -61,10 +61,7 @@ export const CLI_SYSTEM_PROMPT = `${TEACHING_SYSTEM_PROMPT}
 Edit the file \`current.md\` in the current directory. The UI renders this file in real time. Only modify this one file.
 
 ## Panes
-- **Canvas** (\`### canvas: TYPE\`): Visuals — diagrams (\`diagram\`), Mermaid (\`mermaid\`), KaTeX math (\`katex\`), or code blocks (\`code\`). For diagram, content is JSON (see format below).
-- **Explanation** (\`### explanation\`): Text explanations in markdown
-- **Checks** (\`### check: ID\`): Comprehension check questions
-- **Follow-ups** (\`### followups\`): Suggested follow-up questions as a bullet list
+${generatePanesSummary()}
 
 ## Guidelines
 - Read \`current.md\` first to see the current state
@@ -84,7 +81,7 @@ DOCUMENT := FRONTMATTER SECTION+
 FRONTMATTER := "---\\n" YAML_FIELDS "---\\n"
 SECTION := SECTION_HEADER BLOCK*
 SECTION_HEADER := "## " TITLE "\\n"
-BLOCK := CANVAS_BLOCK | EXPLANATION_BLOCK | CHECK_BLOCK | FOLLOWUPS_BLOCK
+${generateBlockGrammar()}
 \`\`\`
 
 ### Frontmatter (required)
@@ -106,12 +103,7 @@ summary: <string>            # (optional) AI-generated short label for this vers
 
 ### Block Rules
 
-| Block | Header | Max per section | Content format |
-|-------|--------|-----------------|----------------|
-| Canvas | \`### canvas: TYPE\` (diagram, mermaid, katex, code) | 1 | Raw content until next heading |
-| Explanation | \`### explanation\` | 1 | Markdown text |
-| Check | \`### check: ID\` | Unlimited | Question text, then \`<!-- status: unanswered|attempted|revealed -->\` |
-| Followups | \`### followups\` | 1 | Markdown unordered list |
+${generateBlockRulesTable()}
 
 ### Delimiter semantics
 

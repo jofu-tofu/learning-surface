@@ -1,5 +1,5 @@
 import React from 'react';
-import { useIsProcessing, useActivity } from '../hooks/VersionDiffContext.js';
+import { useIsProcessing, useActivity } from '../hooks/SurfaceStatusContext.js';
 
 const isDev = import.meta.env.DEV;
 

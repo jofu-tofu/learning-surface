@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ProviderSelector, type ProviderSelectorProps } from './ProviderSelector.js';
 import { Icon } from './Icon.js';
-import { useIsProcessing } from '../hooks/VersionDiffContext.js';
+import { useIsProcessing } from '../hooks/SurfaceStatusContext.js';
 
 interface ChatBarProps {
   onSubmit?: (text: string) => void;

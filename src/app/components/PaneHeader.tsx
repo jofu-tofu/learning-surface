@@ -1,6 +1,6 @@
 import React from 'react';
 import { sectionHeading } from '../utils/styles.js';
-import { usePaneChanged, useIsProcessing } from '../hooks/VersionDiffContext.js';
+import { usePaneChanged, useIsProcessing } from '../hooks/SurfaceStatusContext.js';
 
 interface PaneHeaderProps {
   paneId: string;

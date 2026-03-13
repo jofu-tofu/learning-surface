@@ -14,7 +14,7 @@ import { ActivityStatus } from './components/ActivityStatus.js';
 import { ThemeSelector } from './components/ThemeSelector.js';
 import { Icon } from './components/Icon.js';
 import { useSurface } from './hooks/useSurface.js';
-import { SurfaceStatusProvider, usePaneFlash } from './hooks/VersionDiffContext.js';
+import { SurfaceStatusProvider, usePaneFlash } from './hooks/SurfaceStatusContext.js';
 import { getActiveSection } from '../shared/types.js';
 import { applyTheme, getStoredTheme, type ThemeId } from '../shared/themes.js';
 

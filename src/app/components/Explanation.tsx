@@ -1,7 +1,7 @@
 import React from 'react';
 import type { Check } from '../../shared/types.js';
 import { useMarkdown } from '../hooks/useMarkdown.js';
-import { useIsProcessing } from '../hooks/VersionDiffContext.js';
+import { useIsProcessing } from '../hooks/SurfaceStatusContext.js';
 import { EmptyState } from './EmptyState.js';
 import { Icon } from './Icon.js';
 import { sectionHeading, focusRing } from '../utils/styles.js';

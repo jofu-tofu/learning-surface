@@ -16,11 +16,12 @@ Sidebar (ChatList + Sections) | Canvas          | (stacked vertically)
 
 ## State Management
 
-All application state flows through `useSurface()` hook — document, versions, chats, provider selection, WebSocket communication. State is consolidated into a single `SurfaceState` object managed via `surfaceReducer`, updated with `setState(prev => ...)` functional updates. Components are pure renderers consuming this hook's return value.
+All application state flows through `useSurface()` hook — document, versions, chats, provider selection, WebSocket communication. State is consolidated into a single `SurfaceState` object managed via `surfaceReducer`, updated with `setState(prev => ...)` functional updates.
 
 - `useSurface` composes `useWebSocket` and `useProviderSelection` internally
+- `SurfaceStatusContext` provides shared status (`isProcessing`, `activity`, `flashPanes`, `versionChangedPanes`, `changedSectionIds`) — components consume via hooks (`useIsProcessing`, `usePaneChanged`, `useChangedSectionIds`, `useActivity`, `usePaneFlash`) instead of prop threading
 - Pane change detection extracted to `utils/detectChangedPanes.ts`, 1.2s flash timeout (`changedPanes`)
-- Version-level diff state (`versionChangedPanes`, `changedSectionIds`) computed once on version transitions, exposed via `VersionDiffContext` — components consume with `usePaneChanged(id)` / `useChangedSectionIds()`
+- Version-level diff state (`versionChangedPanes`, `changedSectionIds`) computed once on version transitions, exposed via `SurfaceStatusContext` — components consume with `usePaneChanged(id)` / `useChangedSectionIds()`
 - Processing state with 2.5s settle timeout
 - Version path/forward-path computed from `shared/version-tree.ts`
 
@@ -36,7 +37,7 @@ All application state flows through `useSurface()` hook — document, versions, 
 | `Breadcrumb` | Below main | Version timeline with dot navigation |
 | `ChatBar` | Bottom | Prompt input with provider/model selector |
 | `ProviderSelector` | In ChatBar | Provider and model dropdown |
-| `PaneHeader` | Above each pane | Pane label with processing shimmer and version-change "Updated" badge (via `VersionDiffContext`) |
+| `PaneHeader` | Above each pane | Pane label with processing shimmer and version-change "Updated" badge (via `SurfaceStatusContext`) |
 | `ActivityStatus` | Top bar | Live tool-call activity during processing |
 | `BranchPopover` | Over breadcrumb | Popover for exploring version branches |
 | `ErrorBanner` | Inline | Error display with icon |

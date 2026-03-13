@@ -1,7 +1,7 @@
 import React from 'react';
 import { slugify } from '../../shared/slugify.js';
 import { listContainer, listItemBase, listItemActive, listItemInactive } from '../utils/styles.js';
-import { useChangedSectionIds } from '../hooks/VersionDiffContext.js';
+import { useChangedSectionIds } from '../hooks/SurfaceStatusContext.js';
 
 interface SidebarProps {
   sections: Array<{ title: string }>;

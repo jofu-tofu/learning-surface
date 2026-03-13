@@ -35,11 +35,11 @@ All application state flows through `useSurface()` hook — document, versions, 
 | `Sidebar` | Left (bottom) | Section TOC with status indicators |
 | `ChatList` | Left (top) | Chat list with create/switch/delete |
 | `Breadcrumb` | Below main | Version timeline with dot navigation |
+| `BranchPopover` | Over breadcrumb | Popover for exploring version branches |
 | `ChatBar` | Bottom | Prompt input with provider/model selector |
 | `ProviderSelector` | In ChatBar | Provider and model dropdown |
 | `PaneHeader` | Above each pane | Pane label with processing shimmer and version-change "Updated" badge (via `SurfaceStatusContext`) |
 | `ActivityStatus` | Top bar | Live tool-call activity during processing |
-| `BranchPopover` | Over breadcrumb | Popover for exploring version branches |
 | `ErrorBanner` | Inline | Error display with icon |
 | `EmptyState` | Inline | Reusable empty-state placeholder |
 | `Icon` | Inline | SVG icon system with named icons |

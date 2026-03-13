@@ -7,7 +7,7 @@ Node.js server — WebSocket hub, document I/O, version storage, chat persistenc
 **Functional core / imperative shell.** Pure logic (context compilation, system prompt building, version decisions, tool mutations) is separated from I/O. Every I/O boundary has an injectable interface:
 - `FileIO` (document-service.ts) — ports & adapters for filesystem
 - `HandlerDeps` (ws-handlers.ts) — all collaborators overridable for testing
-- `PromptDeps` (prompt-handler.ts) — docService, contextCompiler, getProvider with production defaults
+- `PromptDeps` (prompt-handler.ts) — documentService, contextCompiler, getProvider with production defaults
 
 **Composition root:** `index.ts` wires WebSocket server, chat store, version store, file watcher, and document service. Creates mutable `SessionState`, delegates message routing to `routeMessage()`.
 

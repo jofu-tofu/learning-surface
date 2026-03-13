@@ -25,6 +25,8 @@ export const BEZIER_CONTROL_FACTOR = 0.4;
 export const BEZIER_CONTROL_MIN = 20;
 export const REROUTE_LABEL_WEIGHT_ENDPOINT = 0.125;
 export const REROUTE_LABEL_WEIGHT_ROUTE = 0.75;
+/** Lateral CP1 shift for labeled edges — fraction of cross-axis displacement. */
+export const LABEL_SPREAD_FACTOR = 0.3;
 
 // --- Port Selection ---
 

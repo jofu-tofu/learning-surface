@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Canvas } from './components/Canvas.js';
 import { Explanation } from './components/Explanation.js';
 import { Sidebar } from './components/Sidebar.js';
@@ -18,17 +18,18 @@ import { SurfaceStatusProvider, usePaneFlash } from './hooks/SurfaceStatusContex
 import { getActiveSection } from '../shared/types.js';
 import { applyTheme, getStoredTheme, type ThemeId } from '../shared/themes.js';
 
-function Pane({ id, title, className, children }: {
+function Pane({ id, title, className, scrollRef, children }: {
   id: string;
   title: string;
   className?: string;
+  scrollRef?: React.RefObject<HTMLDivElement | null>;
   children: React.ReactNode;
 }): React.ReactElement {
   const flash = usePaneFlash(id);
   return (
     <div data-testid={`pane-${id}`} className={`flex-1 flex flex-col min-w-0 ${flash ? 'pane-updated' : ''} ${className ?? ''}`}>
       <PaneHeader paneId={id} title={title} />
-      <div className="flex-1 overflow-auto p-6">{children}</div>
+      <div ref={scrollRef} className="flex-1 overflow-auto p-6">{children}</div>
     </div>
   );
 }
@@ -67,8 +68,16 @@ export function App(): React.ReactElement {
 
   const [branchPopoverParentVersion, setBranchPopoverParentVersion] = useState<number | null>(null);
   const [currentTheme, setCurrentTheme] = useState<ThemeId>(getStoredTheme);
+  const canvasScrollRef = useRef<HTMLDivElement | null>(null);
+  const explanationScrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => { applyTheme(currentTheme); }, [currentTheme]);
+
+  const handlePromptSubmit = useCallback((text: string) => {
+    canvasScrollRef.current?.scrollTo({ top: 0 });
+    explanationScrollRef.current?.scrollTo({ top: 0 });
+    submitPrompt(text);
+  }, [submitPrompt]);
 
   const activeSection = doc ? getActiveSection(doc) : undefined;
   const sectionList = doc?.sections.map((section) => ({ title: section.title })) ?? [];
@@ -136,18 +145,18 @@ export function App(): React.ReactElement {
 
             {/* Panes */}
             <div className="flex-1 flex min-h-0">
-              <Pane id="canvas" title="Canvas" className="border-r border-surface-700/40">
+              <Pane id="canvas" title="Canvas" className="border-r border-surface-700/40" scrollRef={canvasScrollRef}>
                 <div className="flex items-center justify-center w-full h-full">
                   <Canvas content={activeSection?.canvas ?? null} />
                 </div>
               </Pane>
 
-              <Pane id="explanation" title="Explanation">
+              <Pane id="explanation" title="Explanation" scrollRef={explanationScrollRef}>
                 <Explanation
                   explanation={activeSection?.explanation ?? null}
                   checks={activeSection?.checks ?? []}
                   followups={activeSection?.followups ?? []}
-                  onFollowupClick={submitPrompt}
+                  onFollowupClick={handlePromptSubmit}
                 />
               </Pane>
             </div>
@@ -186,7 +195,7 @@ export function App(): React.ReactElement {
             {/* Chat bar */}
             <div data-testid="pane-chatbar" className="shrink-0 border-t border-surface-700/40">
               <ChatBar
-                onSubmit={submitPrompt}
+                onSubmit={handlePromptSubmit}
                 providerSelection={{
                   providers,
                   selectedProvider,

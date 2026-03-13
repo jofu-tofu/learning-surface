@@ -16,6 +16,7 @@ import {
   REROUTE_LABEL_WEIGHT_ENDPOINT,
   REROUTE_LABEL_WEIGHT_ROUTE,
   FLOW_DIRECTION_BIAS,
+  LABEL_SPREAD_FACTOR,
 } from './diagram-constants.js';
 
 export { NODE_WIDTH, NODE_HEIGHT, EDGE_LABEL_TEXT_OFFSET_Y } from './diagram-constants.js';
@@ -268,6 +269,7 @@ function computeControlPoints(
   end: { x: number; y: number },
   fromPort: Port,
   toPort: Port,
+  hasLabel = false,
 ): { cp1: { x: number; y: number }; cp2: { x: number; y: number } } {
   const isVertical = fromPort === 'top' || fromPort === 'bottom';
   const axisDist = isVertical ? end.y - start.y : end.x - start.x;
@@ -287,6 +289,19 @@ function computeControlPoints(
     case 'bottom': cp2y += cpOffset; break;
     case 'left': cp2x -= cpOffset; break;
     case 'right': cp2x += cpOffset; break;
+  }
+
+  // For labeled edges, shift CP1 laterally toward the destination so the
+  // curve leans toward its target. This spreads t=0.5 label positions apart
+  // for fan-out patterns, making label-to-edge association visually clear.
+  if (hasLabel) {
+    const crossDist = isVertical ? end.x - start.x : end.y - start.y;
+    const lateralBow = crossDist * LABEL_SPREAD_FACTOR;
+    if (isVertical) {
+      cp1x += lateralBow;
+    } else {
+      cp1y += lateralBow;
+    }
   }
 
   return { cp1: { x: cp1x, y: cp1y }, cp2: { x: cp2x, y: cp2y } };
@@ -520,7 +535,7 @@ export function computeDiagramLayout(data: DiagramData): {
     const { fromPort, toPort } = selectPorts(from, to, direction);
     const start = portPosition(from.x, from.y, fromPort);
     const end = portPosition(to.x, to.y, toPort);
-    const { cp1, cp2 } = computeControlPoints(start, end, fromPort, toPort);
+    const { cp1, cp2 } = computeControlPoints(start, end, fromPort, toPort, !!edge.label);
     const path = `M ${start.x} ${start.y} C ${cp1.x} ${cp1.y}, ${cp2.x} ${cp2.y}, ${end.x} ${end.y}`;
     const labelPos = edgeLabelOnCurve(start, cp1, cp2, end);
 

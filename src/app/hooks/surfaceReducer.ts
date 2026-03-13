@@ -73,7 +73,7 @@ export function reduceSurfaceMessage(
       const doc = msg.document ?? null;
       // Hydrate changed panes from persisted version metadata
       const currentMeta = doc
-        ? msg.versions.find(v => v.version === doc.version)
+        ? msg.versions.find(version => version.version === doc.version)
         : undefined;
       return {
         state: {
@@ -144,7 +144,7 @@ export function reduceSurfaceMessage(
       // Hydrate changed panes from persisted version metadata
       const targetVersion = msg.version ?? state.currentVersion;
       const allVersions = msg.versions ?? state.versions;
-      const targetMeta = allVersions.find(v => v.version === targetVersion);
+      const targetMeta = allVersions.find(version => version.version === targetVersion);
       return {
         state: {
           ...state,

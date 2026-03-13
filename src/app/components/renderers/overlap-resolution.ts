@@ -137,7 +137,7 @@ export function findNonOverlappingPosition(
   }
 
   // Fallback: place below the lowest obstacle, guaranteed clear
-  const maxBottom = Math.max(...obstacles.map(o => o.y + o.height));
+  const maxBottom = Math.max(...obstacles.map(obstacle => obstacle.y + obstacle.height));
   return [origX, maxBottom + EDGE_LABEL_HEIGHT - EDGE_LABEL_TEXT_OFFSET_Y + gap];
 }
 
@@ -218,13 +218,13 @@ export function routeCrossLayerEdges(
       const corridorTop = Math.min(fromMidY, toMidY) - NODE_HEIGHT / 2;
       const corridorBottom = Math.max(fromMidY, toMidY) + NODE_HEIGHT / 2;
 
-      const blocking = intermediateNodes.filter(n =>
-        n.y + NODE_HEIGHT > corridorTop && n.y < corridorBottom,
+      const blocking = intermediateNodes.filter(node =>
+        node.y + NODE_HEIGHT > corridorTop && node.y < corridorBottom,
       );
       if (blocking.length === 0) continue;
 
-      const blockMinY = Math.min(...blocking.map(n => n.y));
-      const blockMaxY = Math.max(...blocking.map(n => n.y + NODE_HEIGHT));
+      const blockMinY = Math.min(...blocking.map(node => node.y));
+      const blockMaxY = Math.max(...blocking.map(node => node.y + NODE_HEIGHT));
       const spaceAbove = blockMinY;
       const spaceBelow = totalHeight - blockMaxY;
 
@@ -247,13 +247,13 @@ export function routeCrossLayerEdges(
       const corridorLeft = Math.min(fromMidX, toMidX) - NODE_WIDTH / 2;
       const corridorRight = Math.max(fromMidX, toMidX) + NODE_WIDTH / 2;
 
-      const blocking = intermediateNodes.filter(n =>
-        n.x + NODE_WIDTH > corridorLeft && n.x < corridorRight,
+      const blocking = intermediateNodes.filter(node =>
+        node.x + NODE_WIDTH > corridorLeft && node.x < corridorRight,
       );
       if (blocking.length === 0) continue;
 
-      const blockMinX = Math.min(...blocking.map(n => n.x));
-      const blockMaxX = Math.max(...blocking.map(n => n.x + NODE_WIDTH));
+      const blockMinX = Math.min(...blocking.map(node => node.x));
+      const blockMaxX = Math.max(...blocking.map(node => node.x + NODE_WIDTH));
       const spaceRight = totalWidth - blockMaxX;
       const spaceLeft = blockMinX;
 

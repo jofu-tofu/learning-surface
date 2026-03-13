@@ -5,6 +5,7 @@ import { TOOL_DEFS, zodToJsonSchema } from '../shared/schemas.js';
 import { SYSTEM_PROMPT } from './system-prompt.js';
 import type { ReplProvider, ToolDefinition, ReasoningEffort } from '../shared/providers.js';
 import type { ContextCompiler, LearningDocument, SurfaceContext, VersionStore } from '../shared/types.js';
+import { detectChangedPanes, detectChangedSections } from '../shared/detectChangedPanes.js';
 
 // === Pure constants and functions (functional core) ===
 
@@ -38,12 +39,16 @@ export function buildVersionMeta(
   prompt: string | null,
   summary: string | null,
   timestamp: string,
+  changedPanes?: string[],
+  changedSectionIds?: string[],
 ): Omit<import('../shared/types.js').VersionMeta, 'version'> {
   return {
     prompt,
     summary,
     timestamp,
     source: 'ai' as const,
+    ...(changedPanes && changedPanes.length > 0 ? { changedPanes } : {}),
+    ...(changedSectionIds && changedSectionIds.length > 0 ? { changedSectionIds } : {}),
   };
 }
 
@@ -161,6 +166,10 @@ export async function handlePrompt(
   );
 
   if (hasChanges) {
+    // Compute which panes/sections changed for persistent metadata
+    const paneChanges = detectChangedPanes(currentDoc, finalDoc);
+    const sectionChanges = detectChangedSections(currentDoc, finalDoc);
+
     // Ensure version is bumped for CLI mode
     if (finalDoc.version <= startVersion) {
       finalDoc.version = startVersion + 1;
@@ -170,7 +179,13 @@ export async function handlePrompt(
     const contentForVersion = documentService.readRaw(filePath) ?? '';
     await versionStore.createVersion(
       contentForVersion,
-      buildVersionMeta(text, finalDoc.summary ?? null, new Date().toISOString()),
+      buildVersionMeta(
+        text,
+        finalDoc.summary ?? null,
+        new Date().toISOString(),
+        [...paneChanges],
+        [...sectionChanges],
+      ),
     );
     // Re-write to trigger watcher with updated version list
     documentService.write(filePath, finalDoc);

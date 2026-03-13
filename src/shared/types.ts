@@ -51,6 +51,8 @@ export interface VersionMeta {
   timestamp: string;
   source: 'ai' | 'user-edit';
   parent?: number; // for branching
+  changedPanes?: string[]; // panes that changed vs previous version (e.g. 'canvas', 'explanation', 'sections')
+  changedSectionIds?: string[]; // section IDs that were added or modified vs previous version
 }
 
 // === Context Types ===

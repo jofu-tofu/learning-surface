@@ -71,6 +71,10 @@ export function reduceSurfaceMessage(
   switch (msg.type) {
     case 'session-init': {
       const doc = msg.document ?? null;
+      // Hydrate changed panes from persisted version metadata
+      const currentMeta = doc
+        ? msg.versions.find(v => v.version === doc.version)
+        : undefined;
       return {
         state: {
           ...state,
@@ -82,8 +86,8 @@ export function reduceSurfaceMessage(
           isProcessing: false,
           activity: null,
           changedPanes: new Set(),
-          versionChangedPanes: new Set(),
-          changedSectionIds: new Set(),
+          versionChangedPanes: new Set(currentMeta?.changedPanes ?? []),
+          changedSectionIds: new Set(currentMeta?.changedSectionIds ?? []),
           providerError: state.providerError,
         },
         effects: msg.providers
@@ -136,19 +140,24 @@ export function reduceSurfaceMessage(
       };
     }
 
-    case 'version-change':
+    case 'version-change': {
+      // Hydrate changed panes from persisted version metadata
+      const targetVersion = msg.version ?? state.currentVersion;
+      const allVersions = msg.versions ?? state.versions;
+      const targetMeta = allVersions.find(v => v.version === targetVersion);
       return {
         state: {
           ...state,
           document: msg.document ?? state.document,
-          currentVersion: msg.version ?? state.currentVersion,
-          versions: msg.versions ?? state.versions,
-          versionChangedPanes: new Set(),
-          changedSectionIds: new Set(),
+          currentVersion: targetVersion,
+          versions: allVersions,
+          versionChangedPanes: new Set(targetMeta?.changedPanes ?? []),
+          changedSectionIds: new Set(targetMeta?.changedSectionIds ?? []),
         },
         effects: [],
         prevDoc,
       };
+    }
 
     case 'chat-list':
       return {

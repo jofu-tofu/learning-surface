@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import type { LearningDocument, VersionMeta, WsMessage, Chat, ClientMessage } from '../../shared/types.js';
 import type { ProviderInfo, ReasoningEffort } from '../../shared/providers.js';
 import { getVersionPath, getForwardPath } from '../../shared/version-tree.js';
@@ -124,10 +124,10 @@ export function useSurface(): UseSurfaceReturn {
 
       return reducerResult.state;
     });
-  }, []);
+  }, [autoSelectProvider, setProviders]);
 
   const { connected, send } = useWebSocket({ url: WS_URL, onMessage });
-  sendRef.current = send;
+  useEffect(() => { sendRef.current = send; }, [send]);
 
   const path = useMemo(() => getVersionPath(currentVersion, versions), [currentVersion, versions]);
   const forwardPath = useMemo(() => getForwardPath(currentVersion, versions), [currentVersion, versions]);

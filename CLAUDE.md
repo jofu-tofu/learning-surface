@@ -28,6 +28,7 @@ Three rules govern all tests in this project:
 src/
   shared/              # Data contracts, Zod schemas, shared types and utilities
   server/              # Node.js server — WebSocket hub, document I/O, versioning, AI orchestration
+    blocks/            # Block definition registry — self-contained parse/serialize/describe per block type
     providers/         # AI provider abstraction (CLI via codex exec, API via OpenAI SDK)
     utils/             # WebSocket helpers, version meta reader
   app/                 # React frontend — multi-pane tutoring surface

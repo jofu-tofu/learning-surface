@@ -40,8 +40,9 @@ The data contract between all modules. Documents use YAML frontmatter + `##` sec
 
 ## Gotchas
 
-- Changes to `schemas.ts` tool definitions must stay in sync with `server/tool-handlers.ts` (the handler registry) and `server/markdown.ts` (the parser/serializer).
-- The structured markdown format is inlined in `server/system-prompt.ts` (`CLI_SYSTEM_PROMPT`) — if the format changes, update that constant too.
+- Changes to `schemas.ts` tool definitions must stay in sync with `server/tool-handlers.ts` (the handler registry) and `server/blocks/` (the block definitions).
+- The CLI system prompt format section in `server/system-prompt.ts` is auto-generated from the block registry — adding a new block type in `server/blocks/` automatically updates the prompt.
+- `CANVAS_TYPES` in `types.ts` is the canonical source for canvas type values. `schemas.ts` `ShowVisualSchema` uses a subset (excludes `diagram` which has its own `show_diagram` tool).
 
 ---
 ## Context Maintenance

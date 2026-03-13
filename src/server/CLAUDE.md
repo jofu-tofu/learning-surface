@@ -32,7 +32,8 @@ No find/replace tools — they're fragile (silent no-op on mismatch). When the A
 | `prompt-handler.ts` | AI orchestration — pure functions + `handlePrompt` imperative shell |
 | `system-prompt.ts` | Single source of truth for all AI system prompts and teaching principles |
 | `document-service.ts` | Document I/O with injectable `FileIO` |
-| `markdown.ts` | `parse`/`serialize`/`applyToolCall` for structured markdown |
+| `markdown.ts` | `parse`/`serialize`/`applyToolCall` — delegates block logic to `blocks/` registry |
+| `blocks/` | Block definition registry — each block type (canvas, explanation, check, followups) is a self-contained `BlockDefinition` with its own `match`/`parse`/`serialize`/`describe` |
 | `tool-handlers.ts` | Pure tool mutations — `applyTool(doc, tool, params)` mutates in-place |
 | `versions.ts` | Version store — v1.md + patches via `diff` library |
 | `chat-store.ts` | Multi-chat CRUD, `chats.json` index, per-chat directories |

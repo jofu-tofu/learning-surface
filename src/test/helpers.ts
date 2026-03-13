@@ -9,6 +9,7 @@ import type {
 } from '../shared/types.js';
 export type { VersionStore };
 import { slugify } from '../shared/slugify.js';
+import { serialize } from '../server/markdown.js';
 
 // === Builders ===
 
@@ -61,31 +62,26 @@ export function buildVersionMeta(overrides: Partial<VersionMeta> = {}): VersionM
 
 // === Fixture Markdown Strings ===
 
-export const MINIMAL_DOC = `---
-version: 1
-active_section: introduction
----
+// Generated from builders — stays in sync with format changes automatically.
+export const MINIMAL_DOC = serialize(buildDocument({
+  sections: [buildSection({ title: 'Introduction', explanation: 'This is the introduction.' })],
+  activeSection: 'introduction',
+}));
 
-## Introduction
-
-### explanation
-This is the introduction.
-`;
-
+// Deliberately malformed — no frontmatter. Must stay as raw string.
 export const NO_FRONTMATTER_DOC = `## Introduction
 
 ### explanation
 Missing frontmatter.
 `;
 
-export const EMPTY_SECTION_DOC = `---
-version: 1
-active_section: empty
----
+// Generated from builders — empty section with no blocks.
+export const EMPTY_SECTION_DOC = serialize(buildDocument({
+  sections: [buildSection({ title: 'Empty' })],
+  activeSection: 'empty',
+}));
 
-## Empty
-`;
-
+// Deliberate edge case — unknown block type. Must stay as raw string.
 export const UNKNOWN_BLOCK_DOC = `---
 version: 1
 active_section: test
@@ -100,6 +96,7 @@ Some content here.
 Known block.
 `;
 
+// Deliberate edge case — duplicate blocks. Must stay as raw string.
 export const DUPLICATE_BLOCK_DOC = `---
 version: 1
 active_section: test

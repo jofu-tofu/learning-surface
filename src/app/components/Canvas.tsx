@@ -12,6 +12,7 @@ const canvasEmptyIcon = (
   <Icon name="grid" className="w-10 h-10" size={40} strokeWidth={1.5} />
 );
 
+/* eslint-disable react-hooks/static-components -- getRenderer is a registry lookup, not component creation */
 export function Canvas({ content }: CanvasProps): React.ReactElement {
   if (!content) {
     return (
@@ -28,3 +29,4 @@ export function Canvas({ content }: CanvasProps): React.ReactElement {
 
   return <Renderer content={content.content} language={content.language} />;
 }
+/* eslint-enable react-hooks/static-components */

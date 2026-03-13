@@ -68,6 +68,7 @@ describe('Canvas', () => {
   });
 
   it('renders unsupported canvas type gracefully', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const content = buildCanvasContent({ type: 'unknown' as any, content: 'data' });
     render(<Canvas content={content} />);
     expect(screen.getByText(/unsupported/i)).toBeDefined();

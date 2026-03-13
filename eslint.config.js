@@ -19,7 +19,7 @@ export default tseslint.config(
   {
     files: ['src/app/**/*.{ts,tsx}'],
     rules: {
-      'no-console': 'warn',
+      'no-console': ['warn', { allow: ['warn', 'error'] }],
     },
   },
 

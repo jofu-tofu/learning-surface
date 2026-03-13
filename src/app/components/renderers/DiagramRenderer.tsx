@@ -236,6 +236,7 @@ export function DiagramRenderer({ content }: RendererProps): React.ReactElement 
   // Trigger entry animation on mount and content change
   useEffect(() => {
     if (content !== prevContentRef.current) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: reset animation state on content change
       setMounted(false);
       prevContentRef.current = content;
     }

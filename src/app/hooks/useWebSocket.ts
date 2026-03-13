@@ -8,7 +8,7 @@ interface UseWebSocketOptions {
 
 export function useWebSocket(options: UseWebSocketOptions): {
   connected: boolean;
-  send: (data: unknown) => void;
+  send: (payload: unknown) => void;
 } {
   const { url, onMessage } = options;
   const [connected, setConnected] = useState(false);
@@ -55,9 +55,9 @@ export function useWebSocket(options: UseWebSocketOptions): {
     };
   }, [url, onMessage]);
 
-  const send = useCallback((data: unknown) => {
+  const send = useCallback((payload: unknown) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify(data));
+      wsRef.current.send(JSON.stringify(payload));
     }
   }, []);
 

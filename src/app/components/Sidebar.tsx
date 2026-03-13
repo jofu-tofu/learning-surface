@@ -12,14 +12,14 @@ export function Sidebar({ sections, activeSection, onSectionClick }: SidebarProp
   return (
     <nav className={listContainer}>
       {sections.map((section) => {
-        const id = slugify(section.title);
-        const isActive = id === activeSection;
+        const sectionId = slugify(section.title);
+        const isActive = sectionId === activeSection;
 
         return (
           <button
-            key={id}
-            data-testid={isActive ? `section-active-${id}` : `section-${id}`}
-            onClick={() => onSectionClick?.(id)}
+            key={sectionId}
+            data-testid={isActive ? `section-active-${sectionId}` : `section-${sectionId}`}
+            onClick={() => onSectionClick?.(sectionId)}
             className={`${listItemBase} ${isActive ? listItemActive : listItemInactive}`}
           >
             {/* Status indicator */}

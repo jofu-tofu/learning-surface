@@ -61,14 +61,14 @@ export function Explanation({ explanation, checks, followups, onFollowupClick, i
             Explore Further
           </h3>
           <div className="flex flex-wrap gap-2">
-            {followups.map((q) => (
+            {followups.map((followupQuestion) => (
               <button
-                key={q}
-                onClick={() => onFollowupClick?.(q)}
+                key={followupQuestion}
+                onClick={() => onFollowupClick?.(followupQuestion)}
                 disabled={isProcessing}
                 className={`px-3.5 py-2 text-xs font-medium rounded-xl bg-accent-600/10 text-accent-400 border border-accent-500/20 hover:bg-accent-600/20 hover:border-accent-500/40 hover:shadow-sm hover:shadow-accent-500/5 transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-accent-600/10 disabled:hover:border-accent-500/20 ${focusRing}`}
               >
-                {q}
+                {followupQuestion}
               </button>
             ))}
           </div>

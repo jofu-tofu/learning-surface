@@ -37,16 +37,16 @@ function DropdownMenu({ options, value, onChange }: {
 }): React.ReactElement {
   return (
     <div className={`${popoverPanel} min-w-36 py-1 z-50`}>
-      {options.map(opt => (
+      {options.map(option => (
         <button
-          key={opt.value}
+          key={option.value}
           type="button"
-          onClick={() => onChange(opt.value)}
+          onClick={() => onChange(option.value)}
           className={`w-full text-left px-3 py-1.5 text-xs transition-colors cursor-pointer ${focusRing} ${
-            opt.value === value ? menuItemActive : menuItemInactive
+            option.value === value ? menuItemActive : menuItemInactive
           }`}
         >
-          {opt.label}
+          {option.label}
         </button>
       ))}
     </div>
@@ -75,10 +75,10 @@ export function ProviderSelector({
   const [openMenu, setOpenMenu] = useState<DropdownId | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const close = useCallback(() => setOpenMenu(null), []);
-  useClickOutside(containerRef, close);
+  const closeMenu = useCallback(() => setOpenMenu(null), []);
+  useClickOutside(containerRef, closeMenu);
 
-  const toggle = (id: DropdownId) => setOpenMenu(prev => prev === id ? null : id);
+  const toggleMenu = (id: DropdownId) => setOpenMenu(prev => prev === id ? null : id);
 
   const activeProvider = providers.find((p) => p.id === selectedProvider);
   const models = activeProvider?.models ?? [];
@@ -89,9 +89,9 @@ export function ProviderSelector({
   const modelLabel = activeModel ? (activeModel.displayName ?? activeModel.name) : 'Model';
   const effortLabel = selectedReasoningEffort ?? 'Effort';
 
-  const providerOptions: DropdownOption[] = providers.map(p => ({ value: p.id, label: p.name }));
-  const modelOptions: DropdownOption[] = models.map(m => ({ value: m.id, label: m.displayName ?? m.name }));
-  const effortOptions: DropdownOption[] = efforts.map(e => ({ value: e, label: e }));
+  const providerOptions: DropdownOption[] = providers.map(provider => ({ value: provider.id, label: provider.name }));
+  const modelOptions: DropdownOption[] = models.map(model => ({ value: model.id, label: model.displayName ?? model.name }));
+  const effortOptions: DropdownOption[] = efforts.map(effort => ({ value: effort, label: effort }));
 
   const triggerBase = 'flex items-center gap-1.5 text-xs h-8 cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed';
 
@@ -101,7 +101,7 @@ export function ProviderSelector({
       <div className="relative">
         <button
           type="button"
-          onClick={() => toggle('provider')}
+          onClick={() => toggleMenu('provider')}
           aria-label="Provider"
           aria-expanded={openMenu === 'provider'}
           className={`${triggerBase} ${focusRing} text-surface-300 font-medium pl-2.5 pr-2.5 hover:text-surface-100 rounded-l-full`}
@@ -114,7 +114,7 @@ export function ProviderSelector({
           <DropdownMenu
             options={providerOptions}
             value={selectedProvider ?? ''}
-            onChange={(v) => { onProviderChange(v); close(); }}
+            onChange={(v) => { onProviderChange(v); closeMenu(); }}
           />
         )}
       </div>
@@ -125,7 +125,7 @@ export function ProviderSelector({
       <div className="relative">
         <button
           type="button"
-          onClick={() => models.length > 0 && toggle('model')}
+          onClick={() => models.length > 0 && toggleMenu('model')}
           disabled={models.length === 0}
           aria-label="Model"
           aria-expanded={openMenu === 'model'}
@@ -138,7 +138,7 @@ export function ProviderSelector({
           <DropdownMenu
             options={modelOptions}
             value={selectedModel ?? ''}
-            onChange={(v) => { onModelChange(v); close(); }}
+            onChange={(v) => { onModelChange(v); closeMenu(); }}
           />
         )}
       </div>
@@ -150,7 +150,7 @@ export function ProviderSelector({
           <div className="relative">
             <button
               type="button"
-              onClick={() => toggle('effort')}
+              onClick={() => toggleMenu('effort')}
               aria-label="Reasoning effort"
               aria-expanded={openMenu === 'effort'}
               className={`${triggerBase} ${focusRing} text-surface-400 pl-2.5 pr-2.5 hover:text-surface-200 rounded-r-full`}
@@ -162,7 +162,7 @@ export function ProviderSelector({
               <DropdownMenu
                 options={effortOptions}
                 value={selectedReasoningEffort ?? ''}
-                onChange={(v) => { onReasoningEffortChange(v as ReasoningEffort); close(); }}
+                onChange={(v) => { onReasoningEffortChange(v as ReasoningEffort); closeMenu(); }}
               />
             )}
           </div>

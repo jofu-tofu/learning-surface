@@ -13,12 +13,12 @@ export function ChatBar({
   isProcessing,
   providerSelection,
 }: ChatBarProps): React.ReactElement {
-  const [value, setValue] = useState('');
+  const [inputText, setInputText] = useState('');
 
   const handleSubmit = () => {
-    if (!value.trim() || isProcessing) return;
-    onSubmit?.(value.trim());
-    setValue('');
+    if (!inputText.trim() || isProcessing) return;
+    onSubmit?.(inputText.trim());
+    setInputText('');
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -34,8 +34,8 @@ export function ChatBar({
         <input
           type="text"
           role="textbox"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
+          value={inputText}
+          onChange={(e) => setInputText(e.target.value)}
           onKeyDown={handleKeyDown}
           disabled={isProcessing}
           placeholder={isProcessing ? "Processing..." : "Ask a question or explore a concept..."}
@@ -51,7 +51,7 @@ export function ChatBar({
       </div>
       {providerSelection && <ProviderSelector {...providerSelection} />}
       <button
-        disabled={!value.trim() || isProcessing}
+        disabled={!inputText.trim() || isProcessing}
         onClick={handleSubmit}
         aria-label="Send"
         className="shrink-0 w-8 h-8 flex items-center justify-center rounded-full transition-all duration-150 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-400 disabled:cursor-not-allowed bg-surface-700/40 text-surface-400 hover:text-accent-400 hover:bg-accent-500/10 disabled:text-surface-600 disabled:hover:bg-transparent"

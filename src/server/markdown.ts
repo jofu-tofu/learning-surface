@@ -4,6 +4,7 @@ import type {
   Section,
 } from '../shared/types.js';
 import { slugify } from '../shared/slugify.js';
+import { toolSchemaMap } from '../shared/schemas.js';
 import { applyTool } from './tool-handlers.js';
 import { findBlock, allBlocks, splitBlocks, type RawBlock } from './blocks/registry.js';
 
@@ -114,6 +115,12 @@ export function applyToolCall(
   tool: string,
   params: Record<string, unknown>,
 ): LearningDocument {
+  // Validate params against Zod schema (ensures all paths are safe, not just MCP)
+  const schema = toolSchemaMap.get(tool);
+  if (schema) {
+    params = schema.parse(params);
+  }
+
   // Deep clone the document
   const clonedDocument: LearningDocument = structuredClone(doc);
   applyTool(clonedDocument, tool, params);

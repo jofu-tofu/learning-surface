@@ -223,7 +223,19 @@ describe('slugify', () => {
     expect(slugify('hello-world')).toBe('hello-world');
   });
 
-  it('accented/non-ascii: drops them (e.g., café → caf)', () => {
-    expect(slugify('café')).toBe('caf');
+  it('accented: decomposes diacriticals (e.g., café → cafe)', () => {
+    expect(slugify('café')).toBe('cafe');
+  });
+
+  it('non-Latin: preserves CJK characters', () => {
+    expect(slugify('学习')).toBe('学习');
+  });
+
+  it('all-symbol input: falls back to untitled', () => {
+    expect(slugify('!@#$%')).toBe('untitled');
+  });
+
+  it('empty string: falls back to untitled', () => {
+    expect(slugify('')).toBe('untitled');
   });
 });

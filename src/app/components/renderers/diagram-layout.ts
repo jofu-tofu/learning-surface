@@ -400,6 +400,138 @@ export function computeLayerGaps(
   return gaps;
 }
 
+// --- Crossing minimization ---
+
+/**
+ * Count edge crossings across all layer pairs (including cross-layer edges).
+ * Edges between the same pair of layers cross when their source/target orderings
+ * disagree: pos(u1) < pos(u2) but pos(v1) > pos(v2), or vice versa.
+ */
+export function countCrossings(layers: string[][], edges: DiagramEdge[]): number {
+  const nodeIds = new Set(layers.flat());
+  const layerOf = new Map<string, number>();
+  const posOf = new Map<string, number>();
+  for (let i = 0; i < layers.length; i++) {
+    for (let j = 0; j < layers[i].length; j++) {
+      layerOf.set(layers[i][j], i);
+      posOf.set(layers[i][j], j);
+    }
+  }
+
+  // Group edges by their (sorted) layer pair
+  const edgesByPair = new Map<string, { sPos: number; tPos: number }[]>();
+  for (const edge of edges) {
+    if (!nodeIds.has(edge.from) || !nodeIds.has(edge.to)) continue;
+    const fL = layerOf.get(edge.from)!;
+    const tL = layerOf.get(edge.to)!;
+    if (fL === tL) continue;
+    const [uId, lId] = fL < tL ? [edge.from, edge.to] : [edge.to, edge.from];
+    const key = `${Math.min(fL, tL)}-${Math.max(fL, tL)}`;
+    if (!edgesByPair.has(key)) edgesByPair.set(key, []);
+    edgesByPair.get(key)!.push({ sPos: posOf.get(uId)!, tPos: posOf.get(lId)! });
+  }
+
+  let total = 0;
+  for (const group of edgesByPair.values()) {
+    for (let i = 0; i < group.length; i++) {
+      for (let j = i + 1; j < group.length; j++) {
+        const a = group[i];
+        const b = group[j];
+        if ((a.sPos < b.sPos && a.tPos > b.tPos) ||
+            (a.sPos > b.sPos && a.tPos < b.tPos)) {
+          total++;
+        }
+      }
+    }
+  }
+  return total;
+}
+
+/**
+ * Reorder nodes within layers to minimize edge crossings.
+ * Uses the barycenter heuristic: for each node, compute the average normalized
+ * position of its neighbors in ALL layers in the sweep direction (not just the
+ * adjacent layer). This handles cross-layer edges that skip intermediate layers.
+ * Alternates forward and backward sweeps, tracking the best ordering found.
+ */
+export function minimizeCrossings(
+  layers: string[][],
+  edges: DiagramEdge[],
+  maxIterations = 4,
+): string[][] {
+  if (layers.length <= 1) return layers.map(l => [...l]);
+
+  const nodeIds = new Set(layers.flat());
+
+  // Build adjacency
+  const neighbors = new Map<string, string[]>();
+  for (const id of nodeIds) neighbors.set(id, []);
+  for (const edge of edges) {
+    if (!nodeIds.has(edge.from) || !nodeIds.has(edge.to)) continue;
+    neighbors.get(edge.from)!.push(edge.to);
+    neighbors.get(edge.to)!.push(edge.from);
+  }
+
+  const layerOf = new Map<string, number>();
+  for (let i = 0; i < layers.length; i++) {
+    for (const id of layers[i]) layerOf.set(id, i);
+  }
+
+  const result = layers.map(l => [...l]);
+
+  function reorderLayer(layerIdx: number, direction: 'forward' | 'backward') {
+    const barycenters = new Map<string, number>();
+
+    for (const nodeId of result[layerIdx]) {
+      // Consider neighbors in all layers in the reference direction
+      const refNeighbors = (neighbors.get(nodeId) ?? []).filter(n => {
+        const nLayer = layerOf.get(n);
+        if (nLayer === undefined) return false;
+        return direction === 'forward' ? nLayer < layerIdx : nLayer > layerIdx;
+      });
+
+      if (refNeighbors.length === 0) {
+        barycenters.set(nodeId, result[layerIdx].indexOf(nodeId));
+        continue;
+      }
+
+      // Normalize positions to [0,1] so cross-layer positions are comparable
+      const sum = refNeighbors.reduce((s, n) => {
+        const nLayer = layerOf.get(n)!;
+        const posInLayer = result[nLayer].indexOf(n);
+        const layerSize = result[nLayer].length;
+        return s + (layerSize > 1 ? posInLayer / (layerSize - 1) : 0.5);
+      }, 0);
+      barycenters.set(nodeId, sum / refNeighbors.length);
+    }
+
+    result[layerIdx].sort((a, b) => (barycenters.get(a) ?? 0) - (barycenters.get(b) ?? 0));
+  }
+
+  let bestCrossings = countCrossings(result, edges);
+  let bestOrder = result.map(l => [...l]);
+
+  for (let iter = 0; iter < maxIterations; iter++) {
+    // Forward sweep: fix layers above, reorder each layer top-down
+    for (let i = 1; i < result.length; i++) {
+      reorderLayer(i, 'forward');
+    }
+    // Backward sweep: fix layers below, reorder each layer bottom-up
+    for (let i = result.length - 2; i >= 0; i--) {
+      reorderLayer(i, 'backward');
+    }
+
+    const crossings = countCrossings(result, edges);
+    if (crossings < bestCrossings) {
+      bestCrossings = crossings;
+      bestOrder = result.map(l => [...l]);
+    }
+    if (crossings === 0) break;
+  }
+
+  return bestOrder;
+}
+
 export interface GroupRect {
   group: string;
   x: number;
@@ -461,6 +593,13 @@ export function computeDiagramLayout(data: DiagramData): {
     for (const nodeId of layers[i]) {
       layerMap.set(nodeId, i);
     }
+  }
+
+  // Minimize edge crossings by reordering nodes within each layer
+  const orderedLayers = minimizeCrossings(layers, edges);
+  // Replace layer contents with optimized ordering
+  for (let i = 0; i < layers.length; i++) {
+    layers[i] = orderedLayers[i];
   }
 
   // Compute adaptive inter-layer gaps based on labeled edge density

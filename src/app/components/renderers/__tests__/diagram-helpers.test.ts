@@ -16,6 +16,8 @@ import {
   cubicBezierPoint,
   edgeLabelOnCurve,
   computeLayerGaps,
+  countCrossings,
+  minimizeCrossings,
   NODE_WIDTH,
   NODE_HEIGHT,
 } from '../diagram-layout.js';
@@ -445,5 +447,134 @@ describe('computeLayerGaps', () => {
     const gaps = computeLayerGaps(layers, edges, layerMap, 64);
     // Only 1 labeled edge between layers 0-1, so base gap
     expect(gaps).toEqual([64]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// countCrossings — edge crossing detection
+// ---------------------------------------------------------------------------
+
+describe('countCrossings', () => {
+  it('returns zero for parallel edges (no crossing)', () => {
+    const layers = [['a', 'b'], ['c', 'd']];
+    const edges = [
+      { from: 'a', to: 'c' },
+      { from: 'b', to: 'd' },
+    ];
+    expect(countCrossings(layers, edges)).toBe(0);
+  });
+
+  it('detects one crossing when two edges swap order', () => {
+    const layers = [['a', 'b'], ['c', 'd']];
+    const edges = [
+      { from: 'a', to: 'd' },
+      { from: 'b', to: 'c' },
+    ];
+    expect(countCrossings(layers, edges)).toBe(1);
+  });
+
+  it('returns zero for a single edge', () => {
+    const layers = [['a'], ['b']];
+    const edges = [{ from: 'a', to: 'b' }];
+    expect(countCrossings(layers, edges)).toBe(0);
+  });
+
+  it('returns zero for empty edges', () => {
+    const layers = [['a', 'b'], ['c', 'd']];
+    expect(countCrossings(layers, [])).toBe(0);
+  });
+
+  it('returns zero for a single layer', () => {
+    const layers = [['a', 'b', 'c']];
+    const edges = [{ from: 'a', to: 'b' }];
+    expect(countCrossings(layers, edges)).toBe(0);
+  });
+
+  it('ignores edges referencing nodes not in any layer', () => {
+    const layers = [['a'], ['b']];
+    const edges = [
+      { from: 'a', to: 'b' },
+      { from: 'x', to: 'y' },
+    ];
+    expect(countCrossings(layers, edges)).toBe(0);
+  });
+
+  it('detects crossings in cross-layer edges (same layer pair)', () => {
+    // Edges from layer 0 to layer 2 that cross
+    const layers = [['a', 'b'], ['c'], ['d', 'e']];
+    const edges = [
+      { from: 'a', to: 'e' }, // layer 0 pos 0 → layer 2 pos 1
+      { from: 'b', to: 'd' }, // layer 0 pos 1 → layer 2 pos 0
+    ];
+    expect(countCrossings(layers, edges)).toBe(1);
+  });
+
+  it('handles reversed edge direction (to before from in layer order)', () => {
+    const layers = [['a', 'b'], ['c', 'd']];
+    const edges = [
+      { from: 'd', to: 'a' }, // reversed: layer 1 pos 1 → layer 0 pos 0
+      { from: 'c', to: 'b' }, // reversed: layer 1 pos 0 → layer 0 pos 1
+    ];
+    expect(countCrossings(layers, edges)).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// minimizeCrossings — barycenter heuristic
+// ---------------------------------------------------------------------------
+
+describe('minimizeCrossings', () => {
+  it('returns copy of input for single layer', () => {
+    const layers = [['a', 'b', 'c']];
+    const result = minimizeCrossings(layers, []);
+    expect(result).toEqual([['a', 'b', 'c']]);
+    expect(result).not.toBe(layers); // different reference
+  });
+
+  it('does not mutate the input layers', () => {
+    const layers = [['a', 'b'], ['c', 'd']];
+    const original = layers.map(l => [...l]);
+    const edges = [{ from: 'a', to: 'd' }, { from: 'b', to: 'c' }];
+    minimizeCrossings(layers, edges);
+    expect(layers).toEqual(original);
+  });
+
+  it('eliminates crossing by reordering target layer', () => {
+    // Crossing: a→d crosses b→c
+    const layers = [['a', 'b'], ['c', 'd']];
+    const edges = [
+      { from: 'a', to: 'd' },
+      { from: 'b', to: 'c' },
+    ];
+    const result = minimizeCrossings(layers, edges);
+    expect(countCrossings(result, edges)).toBe(0);
+  });
+
+  it('eliminates crossings with cross-layer edges', () => {
+    // Simulates the problematic diagram pattern: edges from layer 0
+    // skip layer 1 to reach layer 2, creating crossings
+    const layers = [['a', 'b'], ['c'], ['d', 'e']];
+    const edges = [
+      { from: 'a', to: 'e' }, // cross-layer: 0→2, crosses with b→d
+      { from: 'b', to: 'd' }, // cross-layer: 0→2
+      { from: 'a', to: 'c' }, // normal: 0→1
+    ];
+    const result = minimizeCrossings(layers, edges);
+    expect(countCrossings(result, edges)).toBe(0);
+  });
+
+  it('handles nodes with no cross-layer neighbors (preserves position)', () => {
+    // Node 'z' in layer 1 has no neighbors — should stay put
+    const layers = [['a'], ['z', 'b'], ['c']];
+    const edges = [{ from: 'a', to: 'b' }, { from: 'b', to: 'c' }];
+    const result = minimizeCrossings(layers, edges);
+    // Should still be a valid ordering with all nodes present
+    expect(new Set(result[1])).toEqual(new Set(['z', 'b']));
+  });
+
+  it('handles empty edge list gracefully', () => {
+    const layers = [['a', 'b'], ['c', 'd']];
+    const result = minimizeCrossings(layers, []);
+    expect(result).toEqual([['a', 'b'], ['c', 'd']]);
   });
 });

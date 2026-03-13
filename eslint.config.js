@@ -26,7 +26,9 @@ export default tseslint.config(
   // Project-wide TS rules that complement tsc --noEmit
   {
     rules: {
-      '@typescript-eslint/consistent-type-imports': 'error',
+      '@typescript-eslint/consistent-type-imports': ['error', {
+        disallowTypeAnnotations: false,
+      }],
       '@typescript-eslint/no-unused-vars': ['error', {
         argsIgnorePattern: '^_',
         varsIgnorePattern: '^_',

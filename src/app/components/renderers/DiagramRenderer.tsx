@@ -8,8 +8,43 @@ import {
   NODE_HEIGHT,
   CATEGORY_COLORS,
   DEFAULT_COLORS,
+  SHAPE_INSET,
+  SHAPE_STROKE_WIDTH,
+  RECT_CORNER_RADIUS,
+  ROUNDED_CORNER_RADIUS,
+  EDGE_LABEL_PILL_RADIUS,
+  EDGE_LABEL_TEXT_OFFSET_Y,
+  EDGE_LABEL_FONT_SIZE,
+  CATEGORY_DOT_X,
+  CATEGORY_DOT_RADIUS,
+  NODE_LABEL_FONT_SIZE,
+  INFO_ICON_MARGIN,
+  INFO_ICON_RADIUS,
+  INFO_ICON_FONT_SIZE,
+  ARROW_VIEWBOX,
+  ARROW_REF_X,
+  ARROW_REF_Y,
+  ARROW_WIDTH,
+  ARROW_HEIGHT,
+  ARROW_PATH,
+  GROUP_LABEL_OFFSET_X,
+  GROUP_LABEL_OFFSET_Y,
+  GROUP_LABEL_FONT_SIZE,
+  GROUP_RECT_DASH,
+  TOOLTIP_MAX_WIDTH,
+  TOOLTIP_FO_HEIGHT,
+  diamondPoints,
+  ellipseGeometry,
+  computeGlowRect,
+  computeTooltipPosition,
+  computeSvgFitStyle,
+  nodeTransition,
+  edgeTransition,
+  nodeOpacity,
+  nodeLabelX,
   type PositionedNode,
 } from './diagram-layout.js';
+import { edgeLabelRect } from './overlap-resolution.js';
 
 export { parseDiagramData, computeDiagramLayout } from './diagram-layout.js';
 
@@ -22,33 +57,35 @@ function NodeShape({ shape, width, height, fill, stroke }: {
     case 'diamond':
       return (
         <polygon
-          points={`${width / 2},1 ${width - 1},${height / 2} ${width / 2},${height - 1} 1,${height / 2}`}
+          points={diamondPoints(width, height)}
           fill={fill}
           stroke={stroke}
-          strokeWidth={1.5}
+          strokeWidth={SHAPE_STROKE_WIDTH}
         />
       );
-    case 'circle':
+    case 'circle': {
+      const geo = ellipseGeometry(width, height);
       return (
         <ellipse
-          cx={width / 2}
-          cy={height / 2}
-          rx={width / 2 - 1}
-          ry={height / 2 - 1}
+          cx={geo.cx}
+          cy={geo.cy}
+          rx={geo.rx}
+          ry={geo.ry}
           fill={fill}
           stroke={stroke}
-          strokeWidth={1.5}
+          strokeWidth={SHAPE_STROKE_WIDTH}
         />
       );
+    }
     case 'rectangle':
       return (
         <rect
           width={width}
           height={height}
-          rx={4}
+          rx={RECT_CORNER_RADIUS}
           fill={fill}
           stroke={stroke}
-          strokeWidth={1.5}
+          strokeWidth={SHAPE_STROKE_WIDTH}
         />
       );
     default: // rounded
@@ -56,10 +93,10 @@ function NodeShape({ shape, width, height, fill, stroke }: {
         <rect
           width={width}
           height={height}
-          rx={12}
+          rx={ROUNDED_CORNER_RADIUS}
           fill={fill}
           stroke={stroke}
-          strokeWidth={1.5}
+          strokeWidth={SHAPE_STROKE_WIDTH}
         />
       );
   }
@@ -70,16 +107,14 @@ function NodeShape({ shape, width, height, fill, stroke }: {
 function Tooltip({ text, x, y, svgWidth }: {
   text: string; x: number; y: number; svgWidth: number;
 }): React.ReactElement {
-  const maxWidth = 200;
-  const tooltipX = Math.min(Math.max(x - maxWidth / 2, 4), svgWidth - maxWidth - 4);
-  const tooltipY = y - 8;
+  const pos = computeTooltipPosition(x, y, svgWidth);
 
   return (
     <foreignObject
-      x={tooltipX}
-      y={tooltipY}
-      width={maxWidth}
-      height={100}
+      x={pos.x}
+      y={pos.y}
+      width={TOOLTIP_MAX_WIDTH}
+      height={TOOLTIP_FO_HEIGHT}
       style={{ overflow: 'visible', pointerEvents: 'none' }}
     >
       <div
@@ -91,9 +126,9 @@ function Tooltip({ text, x, y, svgWidth }: {
           fontSize: '11px',
           lineHeight: '1.4',
           color: 'var(--color-surface-200)',
-          maxWidth: `${maxWidth}px`,
+          maxWidth: `${TOOLTIP_MAX_WIDTH}px`,
           transform: 'translateY(-100%)',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+          boxShadow: '0 4px 12px var(--color-shadow-color)',
         }}
       >
         {text}
@@ -116,53 +151,59 @@ function DiagramNodeElement({ node, index, mounted, isHovered, onHover }: Diagra
   const colors = node.category ? CATEGORY_COLORS[node.category] : DEFAULT_COLORS;
   const emphasis = node.emphasis ?? 'normal';
   const isHighlighted = emphasis === 'highlighted';
-  const isDimmed = emphasis === 'dimmed';
+  const shape = node.shape ?? 'rounded';
 
   return (
     <g
       key={node.id}
       transform={`translate(${node.x}, ${node.y})`}
       style={{
-        opacity: mounted ? (isDimmed ? 0.4 : 1) : 0,
+        opacity: nodeOpacity(mounted, node.emphasis),
         transform: `translate(${node.x}px, ${node.y}px)`,
-        transition: `opacity 0.4s ease ${index * 0.05}s`,
+        transition: nodeTransition(index),
         cursor: node.description ? 'pointer' : 'default',
       }}
       onMouseEnter={node.description ? () => onHover(node.id) : undefined}
       onMouseLeave={node.description ? () => onHover(null) : undefined}
     >
       {/* Highlight glow for emphasized nodes */}
-      {isHighlighted && (
-        <rect
-          x={-3}
-          y={-3}
-          width={NODE_WIDTH + 6}
-          height={NODE_HEIGHT + 6}
-          rx={node.shape === 'rectangle' ? 7 : 15}
-          fill="none"
-          stroke={colors.stroke}
-          strokeOpacity={0.4}
-          strokeWidth={2}
-        />
-      )}
+      {isHighlighted && (() => {
+        const glow = computeGlowRect(NODE_WIDTH, NODE_HEIGHT, shape, 3);
+        return (
+          <rect
+            x={glow.x}
+            y={glow.y}
+            width={glow.width}
+            height={glow.height}
+            rx={glow.rx}
+            fill="none"
+            stroke={colors.stroke}
+            strokeOpacity={0.4}
+            strokeWidth={2}
+          />
+        );
+      })()}
 
       {/* Hover highlight */}
-      {isHovered && (
-        <rect
-          x={-2}
-          y={-2}
-          width={NODE_WIDTH + 4}
-          height={NODE_HEIGHT + 4}
-          rx={node.shape === 'rectangle' ? 6 : 14}
-          fill="none"
-          stroke={colors.stroke}
-          strokeOpacity={0.6}
-          strokeWidth={1.5}
-        />
-      )}
+      {isHovered && (() => {
+        const hover = computeGlowRect(NODE_WIDTH, NODE_HEIGHT, shape, 2);
+        return (
+          <rect
+            x={hover.x}
+            y={hover.y}
+            width={hover.width}
+            height={hover.height}
+            rx={hover.rx}
+            fill="none"
+            stroke={colors.stroke}
+            strokeOpacity={0.6}
+            strokeWidth={SHAPE_STROKE_WIDTH}
+          />
+        );
+      })()}
 
       <NodeShape
-        shape={node.shape ?? 'rounded'}
+        shape={shape}
         width={NODE_WIDTH}
         height={NODE_HEIGHT}
         fill={colors.fill}
@@ -172,21 +213,21 @@ function DiagramNodeElement({ node, index, mounted, isHovered, onHover }: Diagra
       {/* Category indicator dot */}
       {node.category && (
         <circle
-          cx={12}
+          cx={CATEGORY_DOT_X}
           cy={NODE_HEIGHT / 2}
-          r={3.5}
+          r={CATEGORY_DOT_RADIUS}
           fill={colors.stroke}
           fillOpacity={0.8}
         />
       )}
 
       <text
-        x={NODE_WIDTH / 2 + (node.category ? 4 : 0)}
+        x={nodeLabelX(NODE_WIDTH, !!node.category)}
         y={NODE_HEIGHT / 2}
         textAnchor="middle"
         dominantBaseline="central"
         fill={colors.text}
-        fontSize={13}
+        fontSize={NODE_LABEL_FONT_SIZE}
         fontFamily="var(--font-sans)"
         fontWeight={500}
       >
@@ -197,22 +238,22 @@ function DiagramNodeElement({ node, index, mounted, isHovered, onHover }: Diagra
       {node.description && !isHovered && (
         <g>
           <circle
-            cx={NODE_WIDTH - 12}
-            cy={12}
-            r={5}
+            cx={NODE_WIDTH - INFO_ICON_MARGIN}
+            cy={INFO_ICON_MARGIN}
+            r={INFO_ICON_RADIUS}
             fill="none"
             stroke={colors.text}
             strokeOpacity={0.3}
             strokeWidth={1}
           />
           <text
-            x={NODE_WIDTH - 12}
-            y={13}
+            x={NODE_WIDTH - INFO_ICON_MARGIN}
+            y={INFO_ICON_MARGIN + 1}
             textAnchor="middle"
             dominantBaseline="central"
             fill={colors.text}
             fillOpacity={0.3}
-            fontSize={8}
+            fontSize={INFO_ICON_FONT_SIZE}
             fontFamily="var(--font-sans)"
             fontWeight={600}
           >
@@ -226,7 +267,7 @@ function DiagramNodeElement({ node, index, mounted, isHovered, onHover }: Diagra
 
 // --- Component ---
 
-export function DiagramRenderer({ content }: RendererProps): React.ReactElement {
+export function DiagramRenderer({ content, containerWidth, containerHeight }: RendererProps): React.ReactElement {
   const reactId = useId();
   const markerId = reactId.replace(/:/g, '');
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
@@ -257,25 +298,30 @@ export function DiagramRenderer({ content }: RendererProps): React.ReactElement 
 
   const hoveredNode = hoveredNodeId ? layout.nodes.find(n => n.id === hoveredNodeId) : null;
 
+  const svgStyle = computeSvgFitStyle(layout.width, layout.height, containerWidth, containerHeight);
+
   return (
-    <div data-testid="canvas-diagram" className="canvas-container flex justify-center">
+    <div
+      data-testid="canvas-diagram"
+      className="canvas-container flex items-center justify-center w-full h-full"
+    >
       <svg
         viewBox={`0 0 ${layout.width} ${layout.height}`}
-        className="w-full h-auto"
-        style={{ maxHeight: '500px' }}
+        preserveAspectRatio="xMidYMid meet"
+        style={svgStyle}
       >
         <defs>
           <marker
             id={`dg-arrow-${markerId}`}
-            viewBox="0 0 10 8"
-            refX="9"
-            refY="4"
-            markerWidth="8"
-            markerHeight="6"
+            viewBox={ARROW_VIEWBOX}
+            refX={ARROW_REF_X}
+            refY={ARROW_REF_Y}
+            markerWidth={ARROW_WIDTH}
+            markerHeight={ARROW_HEIGHT}
             orient="auto-start-reverse"
           >
             <path
-              d="M 0 0 L 10 4 L 0 8 Z"
+              d={ARROW_PATH}
               fill="var(--color-accent-400)"
               fillOpacity={0.7}
             />
@@ -290,13 +336,13 @@ export function DiagramRenderer({ content }: RendererProps): React.ReactElement 
             y={groupRect.y}
             width={groupRect.width}
             height={groupRect.height}
-            rx={12}
+            rx={ROUNDED_CORNER_RADIUS}
             fill="var(--color-surface-800)"
             fillOpacity={0.3}
             stroke="var(--color-surface-600)"
             strokeOpacity={0.3}
             strokeWidth={1}
-            strokeDasharray="6 3"
+            strokeDasharray={GROUP_RECT_DASH}
           />
         ))}
 
@@ -304,10 +350,10 @@ export function DiagramRenderer({ content }: RendererProps): React.ReactElement 
         {layout.groups.map((groupRect) => (
           <text
             key={`group-label-${groupRect.group}`}
-            x={groupRect.x + 8}
-            y={groupRect.y + 14}
+            x={groupRect.x + GROUP_LABEL_OFFSET_X}
+            y={groupRect.y + GROUP_LABEL_OFFSET_Y}
             fill="var(--color-surface-500)"
-            fontSize={10}
+            fontSize={GROUP_LABEL_FONT_SIZE}
             fontFamily="var(--font-sans)"
             fontWeight={500}
             style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}
@@ -322,7 +368,7 @@ export function DiagramRenderer({ content }: RendererProps): React.ReactElement 
             key={`edge-${i}`}
             style={{
               opacity: mounted ? 1 : 0,
-              transition: `opacity 0.4s ease ${0.1 + i * 0.03}s`,
+              transition: edgeTransition(i),
             }}
           >
             <path
@@ -330,38 +376,41 @@ export function DiagramRenderer({ content }: RendererProps): React.ReactElement 
               fill="none"
               stroke="var(--color-accent-400)"
               strokeOpacity={0.5}
-              strokeWidth={1.5}
+              strokeWidth={SHAPE_STROKE_WIDTH}
               markerEnd={`url(#dg-arrow-${markerId})`}
             />
-            {e.label && (
-              <>
-                {/* Background pill for edge label */}
-                <rect
-                  x={e.labelX - (e.label.length * 3.5 + 8)}
-                  y={e.labelY - 16}
-                  width={e.label.length * 7 + 16}
-                  height={20}
-                  rx={10}
-                  fill="var(--color-surface-900)"
-                  fillOpacity={0.85}
-                  stroke="var(--color-accent-400)"
-                  strokeOpacity={0.3}
-                  strokeWidth={0.75}
-                />
-                <text
-                  x={e.labelX}
-                  y={e.labelY - 4}
-                  textAnchor="middle"
-                  fill="var(--color-accent-400)"
-                  fillOpacity={0.85}
-                  fontSize={11}
-                  fontFamily="var(--font-sans)"
-                  fontWeight={500}
-                >
-                  {e.label}
-                </text>
-              </>
-            )}
+            {e.label && (() => {
+              const pill = edgeLabelRect(e.label, e.labelX, e.labelY);
+              return (
+                <>
+                  {/* Background pill for edge label */}
+                  <rect
+                    x={pill.x}
+                    y={pill.y}
+                    width={pill.width}
+                    height={pill.height}
+                    rx={EDGE_LABEL_PILL_RADIUS}
+                    fill="var(--color-surface-900)"
+                    fillOpacity={0.85}
+                    stroke="var(--color-accent-400)"
+                    strokeOpacity={0.3}
+                    strokeWidth={0.75}
+                  />
+                  <text
+                    x={e.labelX}
+                    y={e.labelY - EDGE_LABEL_TEXT_OFFSET_Y}
+                    textAnchor="middle"
+                    fill="var(--color-accent-400)"
+                    fillOpacity={0.85}
+                    fontSize={EDGE_LABEL_FONT_SIZE}
+                    fontFamily="var(--font-sans)"
+                    fontWeight={500}
+                  >
+                    {e.label}
+                  </text>
+                </>
+              );
+            })()}
           </g>
         ))}
 

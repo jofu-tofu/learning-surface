@@ -1,3 +1,9 @@
+import {
+  edgeLabelRect,
+  resolveEdgeLabelOverlaps,
+  routeCrossLayerEdges,
+} from './overlap-resolution.js';
+
 // --- Data Shape ---
 
 export type NodeCategory = 'input' | 'process' | 'output' | 'decision' | 'concept' | 'warning';
@@ -25,7 +31,7 @@ export interface DiagramData {
   direction?: 'TB' | 'LR';
 }
 
-// --- Constants ---
+// --- Layout Constants ---
 
 export const NODE_WIDTH = 160;
 export const NODE_HEIGHT = 44;
@@ -33,6 +39,70 @@ export const HORIZONTAL_GAP = 48;
 export const VERTICAL_GAP = 64;
 export const DIAGRAM_PADDING = 32;
 export const GROUP_PADDING = 12;
+
+// --- Shape Constants ---
+
+export const SHAPE_INSET = 1;
+export const RECT_CORNER_RADIUS = 4;
+export const ROUNDED_CORNER_RADIUS = 12;
+export const SHAPE_STROKE_WIDTH = 1.5;
+
+// --- Edge Label Constants ---
+
+export const EDGE_LABEL_CHAR_WIDTH = 7;
+export const EDGE_LABEL_PADDING = 16;
+export const EDGE_LABEL_HEIGHT = 20;
+export const EDGE_LABEL_PILL_RADIUS = 10;
+export const EDGE_LABEL_TEXT_OFFSET_Y = 4;
+export const EDGE_LABEL_FONT_SIZE = 11;
+
+// --- Node Content Constants ---
+
+export const CATEGORY_DOT_X = 12;
+export const CATEGORY_DOT_RADIUS = 3.5;
+export const CATEGORY_TEXT_OFFSET = 4;
+export const NODE_LABEL_FONT_SIZE = 13;
+export const INFO_ICON_MARGIN = 12;
+export const INFO_ICON_RADIUS = 5;
+export const INFO_ICON_FONT_SIZE = 8;
+
+// --- Arrow Marker Constants ---
+
+export const ARROW_VIEWBOX = '0 0 10 8';
+export const ARROW_REF_X = 9;
+export const ARROW_REF_Y = 4;
+export const ARROW_WIDTH = 8;
+export const ARROW_HEIGHT = 6;
+export const ARROW_PATH = 'M 0 0 L 10 4 L 0 8 Z';
+
+// --- Group Rendering Constants ---
+
+export const GROUP_LABEL_OFFSET_X = 8;
+export const GROUP_LABEL_OFFSET_Y = 14;
+export const GROUP_LABEL_FONT_SIZE = 10;
+export const GROUP_RECT_DASH = '6 3';
+
+// --- Tooltip Constants ---
+
+export const TOOLTIP_MAX_WIDTH = 200;
+export const TOOLTIP_EDGE_PADDING = 4;
+export const TOOLTIP_Y_OFFSET = 8;
+export const TOOLTIP_FO_HEIGHT = 100;
+
+// --- Animation Constants ---
+
+export const ANIMATION_DURATION = 0.4;
+export const NODE_STAGGER_DELAY = 0.05;
+export const EDGE_BASE_DELAY = 0.1;
+export const EDGE_STAGGER_DELAY = 0.03;
+export const DIMMED_OPACITY = 0.4;
+
+// --- Bezier Curve Constants ---
+
+export const BEZIER_CONTROL_FACTOR = 0.4;
+export const BEZIER_CONTROL_MIN = 20;
+export const REROUTE_LABEL_WEIGHT_ENDPOINT = 0.125;
+export const REROUTE_LABEL_WEIGHT_ROUTE = 0.75;
 
 // --- Category Color Palette ---
 
@@ -50,6 +120,100 @@ export const DEFAULT_COLORS = {
   stroke: 'var(--color-surface-600)',
   text: 'var(--color-surface-100)',
 };
+
+// --- Pure Render Helpers ---
+
+export type NodeShape = 'rectangle' | 'rounded' | 'diamond' | 'circle';
+
+/** Corner radius for a given node shape. */
+export function shapeCornerRadius(shape: NodeShape): number {
+  return shape === 'rectangle' ? RECT_CORNER_RADIUS : ROUNDED_CORNER_RADIUS;
+}
+
+/** SVG points string for a diamond polygon. */
+export function diamondPoints(width: number, height: number, inset = SHAPE_INSET): string {
+  return `${width / 2},${inset} ${width - inset},${height / 2} ${width / 2},${height - inset} ${inset},${height / 2}`;
+}
+
+/** Ellipse geometry for a circle node. */
+export function ellipseGeometry(width: number, height: number, inset = SHAPE_INSET): {
+  cx: number; cy: number; rx: number; ry: number;
+} {
+  return {
+    cx: width / 2,
+    cy: height / 2,
+    rx: width / 2 - inset,
+    ry: height / 2 - inset,
+  };
+}
+
+/** Expand a rect outward for highlight/hover glow, computing the correct rx from shape. */
+export function computeGlowRect(
+  nodeWidth: number, nodeHeight: number, shape: NodeShape, padding: number,
+): { x: number; y: number; width: number; height: number; rx: number } {
+  return {
+    x: -padding,
+    y: -padding,
+    width: nodeWidth + 2 * padding,
+    height: nodeHeight + 2 * padding,
+    rx: shapeCornerRadius(shape) + padding,
+  };
+}
+
+/** Clamp tooltip x so it stays within SVG bounds; offset y above target. */
+export function computeTooltipPosition(
+  x: number, y: number, svgWidth: number,
+  maxWidth = TOOLTIP_MAX_WIDTH, edgePad = TOOLTIP_EDGE_PADDING, yOffset = TOOLTIP_Y_OFFSET,
+): { x: number; y: number } {
+  return {
+    x: Math.min(Math.max(x - maxWidth / 2, edgePad), svgWidth - maxWidth - edgePad),
+    y: y - yOffset,
+  };
+}
+
+/** Determine CSS style to fit an SVG within a container, preserving aspect ratio. */
+export function computeSvgFitStyle(
+  diagramWidth: number, diagramHeight: number,
+  containerWidth: number | undefined, containerHeight: number | undefined,
+): { width: string; height: string; maxWidth?: string } {
+  const cw = containerWidth ?? 0;
+  const ch = containerHeight ?? 0;
+  if (cw > 0 && ch > 0) {
+    const diagramAspect = diagramWidth / diagramHeight;
+    const containerAspect = cw / ch;
+    if (diagramAspect > containerAspect) {
+      return { width: '100%', height: 'auto' };
+    }
+    return { width: 'auto', height: '100%', maxWidth: '100%' };
+  }
+  return { width: '100%', height: 'auto' };
+}
+
+/** Staggered opacity transition string for node entry animation. */
+export function nodeTransition(index: number): string {
+  return `opacity ${ANIMATION_DURATION}s ease ${index * NODE_STAGGER_DELAY}s`;
+}
+
+/** Staggered opacity transition string for edge entry animation. */
+export function edgeTransition(index: number): string {
+  return `opacity ${ANIMATION_DURATION}s ease ${EDGE_BASE_DELAY + index * EDGE_STAGGER_DELAY}s`;
+}
+
+/** Node opacity based on mount state and emphasis. */
+export function nodeOpacity(mounted: boolean, emphasis: NodeEmphasis | undefined): number {
+  if (!mounted) return 0;
+  return (emphasis ?? 'normal') === 'dimmed' ? DIMMED_OPACITY : 1;
+}
+
+/** X position for the node label text, shifted when a category dot is present. */
+export function nodeLabelX(nodeWidth: number, hasCategory: boolean): number {
+  return nodeWidth / 2 + (hasCategory ? CATEGORY_TEXT_OFFSET : 0);
+}
+
+/** Compute Bezier control point offset from distance between endpoints. */
+export function controlPointOffset(distance: number): number {
+  return Math.max(Math.abs(distance) * BEZIER_CONTROL_FACTOR, BEZIER_CONTROL_MIN);
+}
 
 // --- Parsing ---
 
@@ -137,6 +301,14 @@ export function computeDiagramLayout(data: DiagramData): {
     batch.forEach(id => assigned.add(id));
   }
 
+  // Build layer lookup for cross-layer detection
+  const layerMap = new Map<string, number>();
+  for (let i = 0; i < layers.length; i++) {
+    for (const nodeId of layers[i]) {
+      layerMap.set(nodeId, i);
+    }
+  }
+
   // Position nodes
   const nodeMap = new Map(nodes.map(node => [node.id, node]));
   const posMap = new Map<string, { x: number; y: number }>();
@@ -204,8 +376,8 @@ export function computeDiagramLayout(data: DiagramData): {
       endX = to.x;
       endY = to.y + NODE_HEIGHT / 2;
       const dx = endX - startX;
-      const controlPointOffset = Math.max(Math.abs(dx) * 0.4, 20);
-      const path = `M ${startX} ${startY} C ${startX + controlPointOffset} ${startY}, ${endX - controlPointOffset} ${endY}, ${endX} ${endY}`;
+      const cpOff = controlPointOffset(dx);
+      const path = `M ${startX} ${startY} C ${startX + cpOff} ${startY}, ${endX - cpOff} ${endY}, ${endX} ${endY}`;
       positionedEdges.push({ ...edge, path, labelX: (startX + endX) / 2, labelY: (startY + endY) / 2 });
     } else {
       // Exit from bottom, enter from top
@@ -214,10 +386,26 @@ export function computeDiagramLayout(data: DiagramData): {
       endX = to.x + NODE_WIDTH / 2;
       endY = to.y;
       const dy = endY - startY;
-      const controlPointOffset = Math.max(Math.abs(dy) * 0.4, 20);
-      const path = `M ${startX} ${startY} C ${startX} ${startY + controlPointOffset}, ${endX} ${endY - controlPointOffset}, ${endX} ${endY}`;
+      const cpOff = controlPointOffset(dy);
+      const path = `M ${startX} ${startY} C ${startX} ${startY + cpOff}, ${endX} ${endY - cpOff}, ${endX} ${endY}`;
       positionedEdges.push({ ...edge, path, labelX: (startX + endX) / 2, labelY: (startY + endY) / 2 });
     }
+  }
+
+  // --- Overlap resolution ---
+  // 1. Reroute cross-layer edges around intermediate nodes
+  routeCrossLayerEdges(positionedEdges, positionedNodes, layerMap, posMap, isLR, totalWidth, totalHeight);
+  // 2. Shift edge labels away from nodes and each other
+  resolveEdgeLabelOverlaps(positionedEdges, positionedNodes);
+
+  // Expand bounds if rerouted edges or shifted labels extend beyond original area
+  let finalWidth = totalWidth;
+  let finalHeight = totalHeight;
+  for (const edge of positionedEdges) {
+    if (!edge.label) continue;
+    const r = edgeLabelRect(edge.label, edge.labelX, edge.labelY);
+    finalWidth = Math.max(finalWidth, r.x + r.width + DIAGRAM_PADDING);
+    finalHeight = Math.max(finalHeight, r.y + r.height + DIAGRAM_PADDING);
   }
 
   // Compute group rects
@@ -240,5 +428,5 @@ export function computeDiagramLayout(data: DiagramData): {
     groups.push({ group, x: minX, y: minY, width: maxX - minX, height: maxY - minY });
   }
 
-  return { nodes: positionedNodes, edges: positionedEdges, groups, width: totalWidth, height: totalHeight };
+  return { nodes: positionedNodes, edges: positionedEdges, groups, width: finalWidth, height: finalHeight };
 }

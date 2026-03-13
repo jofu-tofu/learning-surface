@@ -8,6 +8,9 @@ import { DiagramRenderer } from './DiagramRenderer.js';
 export interface RendererProps {
   content: string;
   language?: string;
+  /** Available container dimensions (CSS px) from ResizeObserver. */
+  containerWidth?: number;
+  containerHeight?: number;
 }
 
 type RendererComponent = React.ComponentType<RendererProps>;

@@ -3,6 +3,7 @@ import type { CanvasContent } from '../../shared/types.js';
 import { getRenderer } from './renderers/registry.js';
 import { EmptyState } from './EmptyState.js';
 import { Icon } from './Icon.js';
+import { useContainerSize } from '../hooks/useContainerSize.js';
 
 interface CanvasProps {
   content: CanvasContent | null;
@@ -14,6 +15,8 @@ const canvasEmptyIcon = (
 
 /* eslint-disable react-hooks/static-components -- getRenderer is a registry lookup, not component creation */
 export function Canvas({ content }: CanvasProps): React.ReactElement {
+  const { ref, size } = useContainerSize();
+
   if (!content) {
     return (
       <div data-testid="canvas-empty">
@@ -27,6 +30,15 @@ export function Canvas({ content }: CanvasProps): React.ReactElement {
     return <div className="text-sm text-surface-400">Unsupported canvas type</div>;
   }
 
-  return <Renderer content={content.content} language={content.language} />;
+  return (
+    <div ref={ref} className="w-full h-full">
+      <Renderer
+        content={content.content}
+        language={content.language}
+        containerWidth={size.width}
+        containerHeight={size.height}
+      />
+    </div>
+  );
 }
 /* eslint-enable react-hooks/static-components */

@@ -16,7 +16,15 @@ export function MermaidRenderer({ content }: RendererProps): React.ReactElement 
     async () => {
       if (!syntaxValid) throw new Error('invalid mermaid syntax');
       const mermaid = (await import('mermaid')).default;
-      mermaid.initialize({ startOnLoad: false, theme: 'dark' });
+      mermaid.initialize({
+        startOnLoad: false,
+        theme: 'dark',
+        flowchart: { useMaxWidth: true },
+        sequence: { useMaxWidth: true },
+        gantt: { useMaxWidth: true },
+        journey: { useMaxWidth: true },
+        class: { useMaxWidth: true },
+      });
       const id = `mermaid-${Date.now()}`;
       const { svg: rendered } = await mermaid.render(id, content);
       return rendered;
@@ -31,7 +39,7 @@ export function MermaidRenderer({ content }: RendererProps): React.ReactElement 
   const error = syntaxValid ? asyncError : 'Error: invalid mermaid syntax';
 
   return (
-    <div data-testid="canvas-mermaid" className="canvas-container">
+    <div data-testid="canvas-mermaid" className="canvas-container w-full h-full flex items-center justify-center">
       {loading && (
         <div className="flex items-center gap-2 text-sm text-surface-400">
           <div className="w-4 h-4 border-2 border-surface-500 border-t-accent-400 rounded-full animate-spin" />
@@ -39,7 +47,7 @@ export function MermaidRenderer({ content }: RendererProps): React.ReactElement 
         </div>
       )}
       {error && <ErrorBanner message={error} />}
-      {svg && <div dangerouslySetInnerHTML={{ __html: svg }} />}
+      {svg && <div className="w-full mermaid-output" dangerouslySetInnerHTML={{ __html: svg }} />}
     </div>
   );
 }

@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import { watch, type FSWatcher } from 'chokidar';
 import type { FileWatcherService, LearningDocument } from '../shared/types.js';
 import { parse } from './markdown.js';
+import { CURRENT_MD } from './utils/ws-helpers.js';
 
 const DEFAULT_DOCUMENT: LearningDocument = {
   version: 1,
@@ -51,7 +52,7 @@ export function createFileWatcher(): FileWatcherService {
     },
 
     start(sessionDir) {
-      const targetFile = path.join(sessionDir, 'current.md');
+      const targetFile = path.join(sessionDir, CURRENT_MD);
 
       // Set up chokidar watcher for future changes
       chokidarWatcher = watch(targetFile, {
@@ -59,13 +60,9 @@ export function createFileWatcher(): FileWatcherService {
         persistent: false,
       });
 
-      chokidarWatcher.on('change', () => {
-        handleFileChange(targetFile);
-      });
-
-      chokidarWatcher.on('add', () => {
-        handleFileChange(targetFile);
-      });
+      const onChange = () => handleFileChange(targetFile);
+      chokidarWatcher.on('change', onChange);
+      chokidarWatcher.on('add', onChange);
 
       // Perform initial read
       handleFileChange(targetFile);

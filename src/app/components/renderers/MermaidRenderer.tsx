@@ -1,6 +1,7 @@
 import React from 'react';
 import { useAsyncRender } from '../../hooks/useAsyncRender.js';
 import { ErrorBanner } from '../ErrorBanner.js';
+import type { RendererProps } from './registry.js';
 
 const MERMAID_KEYWORDS = /^\s*(graph|flowchart|sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|pie|journey|gitGraph|mindmap|timeline|sankey|xy|block|quadrant|requirement|C4Context|C4Container|C4Component|C4Deployment|C4Dynamic)\b/;
 
@@ -8,7 +9,7 @@ function isMermaidSyntaxValid(content: string): boolean {
   return MERMAID_KEYWORDS.test(content);
 }
 
-export function MermaidRenderer({ content }: { content: string }): React.ReactElement {
+export function MermaidRenderer({ content }: RendererProps): React.ReactElement {
   const syntaxValid = isMermaidSyntaxValid(content);
 
   const { html: svg, error: asyncError, loading } = useAsyncRender(

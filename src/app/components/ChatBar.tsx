@@ -1,29 +1,17 @@
 import React, { useState } from 'react';
-import { ProviderSelector } from './ProviderSelector.js';
-import type { ProviderInfo, ReasoningEffort } from '../../shared/providers.js';
+import { ProviderSelector, type ProviderSelectorProps } from './ProviderSelector.js';
+import { Icon } from './Icon.js';
 
 export interface ChatBarProps {
   onSubmit?: (text: string) => void;
   isProcessing?: boolean;
-  providers?: ProviderInfo[];
-  selectedProvider?: string | null;
-  selectedModel?: string | null;
-  selectedReasoningEffort?: ReasoningEffort | null;
-  onProviderChange?: (providerId: string) => void;
-  onModelChange?: (modelId: string) => void;
-  onReasoningEffortChange?: (effort: ReasoningEffort) => void;
+  providerSelection?: ProviderSelectorProps;
 }
 
 export function ChatBar({
   onSubmit,
   isProcessing,
-  providers = [],
-  selectedProvider = null,
-  selectedModel = null,
-  selectedReasoningEffort = null,
-  onProviderChange,
-  onModelChange,
-  onReasoningEffortChange,
+  providerSelection,
 }: ChatBarProps): React.ReactElement {
   const [value, setValue] = useState('');
 
@@ -61,27 +49,14 @@ export function ChatBar({
           </div>
         )}
       </div>
-      {providers.length > 0 && onProviderChange && onModelChange && onReasoningEffortChange && (
-        <ProviderSelector
-          providers={providers}
-          selectedProvider={selectedProvider}
-          selectedModel={selectedModel}
-          selectedReasoningEffort={selectedReasoningEffort}
-          onProviderChange={onProviderChange}
-          onModelChange={onModelChange}
-          onReasoningEffortChange={onReasoningEffortChange}
-        />
-      )}
+      {providerSelection && <ProviderSelector {...providerSelection} />}
       <button
         disabled={!value.trim() || isProcessing}
         onClick={handleSubmit}
         aria-label="Send"
         className="shrink-0 w-8 h-8 flex items-center justify-center rounded-full transition-all duration-150 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-400 disabled:cursor-not-allowed bg-surface-700/40 text-surface-400 hover:text-accent-400 hover:bg-accent-500/10 disabled:text-surface-600 disabled:hover:bg-transparent"
       >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <line x1="5" y1="12" x2="19" y2="12" />
-          <polyline points="12 5 19 12 12 19" />
-        </svg>
+        <Icon name="arrowRight" size={16} />
       </button>
     </div>
   );

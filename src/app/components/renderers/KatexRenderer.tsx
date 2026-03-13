@@ -1,8 +1,9 @@
 import React from 'react';
 import { useAsyncRender } from '../../hooks/useAsyncRender.js';
 import { ErrorBanner } from '../ErrorBanner.js';
+import type { RendererProps } from './registry.js';
 
-export function KatexRenderer({ content }: { content: string }): React.ReactElement {
+export function KatexRenderer({ content }: RendererProps): React.ReactElement {
   const { html, error } = useAsyncRender(
     async () => {
       const katex = (await import('katex')).default;

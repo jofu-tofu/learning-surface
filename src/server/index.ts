@@ -1,10 +1,8 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { WebSocket, WebSocketServer } from 'ws';
 import { createFileWatcher } from './watcher.js';
 import { createVersionStore } from './versions.js';
 import { createChatStore } from './chat-store.js';
-import { parse } from './markdown.js';
+import { createDocumentService } from './document-service.js';
 import { listProviders } from './providers/registry.js';
 import { routeMessage, type SessionState } from './ws-handlers.js';
 import {
@@ -23,6 +21,8 @@ export async function startServer(options: {
 
   const chatStore = createChatStore();
   await chatStore.init(sessionDir);
+
+  const docService = createDocumentService();
 
   // Shared mutable session state (passed to routeMessage)
   const state: SessionState = {
@@ -57,17 +57,7 @@ export async function startServer(options: {
     state.activeVersionStore = await initVersionStoreForChat(chatId);
 
     const chatDir = chatStore.getChatDir(chatId);
-    const filePath = join(chatDir, 'current.md');
-
-    if (existsSync(filePath)) {
-      try {
-        state.latestDocument = parse(readFileSync(filePath, 'utf-8'));
-      } catch {
-        state.latestDocument = null;
-      }
-    } else {
-      state.latestDocument = null;
-    }
+    state.latestDocument = docService.read(docService.filePath(chatDir));
 
     watcher.start(chatDir);
   }

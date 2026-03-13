@@ -57,6 +57,8 @@ interface PromptRequest {
   chatDir: string;
   latestDocument: LearningDocument | null;
   versionStore: VersionStore;
+  /** Called on each processing phase/tool call for frontend progress feedback. */
+  onProgress?: (toolName: string, step: number) => void;
 }
 
 interface PromptResult {
@@ -102,8 +104,12 @@ export async function handlePrompt(
   const startVersion = currentDoc.version;
   const startContent = docService.readRaw(filePath) ?? '';
 
+  // Signal "thinking" phase before the AI starts responding
+  req.onProgress?.('thinking', 0);
+
   if (provider.config.type === 'api') {
     // API mode: pass tool definitions and onToolCall callback
+    let toolStep = 0;
     await provider.complete({
       prompt: text,
       systemPrompt,
@@ -112,6 +118,9 @@ export async function handlePrompt(
       sessionDir: chatDir,
       reasoningEffort,
       async onToolCall(call) {
+        toolStep++;
+        req.onProgress?.(call.tool, toolStep);
+
         const applied = docService.applyTool(
           filePath,
           call.tool,

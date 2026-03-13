@@ -3,7 +3,7 @@ import { z } from 'zod';
 // === Zod Schemas for MCP Tool Parameters ===
 
 export const ShowVisualSchema = z.object({
-  type: z.enum(['mermaid', 'katex', 'code']),
+  type: z.enum(['mermaid', 'katex', 'code', 'flowchart', 'sequence']),
   content: z.string(),
   language: z.string().optional(),
 });
@@ -59,7 +59,7 @@ interface ToolDef {
 export const TOOL_DEFS: ToolDef[] = [
   {
     name: 'show_visual',
-    description: 'Replace the canvas pane with a new visual. Erases any existing visual in the active section. For code visuals, set language for syntax highlighting.',
+    description: 'Replace the canvas pane with a new visual. Erases any existing visual in the active section. Content format depends on type:\n- mermaid: raw Mermaid diagram syntax\n- katex: LaTeX math expression\n- code: source code (set language for syntax highlighting)\n- flowchart: JSON — {"nodes":[{"id":"string","label":"string","shape?":"rectangle|rounded|diamond|circle"}],"edges":[{"from":"id","to":"id","label?":"string"}]}\n- sequence: JSON — {"actors":["string"],"messages":[{"from":"actor","to":"actor","label":"string","dashed?":true}]}',
     schema: ShowVisualSchema,
   },
   {

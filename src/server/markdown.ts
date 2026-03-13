@@ -38,6 +38,11 @@ function parseBlocks(body: string): RawBlock[] {
   return blocks;
 }
 
+function extractComment(line: string, key: string): string | null {
+  const m = line.match(new RegExp(`<!--\\s*${key}:\\s*(.*?)\\s*-->`));
+  return m ? m[1] : null;
+}
+
 function parseSection(title: string, body: string): Section & { _unknownBlocks?: RawBlock[] } {
   const id = slugify(title);
 
@@ -76,14 +81,14 @@ function parseSection(title: string, body: string): Section & { _unknownBlocks?:
       for (const line of nonEmpty) {
         const trimmed = line.trim();
         if (trimmed.startsWith('<!--')) {
-          const statusM = trimmed.match(/<!--\s*status:\s*(unanswered|attempted|revealed)\s*-->/);
-          if (statusM) { checkStatus = statusM[1] as Check['status']; continue; }
-          const hintsM = trimmed.match(/<!--\s*hints:\s*(.*?)\s*-->/);
-          if (hintsM) { try { hints = JSON.parse(hintsM[1]); } catch { /* ignore malformed */ } continue; }
-          const answerM = trimmed.match(/<!--\s*answer:\s*(.*?)\s*-->/);
-          if (answerM) { answer = answerM[1]; continue; }
-          const explM = trimmed.match(/<!--\s*explanation:\s*(.*?)\s*-->/);
-          if (explM) { answerExplanation = explM[1]; continue; }
+          const statusVal = trimmed.match(/<!--\s*status:\s*(unanswered|attempted|revealed)\s*-->/)?.[1];
+          if (statusVal) { checkStatus = statusVal as Check['status']; continue; }
+          const hintsVal = extractComment(trimmed, 'hints');
+          if (hintsVal) { try { hints = JSON.parse(hintsVal); } catch { /* ignore malformed */ } continue; }
+          const answerVal = extractComment(trimmed, 'answer');
+          if (answerVal) { answer = answerVal; continue; }
+          const explVal = extractComment(trimmed, 'explanation');
+          if (explVal) { answerExplanation = explVal; continue; }
         }
         if (!question) { question = trimmed; }
       }

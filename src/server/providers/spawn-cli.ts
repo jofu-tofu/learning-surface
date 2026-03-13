@@ -1,5 +1,6 @@
-import { spawn, type SpawnOptions } from 'node:child_process';
+import { spawn, execFile, type SpawnOptions } from 'node:child_process';
 import { CLI_SYSTEM_PROMPT } from '../system-prompt.js';
+import type { PreflightResult } from '../../shared/providers.js';
 
 /** Build the full prompt for CLI providers by combining the CLI system prompt with context. */
 export function buildCliPrompt(systemPrompt: string, prompt: string): string {
@@ -28,6 +29,16 @@ export function spawnCli(command: string, args: string[], label: string, opts?: 
     child.on('close', (code) => {
       if (code === 0) resolve();
       else reject(new Error(`${command} exited with code ${code}`));
+    });
+  });
+}
+
+/** Check if a CLI binary is available on PATH. */
+export function checkCliAvailable(command: string): Promise<PreflightResult> {
+  return new Promise((resolve) => {
+    execFile('which', [command], { timeout: 3000 }, (err) => {
+      if (err) resolve({ ok: false, error: `${command} is not installed or not on PATH` });
+      else resolve({ ok: true });
     });
   });
 }

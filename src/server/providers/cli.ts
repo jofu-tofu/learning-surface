@@ -1,5 +1,5 @@
-import type { ReplProvider, ProviderConfig } from '../../shared/providers.js';
-import { buildCliPrompt, spawnCli } from './spawn-cli.js';
+import type { ReplProvider, ProviderConfig, PreflightResult } from '../../shared/providers.js';
+import { buildCliPrompt, spawnCli, checkCliAvailable } from './spawn-cli.js';
 
 export function createCliProvider(): ReplProvider {
   const config: ProviderConfig = {
@@ -22,6 +22,10 @@ export function createCliProvider(): ReplProvider {
 
   return {
     config,
+
+    async preflight(): Promise<PreflightResult> {
+      return checkCliAvailable('codex');
+    },
 
     async complete({ prompt, systemPrompt, model, sessionDir, reasoningEffort }) {
       const args = [

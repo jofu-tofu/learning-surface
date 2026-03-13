@@ -1,5 +1,5 @@
-import type { ReplProvider, ProviderConfig } from '../../shared/providers.js';
-import { buildCliPrompt, spawnCli } from './spawn-cli.js';
+import type { ReplProvider, ProviderConfig, PreflightResult } from '../../shared/providers.js';
+import { buildCliPrompt, spawnCli, checkCliAvailable } from './spawn-cli.js';
 
 export function createClaudeCodeProvider(): ReplProvider {
   const config: ProviderConfig = {
@@ -27,6 +27,10 @@ export function createClaudeCodeProvider(): ReplProvider {
 
   return {
     config,
+
+    async preflight(): Promise<PreflightResult> {
+      return checkCliAvailable('claude');
+    },
 
     async complete({ prompt, systemPrompt, model, sessionDir }) {
       const args = [

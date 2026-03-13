@@ -3,7 +3,7 @@ import type { ProviderInfo, ReasoningEffort } from './providers.js';
 // === Core Data Types ===
 
 export interface CanvasContent {
-  type: 'mermaid' | 'katex' | 'code';
+  type: 'mermaid' | 'katex' | 'code' | 'flowchart' | 'sequence';
   content: string;
   language?: string; // for code type
 }
@@ -81,12 +81,13 @@ export type ClientMessage =
   | { type: 'select-version'; version: number }
   | { type: 'select-section'; sectionId: string }
   | { type: 'prompt'; text: string; provider?: string; model?: string; reasoningEffort?: ReasoningEffort; fromVersion?: number }
+  | { type: 'preflight'; provider: string; model: string }
   | { type: 'get-providers' };
 
 // === Server → Client Message Types ===
 
 export interface WsMessage {
-  type: 'document-update' | 'version-change' | 'session-init' | 'chat-list' | 'chat-deleted' | 'provider-list' | 'provider-error';
+  type: 'document-update' | 'version-change' | 'session-init' | 'chat-list' | 'chat-deleted' | 'provider-list' | 'provider-error' | 'preflight-result' | 'tool-progress' | 'prompt-complete';
   document?: LearningDocument;
   version?: number;
   versions?: VersionMeta[];
@@ -96,6 +97,11 @@ export interface WsMessage {
   chatId?: string;
   providers?: ProviderInfo[];
   error?: string;
+  ok?: boolean;
+  /** Tool progress: raw tool or phase name (e.g. 'show_visual', 'thinking') */
+  toolName?: string;
+  /** Tool progress: 1-based step counter within the current prompt */
+  step?: number;
 }
 
 // === Module Interface Contracts ===

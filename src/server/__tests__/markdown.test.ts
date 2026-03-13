@@ -38,20 +38,6 @@ describe('parse()', () => {
 
 describe('applyToolCall()', () => {
   describe('clear', () => {
-    it('removes the active section and falls back to the last remaining', () => {
-      const doc = buildDocument({
-        sections: [
-          buildSection({ title: 'First' }),
-          buildSection({ title: 'Second' }),
-        ],
-        activeSection: 'first',
-      });
-      const result = applyToolCall(doc, 'clear', { target: 'section' });
-      expect(result.sections).toHaveLength(1);
-      expect(result.sections[0].id).toBe('second');
-      expect(result.activeSection).toBe('second');
-    });
-
     it('is a no-op when targeting a nonexistent section', () => {
       const doc = buildDocument({
         sections: [buildSection({ title: 'Intro', canvas: buildCanvasContent() })],

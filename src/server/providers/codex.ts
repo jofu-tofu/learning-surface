@@ -6,7 +6,9 @@ import type {
   ProviderToolCall,
   ToolCallResult,
   ReasoningEffort,
+  PreflightResult,
 } from '../../shared/providers.js';
+import { formatError } from '../utils/ws-helpers.js';
 
 const MAX_TOOL_ROUNDS = 20;
 
@@ -48,6 +50,15 @@ export function createCodexProvider(): ReplProvider {
 
   return {
     config,
+
+    async preflight(): Promise<PreflightResult> {
+      try {
+        await client.models.list();
+        return { ok: true };
+      } catch (err) {
+        return { ok: false, error: formatError(err) };
+      }
+    },
 
     async complete({ prompt, systemPrompt, tools, model, reasoningEffort, onToolCall }) {
       const openaiTools: OpenAI.ChatCompletionTool[] = (tools ?? []).map((t) => ({
@@ -106,10 +117,7 @@ export function createCodexProvider(): ReplProvider {
               ? await onToolCall(call)
               : { success: false, message: 'No tool handler configured' };
           } catch (err) {
-            result = {
-              success: false,
-              message: `Error: ${err instanceof Error ? err.message : String(err)}`,
-            };
+            result = { success: false, message: `Error: ${formatError(err)}` };
           }
 
           messages.push({

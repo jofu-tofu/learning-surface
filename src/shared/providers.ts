@@ -34,12 +34,21 @@ export interface ToolCallResult {
   message: string;
 }
 
+/** Result of a provider preflight check. */
+export interface PreflightResult {
+  ok: boolean;
+  error?: string;
+}
+
 /**
  * A REPL provider sends user prompts to an AI model and receives tool calls back.
  * The tool calls are executed against the learning surface document.
  */
 export interface ReplProvider {
   readonly config: ProviderConfig;
+
+  /** Check if the provider is reachable and ready to accept prompts. */
+  preflight(model: string): Promise<PreflightResult>;
 
   /**
    * Send a prompt to the AI model and process tool calls in a loop.

@@ -1,5 +1,3 @@
-import { readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import {
   CallToolRequestSchema,
@@ -8,10 +6,17 @@ import {
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import { TOOL_DEFS, toolSchemaMap, zodToJsonSchema } from '../shared/schemas.js';
-import { parse, serialize, applyToolCall } from './markdown.js';
 import type { VersionStore } from '../shared/types.js';
+import { createDocumentService, type DocumentService } from './document-service.js';
+import { buildVersionMeta } from './prompt-handler.js';
+import { formatError } from './utils/ws-helpers.js';
 
 const DEFAULT_DEBOUNCE_MS = 2000;
+
+const mcpResponse = (text: string, isError = false) => ({
+  content: [{ type: 'text' as const, text }],
+  ...(isError && { isError: true as const }),
+});
 
 // --- Factory ---
 
@@ -20,40 +25,33 @@ export function createMcpServer(options: {
   versionStore?: VersionStore;
   debounceMs?: number;
   transport?: Transport;
+  docService?: DocumentService;
 }): { start(): Promise<void>; stop(): Promise<void>; flushVersionBatch(): Promise<void> } {
   const { sessionDir, versionStore, debounceMs = DEFAULT_DEBOUNCE_MS, transport: injectedTransport } = options;
 
-  if (!versionStore) {
-    throw new Error('versionStore is required');
-  }
+  if (!versionStore) throw new Error('versionStore is required');
   const store = versionStore;
+
+  const docService = options.docService ?? createDocumentService();
+  const filePath = docService.filePath(sessionDir);
 
   // --- Batch versioning state ---
   let batchStartVersion: number | null = null;
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
   async function flushVersionBatch(): Promise<void> {
-    if (debounceTimer) {
-      clearTimeout(debounceTimer);
-      debounceTimer = null;
-    }
+    if (debounceTimer) { clearTimeout(debounceTimer); debounceTimer = null; }
     if (batchStartVersion === null) return;
 
-    const filePath = join(sessionDir, 'current.md');
-    const content = readFileSync(filePath, 'utf-8');
-    const doc = parse(content);
+    const content = docService.readRaw(filePath);
+    const doc = docService.read(filePath);
+    if (!content || !doc) return;
 
-    await store.createVersion(content, {
-      prompt: null,
-      summary: doc.summary ?? null,
-      timestamp: new Date().toISOString(),
-      source: 'ai',
-    });
-
+    await store.createVersion(content, buildVersionMeta(null, doc.summary ?? null, new Date().toISOString()));
     batchStartVersion = null;
 
     // Re-write current.md to trigger the file watcher so the UI picks up the new version
-    writeFileSync(filePath, content, 'utf-8');
+    docService.write(filePath, doc);
   }
 
   const server = new Server(
@@ -74,65 +72,29 @@ export function createMcpServer(options: {
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params;
     const schemaDef = toolSchemaMap.get(name);
-    if (!schemaDef) {
-      return {
-        content: [{ type: 'text' as const, text: `Unknown tool: ${name}` }],
-        isError: true,
-      };
-    }
+    if (!schemaDef) return mcpResponse(`Unknown tool: ${name}`, true);
 
     // Validate params
     const parsed = schemaDef.safeParse(args);
-    if (!parsed.success) {
-      return {
-        content: [
-          { type: 'text' as const, text: `Invalid params: ${parsed.error.message}` },
-        ],
-        isError: true,
-      };
-    }
+    if (!parsed.success) return mcpResponse(`Invalid params: ${parsed.error.message}`, true);
 
     try {
-      // Read current document
-      const filePath = join(sessionDir, 'current.md');
-      const raw = readFileSync(filePath, 'utf-8');
-      const doc = parse(raw);
-
       // Start a new batch if not already in one
       if (batchStartVersion === null) {
-        batchStartVersion = doc.version;
+        const doc = docService.read(filePath);
+        if (doc) batchStartVersion = doc.version;
       }
 
       // Apply tool call — all calls in a batch share the same target version
-      const updated = applyToolCall(doc, name, parsed.data as Record<string, unknown>);
-      updated.version = batchStartVersion + 1;
-
-      // Write back (triggers file watcher for live UI updates)
-      const serialized = serialize(updated);
-      writeFileSync(filePath, serialized, 'utf-8');
+      const updated = docService.applyTool(filePath, name, parsed.data as Record<string, unknown>, (batchStartVersion ?? 0) + 1);
 
       // Reset debounce timer — version is created only after the batch settles
       if (debounceTimer) clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => { flushVersionBatch(); }, debounceMs);
 
-      return {
-        content: [
-          {
-            type: 'text' as const,
-            text: `Applied ${name} → version ${updated.version}`,
-          },
-        ],
-      };
+      return mcpResponse(`Applied ${name} → version ${updated.version}`);
     } catch (err) {
-      return {
-        content: [
-          {
-            type: 'text' as const,
-            text: `Error applying ${name}: ${err instanceof Error ? err.message : String(err)}`,
-          },
-        ],
-        isError: true,
-      };
+      return mcpResponse(`Error applying ${name}: ${formatError(err)}`, true);
     }
   });
 

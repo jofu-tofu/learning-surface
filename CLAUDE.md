@@ -32,6 +32,7 @@ src/
     utils/             # WebSocket helpers, version meta reader
   app/                 # React frontend — multi-pane tutoring surface
     components/        # Canvas, Explanation, Sidebar, SidebarPanel, ChatList, Breadcrumb, ChatBar, ProviderSelector, ErrorBanner
+      renderers/       # Registry-based visual renderers (Mermaid, KaTeX, Code, Flowchart, Sequence)
     hooks/             # useSurface (central state), useWebSocket, useMarkdown, useAsyncRender, useProviderSelection, useClickOutside
     utils/             # versionLabel, styles, formatTime, detectChangedPanes
   test/                # Test data builders, mock factories, markdown fixtures

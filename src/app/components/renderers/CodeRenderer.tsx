@@ -1,7 +1,8 @@
 import React from 'react';
 import { useAsyncRender } from '../../hooks/useAsyncRender.js';
+import type { RendererProps } from './registry.js';
 
-export function CodeRenderer({ content, language }: { content: string; language?: string }): React.ReactElement {
+export function CodeRenderer({ content, language }: RendererProps): React.ReactElement {
   const { html } = useAsyncRender(
     async () => {
       const shiki = await import('shiki');

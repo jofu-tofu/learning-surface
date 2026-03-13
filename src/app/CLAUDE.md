@@ -27,7 +27,7 @@ All application state flows through `useSurface()` hook — document, versions, 
 
 | Component | Pane | Role |
 |-----------|------|------|
-| `Canvas` | Upper main | Renders Mermaid diagrams, KaTeX math, code blocks |
+| `Canvas` | Upper main | Dispatches to type-specific renderer via registry |
 | `Explanation` | Lower main | Markdown text, concept checks, follow-up questions |
 | `Sidebar` | Left (bottom) | Section TOC with status indicators |
 | `ChatList` | Left (top) | Chat list with create/switch/delete |
@@ -35,7 +35,7 @@ All application state flows through `useSurface()` hook — document, versions, 
 | `ChatBar` | Bottom | Prompt input with provider/model selector |
 | `ProviderSelector` | In ChatBar | Provider and model dropdown |
 
-Renderers (`components/renderers/`): `MermaidRenderer`, `KatexRenderer`, `CodeRenderer` — each handles async rendering with loading/error states via `useAsyncRender`.
+Renderers (`components/renderers/`): `MermaidRenderer`, `KatexRenderer`, `CodeRenderer`, `FlowchartRenderer`, `SequenceRenderer` — each handles async or synchronous rendering with loading/error states. All implement the `RendererProps` interface from `registry.ts`. Canvas type → renderer mapping is managed by a registry (`registry.ts`), not a switch statement — adding a new visual type requires only a new renderer file and a `registerRenderer()` call. Flowchart and sequence renderers accept JSON content (structured data), not markup syntax.
 
 ## Conventions
 

@@ -21,7 +21,7 @@ The data contract between all modules. Documents use YAML frontmatter + `##` sec
 
 | Block | Header | Max | Notes |
 |-------|--------|-----|-------|
-| Canvas | `### canvas: TYPE` (mermaid/katex/code) | 1 | Raw content until next heading |
+| Canvas | `### canvas: TYPE` (mermaid/katex/code/flowchart/sequence) | 1 | Raw content until next heading; flowchart/sequence use JSON |
 | Explanation | `### explanation` | 1 | Markdown text |
 | Check | `### check: ID` | unlimited | Question + `<!-- status: unanswered|attempted|revealed -->` |
 | Followups | `### followups` | 1 | Unordered list |

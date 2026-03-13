@@ -1,7 +1,8 @@
 import type { WebSocket } from 'ws';
 import { createDocumentService, type DocumentService } from './document-service.js';
 import { handlePrompt } from './prompt-handler.js';
-import { listProviders } from './providers/registry.js';
+import { parse } from './markdown.js';
+import { getProvider as getProviderFromRegistry, listProviders } from './providers/registry.js';
 import type {
   ClientMessage,
   LearningDocument,
@@ -32,6 +33,7 @@ interface HandlerDeps {
   switchToChat: (chatId: string) => Promise<void>;
   docService?: DocumentService;
   getProviders?: () => import('../shared/providers.js').ProviderInfo[];
+  getProvider?: (id: string) => import('../shared/providers.js').ReplProvider | undefined;
   onPrompt?: typeof handlePrompt;
 }
 
@@ -44,6 +46,7 @@ export async function routeMessage(
   const { state, chatStore, broadcast, switchToChat } = deps;
   const docService = deps.docService ?? createDocumentService();
   const getProviders = deps.getProviders ?? listProviders;
+  const providerLookup = deps.getProvider ?? getProviderFromRegistry;
   const promptHandler = deps.onPrompt ?? handlePrompt;
 
   switch (msg.type) {
@@ -119,7 +122,6 @@ export async function routeMessage(
       if (!state.activeVersionStore) return;
 
       const versionContent = await state.activeVersionStore.getVersion(msg.version);
-      const { parse } = await import('./markdown.js');
       const doc = parse(versionContent);
       const versionList = await state.activeVersionStore.listVersions();
 
@@ -168,11 +170,30 @@ export async function routeMessage(
           chatDir,
           latestDocument: state.latestDocument,
           versionStore: state.activeVersionStore,
+          onProgress(toolName, step) {
+            broadcast({ type: 'tool-progress', toolName, step });
+          },
         });
         state.latestDocument = result.updatedDocument;
+        sendMsg(ws, { type: 'prompt-complete' });
       } catch (err) {
         console.error('Provider error:', err);
         broadcast({ type: 'provider-error', error: formatError(err) });
+      }
+      return;
+    }
+
+    case 'preflight': {
+      const provider = providerLookup(msg.provider);
+      if (!provider) {
+        sendMsg(ws, { type: 'preflight-result', ok: false, error: `Provider "${msg.provider}" not found` });
+        return;
+      }
+      try {
+        const result = await provider.preflight(msg.model);
+        sendMsg(ws, { type: 'preflight-result', ok: result.ok, error: result.error });
+      } catch (err) {
+        sendMsg(ws, { type: 'preflight-result', ok: false, error: formatError(err) });
       }
       return;
     }

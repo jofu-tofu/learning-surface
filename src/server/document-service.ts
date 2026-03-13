@@ -56,24 +56,15 @@ export const BLANK_DOC: LearningDocument = {
 };
 
 export function createDocumentService(io: FileIO = nodeFileIO()): DocumentService {
-  return {
-    read(filePath) {
-      if (!io.exists(filePath)) return null;
-      try {
-        return parse(io.readFile(filePath, 'utf-8'));
-      } catch {
-        return null;
-      }
-    },
+  function safeRead<T>(filePath: string, transform: (raw: string) => T): T | null {
+    if (!io.exists(filePath)) return null;
+    try { return transform(io.readFile(filePath, 'utf-8')); } catch { return null; }
+  }
 
-    readRaw(filePath) {
-      if (!io.exists(filePath)) return null;
-      try {
-        return io.readFile(filePath, 'utf-8');
-      } catch {
-        return null;
-      }
-    },
+  return {
+    read: (filePath) => safeRead(filePath, parse),
+
+    readRaw: (filePath) => safeRead(filePath, (s) => s),
 
     write(filePath, doc) {
       io.writeFile(filePath, serialize(doc), 'utf-8');

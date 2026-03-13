@@ -3,15 +3,15 @@
 // applyTheme() writes them to :root so Tailwind utilities + var() references
 // pick them up automatically — no component changes needed.
 
-export const THEME_IDS = ['midnight', 'light', 'galaxy'] as const;
+const THEME_IDS = ['midnight', 'light', 'galaxy'] as const;
 export type ThemeId = (typeof THEME_IDS)[number];
 
-export const STORAGE_KEY = 'learning-surface-theme';
-export const DEFAULT_THEME: ThemeId = 'midnight';
+const STORAGE_KEY = 'learning-surface-theme';
+const DEFAULT_THEME: ThemeId = 'midnight';
 
 // --- Token shape ---
 
-export interface ThemeTokens {
+interface ThemeTokens {
   // Surface scale (backgrounds, text, borders)
   'surface-50': string;
   'surface-100': string;
@@ -80,23 +80,25 @@ export interface ThemeTokens {
 const SURFACE_LIGHTNESS = [97, 95, 90, 80, 64, 46, 33, 25, 15, 10] as const;
 const SHADE_NAMES = ['50', '100', '200', '300', '400', '500', '600', '700', '800', '900'] as const;
 
-function oklch(l: number, c: number, h: number): string {
-  return `oklch(${(l / 100).toFixed(3)} ${c.toFixed(4)} ${h})`;
+function oklch(lightness: number, chroma: number, hue: number): string {
+  return `oklch(${(lightness / 100).toFixed(3)} ${chroma.toFixed(4)} ${hue})`;
 }
 
-function generateSurfaceScale(hue: number, chroma: number): Record<string, string> {
-  const entries: Record<string, string> = {};
+type SurfaceScale = Record<`surface-${typeof SHADE_NAMES[number]}`, string>;
+
+function generateSurfaceScale(hue: number, chroma: number): SurfaceScale {
+  const surfaceTokens = {} as SurfaceScale;
   for (let i = 0; i < SHADE_NAMES.length; i++) {
     // Boost chroma slightly in the mid-range for richness
     const chromaScale = i >= 3 && i <= 6 ? chroma * 1.2 : chroma;
-    entries[`surface-${SHADE_NAMES[i]}`] = oklch(SURFACE_LIGHTNESS[i], chromaScale, hue);
+    surfaceTokens[`surface-${SHADE_NAMES[i]}`] = oklch(SURFACE_LIGHTNESS[i], chromaScale, hue);
   }
-  return entries;
+  return surfaceTokens;
 }
 
 // --- Theme definitions ---
 
-export interface ThemeMeta {
+interface ThemeMeta {
   id: ThemeId;
   label: string;
   tokens: ThemeTokens;
@@ -293,7 +295,7 @@ export const THEMES: ThemeMeta[] = [
 
 /** Write theme tokens as CSS custom properties on :root. */
 export function applyTheme(id: ThemeId): void {
-  const theme = THEMES.find(t => t.id === id);
+  const theme = THEMES.find(theme => theme.id === id);
   if (!theme) return;
 
   const root = document.documentElement;

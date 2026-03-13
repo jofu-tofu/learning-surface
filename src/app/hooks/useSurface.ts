@@ -4,7 +4,7 @@ import type { ProviderInfo, ReasoningEffort } from '../../shared/providers.js';
 import { getVersionPath, getForwardPath } from '../../shared/version-tree.js';
 import { useWebSocket } from './useWebSocket.js';
 import { useProviderSelection } from './useProviderSelection.js';
-import { reduceSurfaceMessage } from './surfaceReducer.js';
+import { reduceSurfaceMessage, INITIAL_SURFACE_STATE, type SurfaceState } from './surfaceReducer.js';
 
 export interface ToolActivity {
   /** Human-readable label (e.g. "Building diagram") */
@@ -55,87 +55,75 @@ interface UseSurfaceReturn {
 const WS_URL = 'ws://localhost:8080';
 
 export function useSurface(): UseSurfaceReturn {
-  const [document, setDocument] = useState<LearningDocument | null>(null);
-  const [versions, setVersions] = useState<VersionMeta[]>([]);
-  const [currentVersion, setCurrentVersion] = useState(0);
-  const [chats, setChats] = useState<Chat[]>([]);
-  const [activeChatId, setActiveChatId] = useState<string | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [changedPanes, setChangedPanes] = useState<Set<string>>(new Set());
-  const [activity, setActivity] = useState<ToolActivity | null>(null);
-  const [providerError, setProviderError] = useState<string | null>(null);
+  const [state, setState] = useState<SurfaceState>(INITIAL_SURFACE_STATE);
+  const { document, versions, currentVersion, chats, activeChatId,
+          isProcessing, changedPanes, activity, providerError } = state;
   const {
     providers, selectedProvider, selectedModel, selectedReasoningEffort,
     setProviders, setSelectedProvider, setSelectedModel, setSelectedReasoningEffort,
     autoSelect: autoSelectProvider,
   } = useProviderSelection();
   const prevDocRef = useRef<LearningDocument | null>(null);
-  const settleRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const flashRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const settleTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const flashTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const pendingPromptRef = useRef<Omit<Extract<ClientMessage, { type: 'prompt' }>, 'type'> | null>(null);
   const sendRef = useRef<(data: unknown) => void>(() => {});
 
   const onMessage = useCallback((msg: WsMessage) => {
-    const prev = prevDocRef.current;
-    const result = reduceSurfaceMessage(
-      { document, versions, currentVersion, chats, activeChatId,
-        isProcessing, changedPanes, activity, providerError },
-      msg,
-      prev,
-    );
+    setState(prevState => {
+      const reducerResult = reduceSurfaceMessage(
+        prevState,
+        msg,
+        prevDocRef.current,
+      );
 
-    // Apply state updates
-    const s = result.state;
-    setDocument(s.document);
-    setVersions(s.versions);
-    setCurrentVersion(s.currentVersion);
-    setChats(s.chats);
-    setActiveChatId(s.activeChatId);
-    setIsProcessing(s.isProcessing);
-    setChangedPanes(s.changedPanes);
-    setActivity(s.activity);
-    setProviderError(s.providerError);
-    prevDocRef.current = result.prevDoc;
+      prevDocRef.current = reducerResult.prevDoc;
 
-    // Execute side effects
-    for (const effect of result.effects) {
-      switch (effect.type) {
-        case 'auto-select-providers':
-          autoSelectProvider(effect.providers);
-          break;
-        case 'set-providers':
-          setProviders(effect.providers);
-          break;
-        case 'reset-settle-timer':
-          clearTimeout(settleRef.current);
-          settleRef.current = setTimeout(() => {
-            setIsProcessing(false);
-            setActivity(null);
-          }, 2500);
-          break;
-        case 'schedule-flash-clear':
-          clearTimeout(flashRef.current);
-          flashRef.current = setTimeout(() => setChangedPanes(new Set()), 1200);
-          break;
-        case 'clear-settle-timer':
-          clearTimeout(settleRef.current);
-          break;
-        case 'send-pending-prompt':
-          if (pendingPromptRef.current) {
-            sendRef.current({ type: 'prompt', ...pendingPromptRef.current });
-            pendingPromptRef.current = null;
+      // Execute side effects (scheduled outside React's state update via queueMicrotask)
+      if (reducerResult.effects.length > 0) {
+        queueMicrotask(() => {
+          for (const effect of reducerResult.effects) {
+            switch (effect.type) {
+              case 'auto-select-providers':
+                autoSelectProvider(effect.providers);
+                break;
+              case 'set-providers':
+                setProviders(effect.providers);
+                break;
+              case 'reset-settle-timer':
+                clearTimeout(settleTimerRef.current);
+                settleTimerRef.current = setTimeout(() => {
+                  setState(prevState => ({ ...prevState, isProcessing: false, activity: null }));
+                }, 2500);
+                break;
+              case 'schedule-flash-clear':
+                clearTimeout(flashTimerRef.current);
+                flashTimerRef.current = setTimeout(() => setState(prevState => ({ ...prevState, changedPanes: new Set() })), 1200);
+                break;
+              case 'clear-settle-timer':
+                clearTimeout(settleTimerRef.current);
+                break;
+              case 'send-pending-prompt':
+                if (pendingPromptRef.current) {
+                  sendRef.current({ type: 'prompt', ...pendingPromptRef.current });
+                  pendingPromptRef.current = null;
+                }
+                break;
+              case 'clear-pending-prompt':
+                pendingPromptRef.current = null;
+                break;
+            }
           }
-          break;
-        case 'clear-pending-prompt':
-          pendingPromptRef.current = null;
-          break;
+        });
       }
-    }
 
-    // Log provider errors
-    if (msg.type === 'provider-error') {
-      console.error('[provider-error]', msg.error);
-    }
+      // Log provider errors
+      if (msg.type === 'provider-error') {
+        console.error('[provider-error]', msg.error);
+      }
+
+      return reducerResult.state;
+    });
   }, []);
 
   const { connected, send } = useWebSocket({ url: WS_URL, onMessage });
@@ -145,11 +133,9 @@ export function useSurface(): UseSurfaceReturn {
   const forwardPath = useMemo(() => getForwardPath(currentVersion, versions), [currentVersion, versions]);
 
   const submitPrompt = useCallback((text: string) => {
-    setIsProcessing(true);
-    setProviderError(null);
+    setState(prevState => ({ ...prevState, isProcessing: true, providerError: null }));
 
     if (!selectedProvider || !selectedModel) {
-      // No provider selected — send directly (legacy behavior for REPL mode)
       send({
         type: 'prompt',
         text,
@@ -175,12 +161,15 @@ export function useSurface(): UseSurfaceReturn {
   }, [send, currentVersion, selectedProvider, selectedModel, selectedReasoningEffort]);
 
   const selectVersion = useCallback((version: number) => {
-    setCurrentVersion(version);
+    setState(prevState => ({ ...prevState, currentVersion: version }));
     send({ type: 'select-version', version });
   }, [send]);
 
   const selectSection = useCallback((sectionId: string) => {
-    setDocument(prev => prev ? { ...prev, activeSection: sectionId } : prev);
+    setState(prevState => ({
+      ...prevState,
+      document: prevState.document ? { ...prevState.document, activeSection: sectionId } : prevState.document,
+    }));
     send({ type: 'select-section', sectionId });
   }, [send]);
 
@@ -196,7 +185,7 @@ export function useSurface(): UseSurfaceReturn {
     send({ type: 'delete-chat', chatId });
   }, [send]);
 
-  const clearProviderError = useCallback(() => setProviderError(null), []);
+  const clearProviderError = useCallback(() => setState(prevState => ({ ...prevState, providerError: null })), []);
 
   return {
     document, versions, currentVersion, path, forwardPath,

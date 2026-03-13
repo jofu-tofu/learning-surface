@@ -41,12 +41,8 @@ export const ExtendSchema = z.object({
 export const ChallengeSchema = z.object({
   question: z.string(),
   hints: z.array(z.string()).optional(),
-});
-
-export const RevealSchema = z.object({
-  checkId: z.string(),
-  answer: z.string(),
-  explanation: z.string(),
+  answer: z.string().optional(),
+  answerExplanation: z.string().optional(),
 });
 
 export const SuggestFollowupsSchema = z.object({
@@ -110,14 +106,8 @@ export const TOOL_DEFS = [
   {
     name: 'challenge',
     label: 'Adding comprehension check',
-    description: 'Add a new comprehension check question to the active section. Each call adds one question (does not replace existing checks). Provide optional hints for the learner.',
+    description: 'Add a new comprehension check question to the active section. Each call adds one question (does not replace existing checks). Provide optional hints for the learner. Provide answer and answerExplanation so the learner can reveal the answer after attempting the question — answers are hidden by default.',
     schema: ChallengeSchema,
-  },
-  {
-    name: 'reveal',
-    label: 'Revealing answer',
-    description: 'Reveal the answer for an existing comprehension check by its ID. Sets the check status to revealed and stores the answer and explanation.',
-    schema: RevealSchema,
   },
   {
     name: 'suggest_followups',

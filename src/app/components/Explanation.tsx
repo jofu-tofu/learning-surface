@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Check } from '../../shared/types.js';
 import { useMarkdown } from '../hooks/useMarkdown.js';
+import { useIsProcessing } from '../hooks/VersionDiffContext.js';
 import { EmptyState } from './EmptyState.js';
 import { Icon } from './Icon.js';
 import { sectionHeading, focusRing } from '../utils/styles.js';
@@ -10,15 +11,15 @@ interface ExplanationProps {
   checks: Check[];
   followups: string[];
   onFollowupClick?: (question: string) => void;
-  isProcessing?: boolean;
 }
 
 const explanationEmptyIcon = (
   <Icon name="document" className="w-10 h-10" size={40} strokeWidth={1.5} />
 );
 
-export function Explanation({ explanation, checks, followups, onFollowupClick, isProcessing }: ExplanationProps): React.ReactElement {
+export function Explanation({ explanation, checks, followups, onFollowupClick }: ExplanationProps): React.ReactElement {
   const renderedExplanation = useMarkdown(explanation);
+  const isProcessing = useIsProcessing();
 
   return (
     <div className="explanation-pane space-y-6">

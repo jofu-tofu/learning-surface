@@ -82,6 +82,12 @@ const handlers: Record<ToolName, ToolHandler> = {
       if (params.hints) {
         check.hints = params.hints as string[];
       }
+      if (params.answer) {
+        check.answer = params.answer as string;
+      }
+      if (params.answerExplanation) {
+        check.answerExplanation = params.answerExplanation as string;
+      }
       active.checks.push(check);
     });
   },
@@ -100,19 +106,6 @@ const handlers: Record<ToolName, ToolHandler> = {
     withActiveSection(doc, (active) => {
       if (active.canvas) {
         active.canvas.content = active.canvas.content + '\n' + (params.additions as string);
-      }
-    });
-  },
-
-  reveal(doc, params) {
-    withActiveSection(doc, (active) => {
-      if (active.checks) {
-        const check = active.checks.find(c => c.id === params.checkId);
-        if (check) {
-          check.status = 'revealed';
-          check.answer = params.answer as string;
-          check.answerExplanation = params.explanation as string;
-        }
       }
     });
   },

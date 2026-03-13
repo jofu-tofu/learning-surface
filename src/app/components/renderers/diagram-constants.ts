@@ -25,3 +25,7 @@ export const BEZIER_CONTROL_FACTOR = 0.4;
 export const BEZIER_CONTROL_MIN = 20;
 export const REROUTE_LABEL_WEIGHT_ENDPOINT = 0.125;
 export const REROUTE_LABEL_WEIGHT_ROUTE = 0.75;
+
+// --- Port Selection ---
+
+export const FLOW_DIRECTION_BIAS = 0.2;

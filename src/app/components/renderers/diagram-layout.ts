@@ -15,6 +15,7 @@ import {
   BEZIER_CONTROL_MIN,
   REROUTE_LABEL_WEIGHT_ENDPOINT,
   REROUTE_LABEL_WEIGHT_ROUTE,
+  FLOW_DIRECTION_BIAS,
 } from './diagram-constants.js';
 
 export { NODE_WIDTH, NODE_HEIGHT, EDGE_LABEL_TEXT_OFFSET_Y } from './diagram-constants.js';
@@ -216,6 +217,81 @@ export function controlPointOffset(distance: number): number {
   return Math.max(Math.abs(distance) * BEZIER_CONTROL_FACTOR, BEZIER_CONTROL_MIN);
 }
 
+// --- Port Selection ---
+
+export type Port = 'top' | 'bottom' | 'left' | 'right';
+
+/** Port position on a node's boundary. */
+export function portPosition(
+  nodeX: number, nodeY: number, port: Port,
+): { x: number; y: number } {
+  switch (port) {
+    case 'top': return { x: nodeX + NODE_WIDTH / 2, y: nodeY };
+    case 'bottom': return { x: nodeX + NODE_WIDTH / 2, y: nodeY + NODE_HEIGHT };
+    case 'left': return { x: nodeX, y: nodeY + NODE_HEIGHT / 2 };
+    case 'right': return { x: nodeX + NODE_WIDTH, y: nodeY + NODE_HEIGHT / 2 };
+  }
+}
+
+/**
+ * Select optimal exit/entry ports for an edge based on relative node positions.
+ * Normalizes by node dimensions to account for aspect ratio, then biases
+ * slightly toward the flow direction (vertical for TB, horizontal for LR).
+ */
+export function selectPorts(
+  fromPos: { x: number; y: number },
+  toPos: { x: number; y: number },
+  direction: 'TB' | 'LR' = 'TB',
+): { fromPort: Port; toPort: Port } {
+  const dx = (toPos.x + NODE_WIDTH / 2) - (fromPos.x + NODE_WIDTH / 2);
+  const dy = (toPos.y + NODE_HEIGHT / 2) - (fromPos.y + NODE_HEIGHT / 2);
+
+  const normalizedDx = Math.abs(dx) / (NODE_WIDTH + HORIZONTAL_GAP);
+  const normalizedDy = Math.abs(dy) / (NODE_HEIGHT + VERTICAL_GAP);
+
+  const effectiveDy = normalizedDy + (direction === 'TB' ? FLOW_DIRECTION_BIAS : 0);
+  const effectiveDx = normalizedDx + (direction === 'LR' ? FLOW_DIRECTION_BIAS : 0);
+
+  if (effectiveDy >= effectiveDx) {
+    return dy >= 0
+      ? { fromPort: 'bottom', toPort: 'top' }
+      : { fromPort: 'top', toPort: 'bottom' };
+  }
+  return dx >= 0
+    ? { fromPort: 'right', toPort: 'left' }
+    : { fromPort: 'left', toPort: 'right' };
+}
+
+/** Compute Bezier edge path between two port positions. */
+function computePortEdgePath(
+  start: { x: number; y: number },
+  end: { x: number; y: number },
+  fromPort: Port,
+  toPort: Port,
+): string {
+  const isVertical = fromPort === 'top' || fromPort === 'bottom';
+  const axisDist = isVertical ? end.y - start.y : end.x - start.x;
+  const cpOffset = controlPointOffset(axisDist);
+
+  let cp1x = start.x, cp1y = start.y;
+  switch (fromPort) {
+    case 'bottom': cp1y += cpOffset; break;
+    case 'top': cp1y -= cpOffset; break;
+    case 'right': cp1x += cpOffset; break;
+    case 'left': cp1x -= cpOffset; break;
+  }
+
+  let cp2x = end.x, cp2y = end.y;
+  switch (toPort) {
+    case 'top': cp2y -= cpOffset; break;
+    case 'bottom': cp2y += cpOffset; break;
+    case 'left': cp2x -= cpOffset; break;
+    case 'right': cp2x += cpOffset; break;
+  }
+
+  return `M ${start.x} ${start.y} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${end.x} ${end.y}`;
+}
+
 // --- Parsing ---
 
 export function parseDiagramData(content: string): DiagramData | null {
@@ -361,36 +437,24 @@ export function computeDiagramLayout(data: DiagramData): {
     }
   }
 
-  // Compute edge paths
+  // Compute edge paths with smart port selection
   const positionedEdges: PositionedEdge[] = [];
   for (const edge of edges) {
     const from = posMap.get(edge.from);
     const to = posMap.get(edge.to);
     if (!from || !to) continue;
 
-    let startX: number, startY: number, endX: number, endY: number;
+    const { fromPort, toPort } = selectPorts(from, to, direction);
+    const start = portPosition(from.x, from.y, fromPort);
+    const end = portPosition(to.x, to.y, toPort);
+    const path = computePortEdgePath(start, end, fromPort, toPort);
 
-    if (isLR) {
-      // Exit from right side, enter from left side
-      startX = from.x + NODE_WIDTH;
-      startY = from.y + NODE_HEIGHT / 2;
-      endX = to.x;
-      endY = to.y + NODE_HEIGHT / 2;
-      const dx = endX - startX;
-      const bezierControlOffset = controlPointOffset(dx);
-      const path = `M ${startX} ${startY} C ${startX + bezierControlOffset} ${startY}, ${endX - bezierControlOffset} ${endY}, ${endX} ${endY}`;
-      positionedEdges.push({ ...edge, path, labelX: (startX + endX) / 2, labelY: (startY + endY) / 2 });
-    } else {
-      // Exit from bottom, enter from top
-      startX = from.x + NODE_WIDTH / 2;
-      startY = from.y + NODE_HEIGHT;
-      endX = to.x + NODE_WIDTH / 2;
-      endY = to.y;
-      const dy = endY - startY;
-      const bezierControlOffset = controlPointOffset(dy);
-      const path = `M ${startX} ${startY} C ${startX} ${startY + bezierControlOffset}, ${endX} ${endY - bezierControlOffset}, ${endX} ${endY}`;
-      positionedEdges.push({ ...edge, path, labelX: (startX + endX) / 2, labelY: (startY + endY) / 2 });
-    }
+    positionedEdges.push({
+      ...edge,
+      path,
+      labelX: (start.x + end.x) / 2,
+      labelY: (start.y + end.y) / 2,
+    });
   }
 
   // --- Overlap resolution ---

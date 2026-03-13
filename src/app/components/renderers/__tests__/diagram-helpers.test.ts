@@ -11,6 +11,10 @@ import {
   nodeLabelX,
   controlPointOffset,
   shapeCornerRadius,
+  portPosition,
+  selectPorts,
+  NODE_WIDTH,
+  NODE_HEIGHT,
 } from '../diagram-layout.js';
 
 // ---------------------------------------------------------------------------
@@ -237,5 +241,84 @@ describe('controlPointOffset', () => {
 
   it('treats negative distance same as positive (absolute value)', () => {
     expect(controlPointOffset(-200)).toBe(controlPointOffset(200));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// portPosition — boundary point for each port
+// ---------------------------------------------------------------------------
+
+describe('portPosition', () => {
+  it('top port is at center-x and node top', () => {
+    const pos = portPosition(100, 50, 'top');
+    expect(pos.x).toBe(100 + NODE_WIDTH / 2);
+    expect(pos.y).toBe(50);
+  });
+
+  it('bottom port is at center-x and node bottom', () => {
+    const pos = portPosition(100, 50, 'bottom');
+    expect(pos.x).toBe(100 + NODE_WIDTH / 2);
+    expect(pos.y).toBe(50 + NODE_HEIGHT);
+  });
+
+  it('left port is at node left and center-y', () => {
+    const pos = portPosition(100, 50, 'left');
+    expect(pos.x).toBe(100);
+    expect(pos.y).toBe(50 + NODE_HEIGHT / 2);
+  });
+
+  it('right port is at node right and center-y', () => {
+    const pos = portPosition(100, 50, 'right');
+    expect(pos.x).toBe(100 + NODE_WIDTH);
+    expect(pos.y).toBe(50 + NODE_HEIGHT / 2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// selectPorts — smart port selection based on relative position
+// ---------------------------------------------------------------------------
+
+describe('selectPorts', () => {
+  it('chooses bottom/top when target is directly below (TB)', () => {
+    const result = selectPorts({ x: 100, y: 50 }, { x: 100, y: 200 }, 'TB');
+    expect(result).toEqual({ fromPort: 'bottom', toPort: 'top' });
+  });
+
+  it('chooses top/bottom when target is directly above (TB)', () => {
+    const result = selectPorts({ x: 100, y: 200 }, { x: 100, y: 50 }, 'TB');
+    expect(result).toEqual({ fromPort: 'top', toPort: 'bottom' });
+  });
+
+  it('chooses right/left when target is far to the right (TB)', () => {
+    // Same y, big x difference — horizontal connection
+    const result = selectPorts({ x: 50, y: 100 }, { x: 500, y: 100 }, 'TB');
+    expect(result).toEqual({ fromPort: 'right', toPort: 'left' });
+  });
+
+  it('chooses left/right when target is far to the left (TB)', () => {
+    const result = selectPorts({ x: 500, y: 100 }, { x: 50, y: 100 }, 'TB');
+    expect(result).toEqual({ fromPort: 'left', toPort: 'right' });
+  });
+
+  it('biases toward vertical ports in TB mode on ambiguous angles', () => {
+    // Equal normalized distances — TB bias should prefer vertical
+    const result = selectPorts({ x: 0, y: 0 }, { x: 208, y: 108 }, 'TB');
+    expect(result.fromPort === 'bottom' || result.fromPort === 'top').toBe(true);
+  });
+
+  it('biases toward horizontal ports in LR mode on ambiguous angles', () => {
+    const result = selectPorts({ x: 0, y: 0 }, { x: 208, y: 108 }, 'LR');
+    expect(result.fromPort === 'right' || result.fromPort === 'left').toBe(true);
+  });
+
+  it('chooses right/left for LR flow direction with target to the right', () => {
+    const result = selectPorts({ x: 50, y: 100 }, { x: 300, y: 100 }, 'LR');
+    expect(result).toEqual({ fromPort: 'right', toPort: 'left' });
+  });
+
+  it('uses vertical ports for co-located nodes (zero offset) in TB mode', () => {
+    // Both at same position — flow bias breaks the tie toward vertical
+    const result = selectPorts({ x: 100, y: 100 }, { x: 100, y: 100 }, 'TB');
+    expect(result.fromPort === 'bottom' || result.fromPort === 'top').toBe(true);
   });
 });

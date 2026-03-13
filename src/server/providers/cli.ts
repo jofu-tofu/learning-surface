@@ -32,7 +32,7 @@ export function createCliProvider(): ReplProvider {
         'exec', '--full-auto', '--skip-git-repo-check', '--ephemeral',
         '-m', model, '-C', sessionDir,
       ];
-      if (reasoningEffort) args.push('--reasoning-effort', reasoningEffort);
+      if (reasoningEffort) args.push('-c', `model_reasoning_effort="${reasoningEffort}"`);
       args.push(buildCliPrompt(systemPrompt, prompt));
 
       return spawnCli('codex', args, 'codex-cli');

@@ -32,15 +32,16 @@ export function createClaudeCodeProvider(): ReplProvider {
       return checkCliAvailable('claude');
     },
 
-    async complete({ prompt, systemPrompt, model, sessionDir }) {
+    async complete({ prompt, systemPrompt, model, sessionDir, reasoningEffort }) {
       const args = [
         '--print', '--dangerously-skip-permissions',
         '--model', model,
         '--tools', 'Read,Edit,Write',
         '--no-session-persistence',
-        buildCliPrompt(systemPrompt, prompt),
       ];
-      // Claude Code CLI does not support reasoning effort flags
+      if (reasoningEffort) args.push('--effort', reasoningEffort);
+      args.push(buildCliPrompt(systemPrompt, prompt));
+
       return spawnCli('claude', args, 'claude-code', { cwd: sessionDir });
     },
   };

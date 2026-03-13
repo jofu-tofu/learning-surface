@@ -11,6 +11,7 @@ export function buildCliPrompt(systemPrompt: string, prompt: string): string {
 export function spawnCli(command: string, args: string[], label: string, opts?: SpawnOptions): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     const child = spawn(command, args, { stdio: ['pipe', 'pipe', 'pipe'], ...opts });
+    let stderrOutput = '';
 
     child.stdout?.on('data', (data: Buffer) => {
       const text = data.toString().trim();
@@ -19,7 +20,10 @@ export function spawnCli(command: string, args: string[], label: string, opts?: 
 
     child.stderr?.on('data', (data: Buffer) => {
       const text = data.toString().trim();
-      if (text) console.error(`[${label} stderr] ${text}`);
+      if (text) {
+        console.error(`[${label} stderr] ${text}`);
+        stderrOutput += text + '\n';
+      }
     });
 
     child.on('error', (err) => {
@@ -28,7 +32,9 @@ export function spawnCli(command: string, args: string[], label: string, opts?: 
 
     child.on('close', (code) => {
       if (code === 0) resolve();
-      else reject(new Error(`${command} exited with code ${code}`));
+      else reject(new Error(
+        `${command} exited with code ${code}${stderrOutput ? `: ${stderrOutput.trim()}` : ''}`,
+      ));
     });
   });
 }

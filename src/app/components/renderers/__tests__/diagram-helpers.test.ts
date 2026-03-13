@@ -15,6 +15,7 @@ import {
   selectPorts,
   cubicBezierPoint,
   edgeLabelOnCurve,
+  computeLayerGaps,
   NODE_WIDTH,
   NODE_HEIGHT,
 } from '../diagram-layout.js';
@@ -390,5 +391,59 @@ describe('edgeLabelOnCurve', () => {
     // Linear midpoint would be (0, 100); curve midpoint is pulled right
     expect(result.x).toBeGreaterThan(0);
     expect(result.y).toBeCloseTo(100);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// computeLayerGaps — adaptive inter-layer spacing
+// ---------------------------------------------------------------------------
+
+describe('computeLayerGaps', () => {
+  it('returns base gap for layers with no labeled edges', () => {
+    const layers = [['a'], ['b']];
+    const edges = [{ from: 'a', to: 'b' }]; // no label
+    const layerMap = new Map([['a', 0], ['b', 1]]);
+    const gaps = computeLayerGaps(layers, edges, layerMap, 64);
+    expect(gaps).toEqual([64]);
+  });
+
+  it('returns base gap for a single labeled edge (no extra space needed)', () => {
+    const layers = [['a'], ['b']];
+    const edges = [{ from: 'a', to: 'b', label: 'next' }];
+    const layerMap = new Map([['a', 0], ['b', 1]]);
+    const gaps = computeLayerGaps(layers, edges, layerMap, 64);
+    expect(gaps).toEqual([64]);
+  });
+
+  it('expands gap when multiple labeled edges cross the same layer pair', () => {
+    const layers = [['a'], ['b', 'c', 'd']];
+    const edges = [
+      { from: 'a', to: 'b', label: 'yes' },
+      { from: 'a', to: 'c', label: 'no' },
+      { from: 'a', to: 'd', label: 'maybe' },
+    ];
+    const layerMap = new Map([['a', 0], ['b', 1], ['c', 1], ['d', 1]]);
+    const gaps = computeLayerGaps(layers, edges, layerMap, 64);
+    expect(gaps[0]).toBeGreaterThan(64);
+  });
+
+  it('returns empty array for a single layer (no gaps)', () => {
+    const layers = [['a', 'b']];
+    const edges: { from: string; to: string; label?: string }[] = [];
+    const layerMap = new Map([['a', 0], ['b', 0]]);
+    const gaps = computeLayerGaps(layers, edges, layerMap, 64);
+    expect(gaps).toEqual([]);
+  });
+
+  it('ignores edges whose nodes are not in the layer map', () => {
+    const layers = [['a'], ['b']];
+    const edges = [
+      { from: 'a', to: 'b', label: 'real' },
+      { from: 'x', to: 'y', label: 'ghost' }, // unknown nodes
+    ];
+    const layerMap = new Map([['a', 0], ['b', 1]]);
+    const gaps = computeLayerGaps(layers, edges, layerMap, 64);
+    // Only 1 labeled edge between layers 0-1, so base gap
+    expect(gaps).toEqual([64]);
   });
 });

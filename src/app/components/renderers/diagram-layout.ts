@@ -354,6 +354,37 @@ export interface PositionedEdge extends DiagramEdge {
 /** Displacement threshold beyond which a leader line is drawn. */
 export const LEADER_LINE_THRESHOLD = 15;
 
+/** Extra inter-layer spacing per additional labeled edge beyond the first. */
+const LABEL_GAP_PER_EDGE = EDGE_LABEL_HEIGHT + 8;
+
+/**
+ * Compute adaptive gap between each layer pair.
+ * Layers connected by multiple labeled edges get extra space so labels
+ * can sit on the edge naturally without being displaced by overlap resolution.
+ */
+export function computeLayerGaps(
+  layers: string[][],
+  edges: DiagramEdge[],
+  layerMap: Map<string, number>,
+  baseGap: number,
+): number[] {
+  const gaps: number[] = [];
+  for (let i = 0; i < layers.length - 1; i++) {
+    let labeledCount = 0;
+    for (const edge of edges) {
+      if (!edge.label) continue;
+      const fromLayer = layerMap.get(edge.from);
+      const toLayer = layerMap.get(edge.to);
+      if (fromLayer === undefined || toLayer === undefined) continue;
+      if ((fromLayer === i && toLayer === i + 1) || (fromLayer === i + 1 && toLayer === i)) {
+        labeledCount++;
+      }
+    }
+    gaps.push(baseGap + Math.max(0, labeledCount - 1) * LABEL_GAP_PER_EDGE);
+  }
+  return gaps;
+}
+
 export interface GroupRect {
   group: string;
   x: number;
@@ -417,6 +448,17 @@ export function computeDiagramLayout(data: DiagramData): {
     }
   }
 
+  // Compute adaptive inter-layer gaps based on labeled edge density
+  const baseGap = isLR ? HORIZONTAL_GAP : VERTICAL_GAP;
+  const layerGaps = computeLayerGaps(layers, edges, layerMap, baseGap);
+
+  // Cumulative layer offsets (position of each layer along the flow axis)
+  const layerOffsets: number[] = [DIAGRAM_PADDING];
+  const layerDimension = isLR ? NODE_WIDTH : NODE_HEIGHT;
+  for (let i = 1; i < layers.length; i++) {
+    layerOffsets.push(layerOffsets[i - 1] + layerDimension + layerGaps[i - 1]);
+  }
+
   // Position nodes
   const nodeMap = new Map(nodes.map(node => [node.id, node]));
   const posMap = new Map<string, { x: number; y: number }>();
@@ -429,13 +471,13 @@ export function computeDiagramLayout(data: DiagramData): {
   let totalHeight: number;
 
   if (isLR) {
-    const layerWidth = layers.length * NODE_WIDTH + (layers.length - 1) * HORIZONTAL_GAP + 2 * DIAGRAM_PADDING;
+    const layerWidth = layerOffsets[layers.length - 1] + NODE_WIDTH + DIAGRAM_PADDING;
     const maxColumnHeight = maxLayerSize * NODE_HEIGHT + (maxLayerSize - 1) * VERTICAL_GAP + 2 * DIAGRAM_PADDING;
     totalWidth = Math.max(layerWidth, NODE_WIDTH + 2 * DIAGRAM_PADDING);
     totalHeight = Math.max(maxColumnHeight, NODE_HEIGHT + 2 * DIAGRAM_PADDING);
   } else {
     const rowWidth = Math.max(maxLayerSize * NODE_WIDTH + (maxLayerSize - 1) * HORIZONTAL_GAP + 2 * DIAGRAM_PADDING, NODE_WIDTH + 2 * DIAGRAM_PADDING);
-    const colHeight = DIAGRAM_PADDING + layers.length * (NODE_HEIGHT + VERTICAL_GAP) - VERTICAL_GAP + DIAGRAM_PADDING;
+    const colHeight = layerOffsets[layers.length - 1] + NODE_HEIGHT + DIAGRAM_PADDING;
     totalWidth = rowWidth;
     totalHeight = colHeight;
   }
@@ -446,7 +488,7 @@ export function computeDiagramLayout(data: DiagramData): {
     const layer = layers[layerIndex];
 
     if (isLR) {
-      const x = DIAGRAM_PADDING + layerIndex * (NODE_WIDTH + HORIZONTAL_GAP);
+      const x = layerOffsets[layerIndex];
       const layerHeight = layer.length * NODE_HEIGHT + (layer.length - 1) * VERTICAL_GAP;
       const startY = (totalHeight - layerHeight) / 2;
       for (let nodeIndex = 0; nodeIndex < layer.length; nodeIndex++) {
@@ -458,7 +500,7 @@ export function computeDiagramLayout(data: DiagramData): {
     } else {
       const layerWidth = layer.length * NODE_WIDTH + (layer.length - 1) * HORIZONTAL_GAP;
       const startX = (totalWidth - layerWidth) / 2;
-      const y = DIAGRAM_PADDING + layerIndex * (NODE_HEIGHT + VERTICAL_GAP);
+      const y = layerOffsets[layerIndex];
       for (let nodeIndex = 0; nodeIndex < layer.length; nodeIndex++) {
         const x = startX + nodeIndex * (NODE_WIDTH + HORIZONTAL_GAP);
         const node = nodeMap.get(layer[nodeIndex])!;

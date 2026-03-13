@@ -29,6 +29,8 @@ describe('reduceSurfaceMessage', () => {
       expect(result.state.isProcessing).toBe(false);
       expect(result.state.activity).toBeNull();
       expect(result.state.changedPanes.size).toBe(0);
+      expect(result.state.versionChangedPanes.size).toBe(0);
+      expect(result.state.changedSectionIds.size).toBe(0);
     });
 
     it('sets document to null when message has no document', () => {
@@ -128,6 +130,41 @@ describe('reduceSurfaceMessage', () => {
 
       expect(result.prevDoc).toBe(doc);
     });
+
+    it('sets versionChangedPanes on version transition', () => {
+      const prevDoc = buildDocument({
+        version: 1,
+        sections: [buildSection({ title: 'A', explanation: 'old' })],
+      });
+      const nextDoc = buildDocument({
+        version: 2,
+        sections: [buildSection({ title: 'A', explanation: 'new' })],
+      });
+      const s = state({ currentVersion: 1 });
+      const msg: WsMessage = { type: 'document-update', document: nextDoc };
+      const result = reduceSurfaceMessage(s, msg, prevDoc);
+
+      expect(result.state.versionChangedPanes.has('explanation')).toBe(true);
+      expect(result.state.changedSectionIds.has('a')).toBe(true);
+    });
+
+    it('does not set versionChangedPanes for same-version streaming updates', () => {
+      const prevDoc = buildDocument({
+        version: 2,
+        sections: [buildSection({ title: 'A', explanation: 'partial' })],
+      });
+      const nextDoc = buildDocument({
+        version: 2,
+        sections: [buildSection({ title: 'A', explanation: 'more complete' })],
+      });
+      const s = state({ currentVersion: 2, versionChangedPanes: new Set(['canvas']), changedSectionIds: new Set(['a']) });
+      const msg: WsMessage = { type: 'document-update', document: nextDoc };
+      const result = reduceSurfaceMessage(s, msg, prevDoc);
+
+      // Should preserve existing version-level indicators, not recompute
+      expect(result.state.versionChangedPanes).toEqual(new Set(['canvas']));
+      expect(result.state.changedSectionIds).toEqual(new Set(['a']));
+    });
   });
 
   // ═══════════════════════════════════════════════════════════════════
@@ -149,6 +186,19 @@ describe('reduceSurfaceMessage', () => {
       const msg: WsMessage = { type: 'version-change' };
       const result = reduceSurfaceMessage(s, msg, null);
       expect(result.state.currentVersion).toBe(5);
+    });
+
+    it('clears versionChangedPanes and changedSectionIds on navigation', () => {
+      const s = state({
+        currentVersion: 2,
+        versionChangedPanes: new Set(['canvas', 'explanation']),
+        changedSectionIds: new Set(['intro']),
+      });
+      const msg: WsMessage = { type: 'version-change', version: 1 };
+      const result = reduceSurfaceMessage(s, msg, null);
+
+      expect(result.state.versionChangedPanes.size).toBe(0);
+      expect(result.state.changedSectionIds.size).toBe(0);
     });
   });
 

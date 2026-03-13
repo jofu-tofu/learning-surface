@@ -70,17 +70,19 @@ describe('applyTool edge cases', () => {
     expect(doc.sections[0].canvas).toBeUndefined();
   });
 
-  it('reveal with nonexistent checkId: no-op (does not crash)', () => {
+  it('challenge adds check with answer and answerExplanation', () => {
     const doc = makeDoc();
-    expect(() =>
-      applyTool(doc, 'reveal', {
-        checkId: 'nonexistent',
-        answer: 'A',
-        explanation: 'E',
-      }),
-    ).not.toThrow();
-    // Original check unchanged
-    expect(doc.sections[0].checks![0].status).toBe('unanswered');
+    applyTool(doc, 'challenge', {
+      question: 'Why?',
+      answer: 'Because of X',
+      answerExplanation: 'X happens when Y',
+    });
+    const checks = doc.sections[0].checks!;
+    const added = checks[checks.length - 1];
+    expect(added.question).toBe('Why?');
+    expect(added.answer).toBe('Because of X');
+    expect(added.answerExplanation).toBe('X happens when Y');
+    expect(added.status).toBe('unanswered');
   });
 
   it('unknown tool name: throws Error', () => {
@@ -114,6 +116,106 @@ describe('applyTool edge cases', () => {
     expect(doc.sections).toHaveLength(1);
     expect(doc.sections[0].id).toBe('beta');
     expect(doc.activeSection).toBe('beta');
+  });
+
+  it('new_section auto-removes empty untitled placeholder', () => {
+    const doc = makeDoc({
+      activeSection: 'untitled',
+      sections: [buildSection({ title: 'Untitled', id: 'untitled' })],
+    });
+    applyTool(doc, 'new_section', { title: 'Real Section' });
+    expect(doc.sections).toHaveLength(1);
+    expect(doc.sections[0].id).toBe('real-section');
+    expect(doc.activeSection).toBe('real-section');
+  });
+
+  it('new_section keeps non-empty untitled section', () => {
+    const doc = makeDoc({
+      activeSection: 'untitled',
+      sections: [buildSection({ title: 'Untitled', id: 'untitled', explanation: 'Has content' })],
+    });
+    applyTool(doc, 'new_section', { title: 'Real Section' });
+    expect(doc.sections).toHaveLength(2);
+    expect(doc.sections[0].id).toBe('untitled');
+    expect(doc.sections[1].id).toBe('real-section');
+  });
+
+  it('show_diagram sets canvas with JSON payload', () => {
+    const doc = makeDoc();
+    applyTool(doc, 'show_diagram', {
+      nodes: [{ id: 'a', label: 'A' }],
+      edges: [{ from: 'a', to: 'b' }],
+    });
+    expect(doc.sections[0].canvas!.type).toBe('diagram');
+    const parsed = JSON.parse(doc.sections[0].canvas!.content);
+    expect(parsed.nodes).toEqual([{ id: 'a', label: 'A' }]);
+    expect(parsed.edges).toEqual([{ from: 'a', to: 'b' }]);
+  });
+
+  it('show_diagram includes direction when provided', () => {
+    const doc = makeDoc();
+    applyTool(doc, 'show_diagram', {
+      nodes: [{ id: 'a', label: 'A' }],
+      edges: [{ from: 'a', to: 'b' }],
+      direction: 'LR',
+    });
+    const parsed = JSON.parse(doc.sections[0].canvas!.content);
+    expect(parsed.direction).toBe('LR');
+  });
+
+  it('challenge adds check with hints', () => {
+    const doc = makeDoc();
+    applyTool(doc, 'challenge', { question: 'What?', hints: ['hint1', 'hint2'] });
+    const checks = doc.sections[0].checks!;
+    const added = checks[checks.length - 1];
+    expect(added.question).toBe('What?');
+    expect(added.hints).toEqual(['hint1', 'hint2']);
+  });
+
+  it('challenge without answer: check has no answer fields', () => {
+    const doc = makeDoc();
+    applyTool(doc, 'challenge', { question: 'What?' });
+    const checks = doc.sections[0].checks!;
+    const added = checks[checks.length - 1];
+    expect(added.question).toBe('What?');
+    expect(added.answer).toBeUndefined();
+    expect(added.answerExplanation).toBeUndefined();
+  });
+
+  it('clear target=canvas deletes canvas only', () => {
+    const doc = makeDoc();
+    applyTool(doc, 'clear', { target: 'canvas' });
+    expect(doc.sections[0].canvas).toBeUndefined();
+    expect(doc.sections[0].explanation).toBe('Some text');
+    expect(doc.sections[0].checks).toHaveLength(1);
+    expect(doc.sections[0].followups).toEqual(['Follow 1']);
+  });
+
+  it('clear target=explanation deletes explanation only', () => {
+    const doc = makeDoc();
+    applyTool(doc, 'clear', { target: 'explanation' });
+    expect(doc.sections[0].explanation).toBeUndefined();
+    expect(doc.sections[0].canvas).toBeDefined();
+    expect(doc.sections[0].checks).toHaveLength(1);
+    expect(doc.sections[0].followups).toEqual(['Follow 1']);
+  });
+
+  it('clear target=checks deletes checks only', () => {
+    const doc = makeDoc();
+    applyTool(doc, 'clear', { target: 'checks' });
+    expect(doc.sections[0].checks).toBeUndefined();
+    expect(doc.sections[0].canvas).toBeDefined();
+    expect(doc.sections[0].explanation).toBe('Some text');
+    expect(doc.sections[0].followups).toEqual(['Follow 1']);
+  });
+
+  it('clear target=followups deletes followups only', () => {
+    const doc = makeDoc();
+    applyTool(doc, 'clear', { target: 'followups' });
+    expect(doc.sections[0].followups).toBeUndefined();
+    expect(doc.sections[0].canvas).toBeDefined();
+    expect(doc.sections[0].explanation).toBe('Some text');
+    expect(doc.sections[0].checks).toHaveLength(1);
   });
 });
 

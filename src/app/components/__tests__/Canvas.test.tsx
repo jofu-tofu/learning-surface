@@ -1,7 +1,18 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { Canvas } from '../Canvas.js';
 import { buildCanvasContent } from '../../../test/helpers.js';
+
+// jsdom doesn't provide ResizeObserver
+beforeAll(() => {
+  if (typeof globalThis.ResizeObserver === 'undefined') {
+    globalThis.ResizeObserver = class {
+      observe(): void { /* noop */ }
+      unobserve(): void { /* noop */ }
+      disconnect(): void { /* noop */ }
+    } as unknown as typeof ResizeObserver;
+  }
+});
 
 describe('Canvas', () => {
   it('shows error state on invalid mermaid syntax', () => {

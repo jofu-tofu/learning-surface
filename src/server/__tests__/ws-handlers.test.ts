@@ -11,6 +11,7 @@ import {
   fakeProvider,
   fakeContextCompiler,
   spyVersionStore,
+  buildVersionMeta,
 } from '../../test/helpers.js';
 
 // === Fake WebSocket (captures sent messages) ===
@@ -281,5 +282,172 @@ describe('ws-handlers prompt flow', () => {
 
     expect(progressCalls).toHaveLength(1);
     expect(progressCalls[0]).toMatchObject({ toolName: 'thinking', step: 0 });
+  });
+});
+
+describe('ws-handlers other routes', () => {
+  // --- new-chat ---
+
+  it('new-chat creates chat, switches, broadcasts chat-list, sends session-init', async () => {
+    const { ws, send, deps, broadcast } = setup();
+
+    await send({ type: 'new-chat' });
+
+    expect(deps.switchToChat).toHaveBeenCalled();
+
+    const chatListBroadcast = broadcast.mock.calls.find(
+      ([m]) => (m as WsMessage).type === 'chat-list',
+    );
+    expect(chatListBroadcast).toBeDefined();
+
+    const sessionInit = ws.sent.find(m => m.type === 'session-init');
+    expect(sessionInit).toBeDefined();
+  });
+
+  // --- switch-chat ---
+
+  it('switch-chat with valid id calls switchToChat and broadcasts', async () => {
+    const { send, deps, broadcast } = setup();
+
+    await send({ type: 'switch-chat', chatId: 'c1' });
+
+    expect(deps.switchToChat).toHaveBeenCalledWith('c1');
+    expect(broadcast).toHaveBeenCalled();
+  });
+
+  it('switch-chat with unknown id early-returns without switching', async () => {
+    const { send, deps, broadcast } = setup();
+
+    await send({ type: 'switch-chat', chatId: 'unknown' });
+
+    expect(deps.switchToChat).not.toHaveBeenCalled();
+    expect(broadcast).not.toHaveBeenCalled();
+  });
+
+  // --- delete-chat ---
+
+  it('delete-chat of active chat calls deleteChat and broadcasts session state', async () => {
+    const { send, deps, state, broadcast } = setup();
+    state.activeChatId = 'c1';
+
+    const deleteSpy = vi.spyOn(deps.chatStore, 'deleteChat');
+    await send({ type: 'delete-chat', chatId: 'c1' });
+
+    expect(deleteSpy).toHaveBeenCalledWith('c1');
+    // ensureActiveChat + broadcastSessionState results in session-init broadcast
+    const sessionBroadcast = broadcast.mock.calls.find(
+      ([m]) => (m as WsMessage).type === 'session-init',
+    );
+    expect(sessionBroadcast).toBeDefined();
+  });
+
+  it('delete-chat of non-active chat broadcasts chat-list', async () => {
+    const { send, deps, state, broadcast } = setup();
+    state.activeChatId = 'other';
+
+    const deleteSpy = vi.spyOn(deps.chatStore, 'deleteChat');
+    await send({ type: 'delete-chat', chatId: 'c1' });
+
+    expect(deleteSpy).toHaveBeenCalledWith('c1');
+    const chatListBroadcast = broadcast.mock.calls.find(
+      ([m]) => (m as WsMessage).type === 'chat-list',
+    );
+    expect(chatListBroadcast).toBeDefined();
+    // Should NOT broadcast full session-init
+    const sessionBroadcast = broadcast.mock.calls.find(
+      ([m]) => (m as WsMessage).type === 'session-init',
+    );
+    expect(sessionBroadcast).toBeUndefined();
+  });
+
+  // --- select-version ---
+
+  it('select-version with no version store early-returns', async () => {
+    const { ws, send, state } = setup();
+    state.activeVersionStore = null;
+
+    await send({ type: 'select-version', version: 1 });
+
+    const versionChange = ws.sent.find(m => m.type === 'version-change');
+    expect(versionChange).toBeUndefined();
+  });
+
+  it('select-version with store sends version-change', async () => {
+    const { ws, send, store } = setup();
+    store.getVersion = async () => MINIMAL_DOC;
+    store.listVersions = async () => [buildVersionMeta()];
+
+    await send({ type: 'select-version', version: 1 });
+
+    const versionChange = ws.sent.find(m => m.type === 'version-change');
+    expect(versionChange).toBeDefined();
+    expect(versionChange).toMatchObject({
+      type: 'version-change',
+      version: 1,
+    });
+  });
+
+  // --- preflight ---
+
+  it('preflight with missing provider sends ok:false', async () => {
+    const { ws, deps } = setup();
+
+    await routeMessage(ws as unknown as import('ws').WebSocket,
+      { type: 'preflight', provider: 'unknown', model: 'm1' },
+      { ...deps, getProvider: () => undefined },
+    );
+
+    const result = ws.sent.find(m => m.type === 'preflight-result');
+    expect(result).toBeDefined();
+    expect(result).toMatchObject({ ok: false });
+    expect((result as { error?: string }).error).toContain('not found');
+  });
+
+  it('preflight success sends ok:true', async () => {
+    const { ws, deps, provider } = setup();
+
+    await routeMessage(ws as unknown as import('ws').WebSocket,
+      { type: 'preflight', provider: 'fake', model: 'fake-model' },
+      { ...deps, getProvider: (id: string) => id === 'fake' ? provider : undefined },
+    );
+
+    const result = ws.sent.find(m => m.type === 'preflight-result');
+    expect(result).toBeDefined();
+    expect(result).toMatchObject({ ok: true });
+  });
+
+  it('preflight error sends ok:false with error message', async () => {
+    const { ws, deps } = setup();
+    const badProvider = fakeProvider();
+    badProvider.preflight = async () => { throw new Error('Connection refused'); };
+
+    await routeMessage(ws as unknown as import('ws').WebSocket,
+      { type: 'preflight', provider: 'bad', model: 'm1' },
+      { ...deps, getProvider: () => badProvider },
+    );
+
+    const result = ws.sent.find(m => m.type === 'preflight-result');
+    expect(result).toBeDefined();
+    expect(result).toMatchObject({ ok: false });
+    expect((result as { error?: string }).error).toContain('Connection refused');
+  });
+
+  // --- get-providers ---
+
+  it('get-providers sends provider-list', async () => {
+    const { ws, deps } = setup();
+    const providers = [{ id: 'p1', name: 'Provider 1', models: [] }];
+
+    await routeMessage(ws as unknown as import('ws').WebSocket,
+      { type: 'get-providers' },
+      { ...deps, getProviders: () => providers },
+    );
+
+    const msg = ws.sent.find(m => m.type === 'provider-list');
+    expect(msg).toBeDefined();
+    expect(msg).toMatchObject({
+      type: 'provider-list',
+      providers,
+    });
   });
 });

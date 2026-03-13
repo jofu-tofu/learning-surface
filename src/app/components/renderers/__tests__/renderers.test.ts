@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { parseDiagramData, computeDiagramLayout } from '../DiagramRenderer.js';
+import { NODE_WIDTH, NODE_HEIGHT } from '../diagram-layout.js';
+import {
+  rectsOverlap,
+  edgeLabelRect,
+  resolveEdgeLabelOverlaps,
+  type OverlapNode,
+  type OverlapEdge,
+} from '../overlap-resolution.js';
 
 describe('parseDiagramData', () => {
   it('returns null for non-JSON', () => {
@@ -147,5 +155,153 @@ describe('computeDiagramLayout', () => {
     // Same layer → same y, different x
     expect(left.y).toBe(right.y);
     expect(left.x).not.toBe(right.x);
+  });
+});
+
+// --- Overlap detection ---
+
+describe('rectsOverlap', () => {
+  it('detects no overlap for disjoint rects', () => {
+    expect(rectsOverlap(
+      { x: 0, y: 0, width: 10, height: 10 },
+      { x: 20, y: 20, width: 10, height: 10 },
+    )).toBe(false);
+  });
+
+  it('detects overlap for intersecting rects', () => {
+    expect(rectsOverlap(
+      { x: 0, y: 0, width: 10, height: 10 },
+      { x: 5, y: 5, width: 10, height: 10 },
+    )).toBe(true);
+  });
+
+  it('returns false when rects share only an edge (touching, not overlapping)', () => {
+    expect(rectsOverlap(
+      { x: 0, y: 0, width: 10, height: 10 },
+      { x: 10, y: 0, width: 10, height: 10 },
+    )).toBe(false);
+  });
+
+  it('detects overlap when one rect is fully inside another', () => {
+    expect(rectsOverlap(
+      { x: 0, y: 0, width: 100, height: 100 },
+      { x: 10, y: 10, width: 5, height: 5 },
+    )).toBe(true);
+  });
+
+  it('handles zero-dimension rects as non-overlapping', () => {
+    expect(rectsOverlap(
+      { x: 5, y: 5, width: 0, height: 0 },
+      { x: 5, y: 5, width: 10, height: 10 },
+    )).toBe(false);
+  });
+});
+
+describe('resolveEdgeLabelOverlaps', () => {
+  it('shifts label that sits on top of a node', () => {
+    const node: OverlapNode = { id: 'n', label: 'N', x: 100, y: 100 };
+    // Place label directly over the node center
+    const edge: OverlapEdge = {
+      from: 'a', to: 'b', label: 'yes',
+      path: 'M 0 0 L 1 1',
+      labelX: 100 + NODE_WIDTH / 2,
+      labelY: 100 + NODE_HEIGHT / 2,
+    };
+    const origX = edge.labelX;
+    const origY = edge.labelY;
+
+    resolveEdgeLabelOverlaps([edge], [node]);
+
+    // Label must have moved
+    const moved = edge.labelX !== origX || edge.labelY !== origY;
+    expect(moved).toBe(true);
+    // And must no longer overlap the node (with clearance)
+    const lr = edgeLabelRect(edge.label!, edge.labelX, edge.labelY);
+    const nr = { x: node.x, y: node.y, width: NODE_WIDTH, height: NODE_HEIGHT };
+    expect(rectsOverlap(lr, nr)).toBe(false);
+  });
+
+  it('shifts second label when two labels overlap each other', () => {
+    // Two edges with labels at the same position, no nodes to collide with
+    const e1: OverlapEdge = {
+      from: 'a', to: 'b', label: 'yes',
+      path: 'M 0 0 L 1 1', labelX: 200, labelY: 200,
+    };
+    const e2: OverlapEdge = {
+      from: 'c', to: 'd', label: 'no',
+      path: 'M 0 0 L 1 1', labelX: 200, labelY: 200,
+    };
+
+    resolveEdgeLabelOverlaps([e1, e2], []);
+
+    const r1 = edgeLabelRect(e1.label!, e1.labelX, e1.labelY);
+    const r2 = edgeLabelRect(e2.label!, e2.labelX, e2.labelY);
+    expect(rectsOverlap(r1, r2)).toBe(false);
+  });
+
+  it('does not shift labels that already have no overlap', () => {
+    const e: OverlapEdge = {
+      from: 'a', to: 'b', label: 'ok',
+      path: 'M 0 0 L 1 1', labelX: 500, labelY: 500,
+    };
+    resolveEdgeLabelOverlaps([e], []);
+    expect(e.labelX).toBe(500);
+    expect(e.labelY).toBe(500);
+  });
+});
+
+describe('cross-layer edge routing', () => {
+  it('reroutes TB edge that would pass through intermediate node', () => {
+    // A -> B -> C with an extra direct edge A -> C
+    // B sits between A and C, directly in the path of A->C
+    const result = computeDiagramLayout({
+      nodes: [
+        { id: 'a', label: 'A' },
+        { id: 'b', label: 'B' },
+        { id: 'c', label: 'C' },
+      ],
+      edges: [
+        { from: 'a', to: 'b' },
+        { from: 'b', to: 'c' },
+        { from: 'a', to: 'c' },
+      ],
+    });
+
+    // The A->C edge should be rerouted (its path differs from a straight drop)
+    const directEdge = result.edges.find(e => e.from === 'a' && e.to === 'c')!;
+    // The rerouted path should contain control points offset from the straight line
+    // Parse path to verify control points differ from source/target x
+    const nodeA = result.nodes.find(n => n.id === 'a')!;
+    const nodeC = result.nodes.find(n => n.id === 'c')!;
+    const straightX = (nodeA.x + nodeC.x) / 2 + NODE_WIDTH / 2;
+    // The path should NOT be a straight vertical line — control points diverge
+    expect(directEdge.path).not.toContain(`C ${straightX}`);
+  });
+
+  it('no nodes overlap after layout on diamond graph', () => {
+    // Diamond: A -> B, A -> C, B -> D, C -> D
+    const result = computeDiagramLayout({
+      nodes: [
+        { id: 'a', label: 'A' },
+        { id: 'b', label: 'B' },
+        { id: 'c', label: 'C' },
+        { id: 'd', label: 'D' },
+      ],
+      edges: [
+        { from: 'a', to: 'b' },
+        { from: 'a', to: 'c' },
+        { from: 'b', to: 'd' },
+        { from: 'c', to: 'd' },
+      ],
+    });
+
+    // Verify no pair of nodes overlaps
+    for (let i = 0; i < result.nodes.length; i++) {
+      for (let j = i + 1; j < result.nodes.length; j++) {
+        const ri = { x: result.nodes[i].x, y: result.nodes[i].y, width: NODE_WIDTH, height: NODE_HEIGHT };
+        const rj = { x: result.nodes[j].x, y: result.nodes[j].y, width: NODE_WIDTH, height: NODE_HEIGHT };
+        expect(rectsOverlap(ri, rj)).toBe(false);
+      }
+    }
   });
 });

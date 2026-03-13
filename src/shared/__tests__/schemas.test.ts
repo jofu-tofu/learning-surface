@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
 import {
   ShowVisualSchema, BuildVisualSchema, ExplainSchema, ExtendSchema,
-  ChallengeSchema, RevealSchema, SuggestFollowupsSchema,
+  ChallengeSchema, SuggestFollowupsSchema,
   NewSectionSchema, SetActiveSchema, ClearSchema,
   zodToJsonSchema,
 } from '../../shared/schemas.js';
@@ -50,15 +50,8 @@ describe('ChallengeSchema', () => {
   rejectsAll(ChallengeSchema, [
     ['empty object', {}],
     ['wrong type for hints', { question: 'Q?', hints: 'not-array' }],
-  ]);
-});
-
-describe('RevealSchema', () => {
-  rejectsAll(RevealSchema, [
-    ['empty object', {}],
-    ['missing answer', { checkId: 'c1', explanation: 'x' }],
-    ['missing explanation', { checkId: 'c1', answer: 'x' }],
-    ['missing checkId', { answer: 'x', explanation: 'x' }],
+    ['wrong type for answer', { question: 'Q?', answer: 42 }],
+    ['wrong type for answerExplanation', { question: 'Q?', answerExplanation: true }],
   ]);
 });
 

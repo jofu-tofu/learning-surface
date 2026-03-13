@@ -1,4 +1,4 @@
-import * as path from 'path';
+import * as path from 'node:path';
 import type { ContextCompiler, LearningDocument, SurfaceContext } from '../shared/types.js';
 import { readAllVersionMetas } from './utils/readMetas.js';
 

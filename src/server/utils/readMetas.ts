@@ -1,5 +1,5 @@
-import { readFile, readdir } from 'fs/promises';
-import { join } from 'path';
+import { readFile, readdir } from 'node:fs/promises';
+import { join } from 'node:path';
 import type { VersionMeta } from '../../shared/types.js';
 
 /** Read all version meta files from a session directory, sorted by version. */

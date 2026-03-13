@@ -1,4 +1,5 @@
-import { useState, useEffect, DependencyList } from 'react';
+import type { DependencyList } from 'react';
+import { useState, useEffect } from 'react';
 
 interface AsyncRenderState {
   html: string | null;

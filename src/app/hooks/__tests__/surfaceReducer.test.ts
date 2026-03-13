@@ -202,7 +202,7 @@ describe('reduceSurfaceMessage', () => {
       const result = reduceSurfaceMessage(state(), msg, null);
 
       expect(result.state.activity).toEqual({
-        label: 'Building diagram',
+        label: 'Building visual',
         toolName: 'show_visual',
         step: 2,
       });

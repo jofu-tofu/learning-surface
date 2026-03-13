@@ -1,4 +1,5 @@
 import type { LearningDocument, Section, CanvasContent, Check } from '../shared/types.js';
+import type { ToolName } from '../shared/schemas.js';
 import { slugify } from '../shared/slugify.js';
 
 type ToolHandler = (doc: LearningDocument, params: Record<string, unknown>) => void;
@@ -11,7 +12,7 @@ function withActiveSection(
   if (active) fn(active);
 }
 
-const handlers: Record<string, ToolHandler> = {
+const handlers: Record<ToolName, ToolHandler> = {
   new_section(doc, params) {
     const title = params.title as string;
     const newSection: Section = {
@@ -44,6 +45,17 @@ const handlers: Record<string, ToolHandler> = {
       if (params.language) {
         active.canvas.language = params.language as string;
       }
+    });
+  },
+
+  show_diagram(doc, params) {
+    withActiveSection(doc, (active) => {
+      const { nodes, edges, direction } = params as {
+        nodes: unknown[]; edges: unknown[]; direction?: string;
+      };
+      const payload: Record<string, unknown> = { nodes, edges };
+      if (direction) payload.direction = direction;
+      active.canvas = { type: 'diagram', content: JSON.stringify(payload) };
     });
   },
 
@@ -151,7 +163,6 @@ export function applyTool(
   tool: string,
   params: Record<string, unknown>,
 ): void {
-  const handler = handlers[tool];
-  if (!handler) throw new Error(`Unknown tool: ${tool}`);
-  handler(doc, params);
+  if (!(tool in handlers)) throw new Error(`Unknown tool: ${tool}`);
+  handlers[tool as ToolName](doc, params);
 }

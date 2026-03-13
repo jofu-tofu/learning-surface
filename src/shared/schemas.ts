@@ -13,12 +13,17 @@ const ShowDiagramSchema = z.object({
     id: z.string(),
     label: z.string(),
     shape: z.enum(['rectangle', 'rounded', 'diamond', 'circle']).optional(),
+    category: z.enum(['input', 'process', 'output', 'decision', 'concept', 'warning']).optional(),
+    description: z.string().optional(),
+    emphasis: z.enum(['normal', 'highlighted', 'dimmed']).optional(),
+    group: z.string().optional(),
   })),
   edges: z.array(z.object({
     from: z.string(),
     to: z.string(),
     label: z.string().optional(),
   })),
+  direction: z.enum(['TB', 'LR']).optional(),
 });
 
 export const BuildVisualSchema = z.object({
@@ -65,67 +70,83 @@ export const ClearSchema = z.object({
 
 interface ToolDef {
   name: string;
+  /** Human-readable label for frontend activity status during processing. */
+  label: string;
   description: string;
   schema: z.ZodObject<z.ZodRawShape>;
 }
 
-export const TOOL_DEFS: ToolDef[] = [
+export const TOOL_DEFS = [
   {
     name: 'show_diagram',
-    description: 'Show a diagram on the canvas. Replaces any existing visual in the active section. Pass nodes (boxes) and edges (arrows between them) — the surface handles layout and rendering.',
+    label: 'Building diagram',
+    description: 'Show a diagram on the canvas. Replaces any existing visual in the active section. Pass nodes (boxes) and edges (arrows between them) — the surface handles layout and rendering. Use category to color-code nodes by role (input=blue, process=green, output=orange, decision=yellow, concept=purple, warning=red). Add description for tooltip details shown on hover. Use emphasis to highlight or dim nodes. Use group to visually cluster related nodes. Set direction to LR for process flows or TB (default) for hierarchies.',
     schema: ShowDiagramSchema,
   },
   {
     name: 'show_visual',
+    label: 'Building visual',
     description: 'Replace the canvas pane with a Mermaid diagram, KaTeX math, or syntax-highlighted code. Erases any existing visual in the active section. For code, set language for highlighting.',
     schema: ShowVisualSchema,
   },
   {
     name: 'build_visual',
+    label: 'Extending visual',
     description: 'Append content to the existing canvas visual line by line. Requires a prior show_visual — does nothing if the canvas is empty.',
     schema: BuildVisualSchema,
   },
   {
     name: 'explain',
+    label: 'Writing explanation',
     description: 'Replace the explanation pane with new content. Erases any existing explanation in the active section.',
     schema: ExplainSchema,
   },
   {
     name: 'extend',
+    label: 'Extending explanation',
     description: 'Append content to the existing explanation. Creates the explanation if it does not exist yet.',
     schema: ExtendSchema,
   },
   {
     name: 'challenge',
+    label: 'Adding comprehension check',
     description: 'Add a new comprehension check question to the active section. Each call adds one question (does not replace existing checks). Provide optional hints for the learner.',
     schema: ChallengeSchema,
   },
   {
     name: 'reveal',
+    label: 'Revealing answer',
     description: 'Reveal the answer for an existing comprehension check by its ID. Sets the check status to revealed and stores the answer and explanation.',
     schema: RevealSchema,
   },
   {
     name: 'suggest_followups',
+    label: 'Suggesting follow-ups',
     description: 'Replace the follow-up questions list in the active section. Overwrites any existing follow-ups.',
     schema: SuggestFollowupsSchema,
   },
   {
     name: 'new_section',
+    label: 'Creating section',
     description: 'Create a new learning section. The section is added but does not become active — call set_active to switch to it. The section ID is the slugified title.',
     schema: NewSectionSchema,
   },
   {
     name: 'set_active',
+    label: 'Switching section',
     description: 'Switch the active section by its section ID (slugified title). All content tools (show_visual, explain, etc.) operate on the active section.',
     schema: SetActiveSchema,
   },
   {
     name: 'clear',
+    label: 'Clearing content',
     description: 'Erase content from the learning surface. Target a specific pane (canvas, explanation, checks, followups) in the active section, remove an entire section, or use "all" to wipe the entire document and start fresh. Defaults to the active section; pass section ID to target a different one. Cannot remove the last remaining section (use "all" instead to reset everything).',
     schema: ClearSchema,
   },
-];
+] as const satisfies readonly ToolDef[];
+
+/** Union of all tool name literals — use in Record types for compile-time completeness checks. */
+export type ToolName = typeof TOOL_DEFS[number]['name'];
 
 // === Schema Lookup Map ===
 

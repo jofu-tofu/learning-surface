@@ -1,22 +1,15 @@
 /**
- * Human-readable labels for MCP tool calls.
+ * Human-readable labels for MCP tool calls and processing phases.
  * Displayed in the frontend activity status during processing.
  *
- * To add a new tool: add its name here and in TOOL_DEFS (schemas.ts).
- * To rename a tool: update both places.
+ * Tool labels are derived from TOOL_DEFS (schemas.ts) — single source of truth.
  */
-export const TOOL_LABELS: Record<string, string> = {
-  show_visual: 'Building diagram',
-  build_visual: 'Extending diagram',
-  explain: 'Writing explanation',
-  extend: 'Extending explanation',
-  challenge: 'Adding comprehension check',
-  reveal: 'Revealing answer',
-  suggest_followups: 'Suggesting follow-ups',
-  new_section: 'Creating section',
-  set_active: 'Switching section',
-  clear: 'Clearing content',
-};
+import { TOOL_DEFS } from './schemas.js';
+
+/** Tool name → human-readable label, derived from TOOL_DEFS. */
+export const TOOL_LABELS: Record<string, string> = Object.fromEntries(
+  TOOL_DEFS.map(def => [def.name, def.label]),
+);
 
 /** Pseudo-tool names for non-tool-call processing phases. */
 const PHASE_LABELS: Record<string, string> = {

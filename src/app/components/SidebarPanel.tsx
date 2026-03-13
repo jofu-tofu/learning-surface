@@ -1,7 +1,7 @@
 import React from 'react';
 import { sectionHeading } from '../utils/styles.js';
 
-export interface SidebarPanelProps {
+interface SidebarPanelProps {
   title: string;
   className?: string;
   children: React.ReactNode;

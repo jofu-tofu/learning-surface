@@ -1,6 +1,6 @@
 import { useState, useEffect, DependencyList } from 'react';
 
-export interface AsyncRenderState {
+interface AsyncRenderState {
   html: string | null;
   error: string | null;
   loading: boolean;

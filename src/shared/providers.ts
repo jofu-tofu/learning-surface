@@ -2,7 +2,7 @@
 
 export type ReasoningEffort = 'none' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 
-export interface ModelConfig {
+interface ModelConfig {
   id: string;
   name: string;
   displayName?: string;

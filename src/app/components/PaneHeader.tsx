@@ -1,7 +1,7 @@
 import React from 'react';
 import { sectionHeading } from '../utils/styles.js';
 
-export interface PaneHeaderProps {
+interface PaneHeaderProps {
   title: string;
   isProcessing?: boolean;
 }

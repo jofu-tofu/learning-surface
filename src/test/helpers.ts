@@ -127,8 +127,8 @@ export function spyVersionStore(): VersionStore & { createVersion: ReturnType<ty
 // --- FakeFileIO: in-memory filesystem for DocumentService tests ---
 
 import type { FileIO } from '../server/document-service.js';
-import type { ProviderToolCall, ReplProvider, ToolCallResult, ProviderConfig } from '../shared/providers.js';
-import type { ContextCompiler, SurfaceContext } from '../shared/types.js';
+import type { ProviderToolCall, ReplProvider, ProviderConfig } from '../shared/providers.js';
+import type { ContextCompiler } from '../shared/types.js';
 
 /**
  * In-memory FileIO backed by a Map. No real disk I/O.

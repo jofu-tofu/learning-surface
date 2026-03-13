@@ -1,7 +1,7 @@
 import React from 'react';
 import type { ToolActivity } from '../hooks/useSurface.js';
 
-export interface ActivityStatusProps {
+interface ActivityStatusProps {
   activity: ToolActivity | null;
   isProcessing: boolean;
 }

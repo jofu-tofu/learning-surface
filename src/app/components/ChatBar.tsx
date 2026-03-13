@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ProviderSelector, type ProviderSelectorProps } from './ProviderSelector.js';
 import { Icon } from './Icon.js';
 
-export interface ChatBarProps {
+interface ChatBarProps {
   onSubmit?: (text: string) => void;
   isProcessing?: boolean;
   providerSelection?: ProviderSelectorProps;

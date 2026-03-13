@@ -8,7 +8,7 @@ export const ShowVisualSchema = z.object({
   language: z.string().optional(),
 });
 
-export const ShowDiagramSchema = z.object({
+const ShowDiagramSchema = z.object({
   nodes: z.array(z.object({
     id: z.string(),
     label: z.string(),

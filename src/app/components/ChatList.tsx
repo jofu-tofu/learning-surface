@@ -3,7 +3,7 @@ import type { Chat } from '../../shared/types.js';
 import { listContainer, listItemBase, listItemActive, listItemInactive, focusRing } from '../utils/styles.js';
 import { Icon } from './Icon.js';
 
-export interface ChatListProps {
+interface ChatListProps {
   chats: Chat[];
   activeChatId: string | null;
   onChatSelect?: (chatId: string) => void;

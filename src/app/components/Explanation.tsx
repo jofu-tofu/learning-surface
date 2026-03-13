@@ -5,7 +5,7 @@ import { EmptyState } from './EmptyState.js';
 import { Icon } from './Icon.js';
 import { sectionHeading, focusRing } from '../utils/styles.js';
 
-export interface ExplanationProps {
+interface ExplanationProps {
   explanation: string | null;
   checks: Check[];
   followups: string[];

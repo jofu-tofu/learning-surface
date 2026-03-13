@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createDocumentService, BLANK_DOC } from '../document-service.js';
 import { fakeFileIO, MINIMAL_DOC } from '../../test/helpers.js';
-import { serialize } from '../markdown.js';
 
 describe('DocumentService with FakeFileIO', () => {
   describe('read', () => {

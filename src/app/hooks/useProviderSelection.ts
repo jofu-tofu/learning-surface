@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import type { ProviderInfo, ReasoningEffort } from '../../shared/providers.js';
 
-export interface UseProviderSelectionReturn {
+interface UseProviderSelectionReturn {
   providers: ProviderInfo[];
   selectedProvider: string | null;
   selectedModel: string | null;

@@ -4,7 +4,7 @@ import {
   INITIAL_SURFACE_STATE,
   type SurfaceState,
 } from '../surfaceReducer.js';
-import { buildDocument, buildSection, buildCanvasContent, buildVersionMeta } from '../../../test/helpers.js';
+import { buildDocument, buildSection, buildVersionMeta } from '../../../test/helpers.js';
 import type { WsMessage } from '../../../shared/types.js';
 
 function state(overrides: Partial<SurfaceState> = {}): SurfaceState {

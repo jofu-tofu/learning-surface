@@ -15,7 +15,7 @@ export interface ToolActivity {
   step: number;
 }
 
-export interface UseSurfaceReturn {
+interface UseSurfaceReturn {
   document: LearningDocument | null;
   versions: VersionMeta[];
   currentVersion: number;

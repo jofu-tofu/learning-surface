@@ -2,7 +2,6 @@ import OpenAI from 'openai';
 import type {
   ReplProvider,
   ProviderConfig,
-  ToolDefinition,
   ProviderToolCall,
   ToolCallResult,
   ReasoningEffort,

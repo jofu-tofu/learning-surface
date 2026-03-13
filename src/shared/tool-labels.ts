@@ -19,7 +19,7 @@ export const TOOL_LABELS: Record<string, string> = {
 };
 
 /** Pseudo-tool names for non-tool-call processing phases. */
-export const PHASE_LABELS: Record<string, string> = {
+const PHASE_LABELS: Record<string, string> = {
   thinking: 'Thinking',
 };
 

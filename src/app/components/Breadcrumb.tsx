@@ -5,7 +5,7 @@ import { getVersionLabel } from '../utils/versionLabel.js';
 import { focusRing, sectionLabel } from '../utils/styles.js';
 import { VersionDot } from './VersionDot.js';
 
-export interface BreadcrumbProps {
+interface BreadcrumbProps {
   path: VersionMeta[];
   versions: VersionMeta[];
   currentVersion: number;

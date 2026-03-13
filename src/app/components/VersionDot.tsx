@@ -1,6 +1,6 @@
 import React from 'react';
 
-export interface VersionDotProps {
+interface VersionDotProps {
   isCurrent: boolean;
   source: string;
 }

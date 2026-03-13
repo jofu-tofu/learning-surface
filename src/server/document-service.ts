@@ -16,7 +16,7 @@ export interface FileIO {
 }
 
 /** Real fs-backed implementation (the default). */
-export function nodeFileIO(): FileIO {
+function nodeFileIO(): FileIO {
   return {
     readFile: (path, encoding) => readFileSync(path, encoding),
     writeFile: (path, data, encoding) => writeFileSync(path, data, encoding),

@@ -1,7 +1,7 @@
 import React from 'react';
 import { sectionLabel } from '../utils/styles.js';
 
-export interface PromptPreviewProps {
+interface PromptPreviewProps {
   prompt: string | null;
 }
 

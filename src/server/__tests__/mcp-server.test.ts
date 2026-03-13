@@ -10,18 +10,6 @@ import { MINIMAL_DOC, spyVersionStore } from '../../test/helpers.js';
 import type { VersionStore } from '../../test/helpers.js';
 
 describe('MCP Server', () => {
-  const TOOL_NAMES = [
-    'show_visual',
-    'build_visual',
-    'explain',
-    'extend',
-    'challenge',
-    'reveal',
-    'suggest_followups',
-    'new_section',
-    'set_active',
-  ] as const;
-
   describe('tool schema validation', () => {
     it('show_visual schema rejects invalid type', () => {
       const schema = toolSchemaMap.get('show_visual')!;

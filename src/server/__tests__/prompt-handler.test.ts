@@ -145,8 +145,7 @@ describe('handlePrompt integration', () => {
 
     // Fake CLI provider that writes new content to the file during complete()
     const cliProvider = fakeProvider([], { type: 'cli', id: 'cli-fake' });
-    const originalComplete = cliProvider.complete.bind(cliProvider);
-    cliProvider.complete = async (opts) => {
+    cliProvider.complete = async () => {
       // Simulate CLI editing the file directly (as codex exec / claude --print would)
       const updatedContent = MINIMAL_DOC.replace(
         'This is the introduction.',

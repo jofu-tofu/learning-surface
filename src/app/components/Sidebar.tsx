@@ -2,7 +2,7 @@ import React from 'react';
 import { slugify } from '../../shared/slugify.js';
 import { listContainer, listItemBase, listItemActive, listItemInactive } from '../utils/styles.js';
 
-export interface SidebarProps {
+interface SidebarProps {
   sections: Array<{ title: string }>;
   activeSection: string;
   onSectionClick?: (sectionId: string) => void;

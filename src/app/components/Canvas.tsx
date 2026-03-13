@@ -4,7 +4,7 @@ import { getRenderer } from './renderers/registry.js';
 import { EmptyState } from './EmptyState.js';
 import { Icon } from './Icon.js';
 
-export interface CanvasProps {
+interface CanvasProps {
   content: CanvasContent | null;
 }
 

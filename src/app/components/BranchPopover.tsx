@@ -7,7 +7,7 @@ import { getVersionLabel } from '../utils/versionLabel.js';
 import { focusRing, popoverPanel, sectionLabel, menuItemActive, menuItemInactive } from '../utils/styles.js';
 import { VersionDot } from './VersionDot.js';
 
-export interface BranchPopoverProps {
+interface BranchPopoverProps {
   parentVersion: number;
   versions: VersionMeta[];
   currentVersion: number;

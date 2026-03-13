@@ -4,7 +4,7 @@ import { explanationBlock } from './explanation.js';
 import { checkBlock } from './check.js';
 import { followupsBlock } from './followups.js';
 
-export type { BlockDefinition, RawBlock, BlockFormatDescription } from './types.js';
+export type { BlockDefinition, RawBlock } from './types.js';
 
 // Ordered list — serialization follows this order.
 const blocks: BlockDefinition[] = [
@@ -13,9 +13,6 @@ const blocks: BlockDefinition[] = [
   checkBlock,
   followupsBlock,
 ];
-
-/** Block type names in registration order. */
-export const BLOCK_TYPES = blocks.map(b => b.type) as readonly string[];
 
 /** Find the block definition that matches a ### header line. */
 export function findBlock(header: string): BlockDefinition | undefined {

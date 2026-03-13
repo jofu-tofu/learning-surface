@@ -32,7 +32,7 @@ export const INITIAL_SURFACE_STATE: SurfaceState = {
 
 // === Described side effects (executed by the hook shell) ===
 
-export type SurfaceEffect =
+type SurfaceEffect =
   | { type: 'auto-select-providers'; providers: ProviderInfo[] }
   | { type: 'set-providers'; providers: ProviderInfo[] }
   | { type: 'reset-settle-timer' }
@@ -41,7 +41,7 @@ export type SurfaceEffect =
   | { type: 'send-pending-prompt' }
   | { type: 'clear-pending-prompt' };
 
-export interface ReducerResult {
+interface ReducerResult {
   state: SurfaceState;
   effects: SurfaceEffect[];
   /** Updated prevDoc for change detection (carried as a ref in the hook). */

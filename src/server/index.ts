@@ -9,7 +9,7 @@ import {
   sendMsg,
   buildSessionInitMsg,
   getVersions,
-  sortChatsByRecent,
+  ensureActiveChat,
 } from './utils/ws-helpers.js';
 import type { ClientMessage, WsMessage, VersionStore } from '../shared/types.js';
 
@@ -86,14 +86,7 @@ export async function startServer(options: {
 
   wss.on('connection', async (ws) => {
     if (!state.activeChatId) {
-      const chats = chatStore.listChats();
-      if (chats.length > 0) {
-        await switchToChat(sortChatsByRecent(chats)[0].id);
-      } else {
-        const chat = chatStore.createChat();
-        await chatStore.save();
-        await switchToChat(chat.id);
-      }
+      await ensureActiveChat(chatStore, switchToChat);
     }
 
     const versions = await getVersions(state.activeVersionStore);

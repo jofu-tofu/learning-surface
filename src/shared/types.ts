@@ -37,6 +37,11 @@ export interface LearningDocument {
   sections: Section[];
 }
 
+/** Look up the active section in a document. */
+export function getActiveSection(doc: LearningDocument): Section | undefined {
+  return doc.sections.find(s => s.id === doc.activeSection);
+}
+
 // === Version Store Types ===
 
 export interface VersionMeta {
@@ -73,6 +78,13 @@ export interface Chat {
   title: string;
   createdAt: string;
   updatedAt: string;
+}
+
+/** Sort chats by most recently updated. */
+export function sortChatsByRecent(chats: Chat[]): Chat[] {
+  return [...chats].sort(
+    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+  );
 }
 
 // === Client → Server Message Types ===

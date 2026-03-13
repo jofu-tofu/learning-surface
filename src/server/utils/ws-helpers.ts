@@ -1,7 +1,9 @@
 import type { WebSocket } from 'ws';
 import type { WsMessage, WsSessionInit, WsChatList, VersionMeta, Chat } from '../../shared/types.js';
+import { sortChatsByRecent } from '../../shared/types.js';
 import type { ProviderInfo } from '../../shared/providers.js';
 import type { LearningDocument, VersionStore } from '../../shared/types.js';
+import type { ChatStore } from '../chat-store.js';
 
 /** Canonical filename for the current document within a chat directory. */
 export const CURRENT_MD = 'current.md';
@@ -45,14 +47,28 @@ export async function getVersions(store: VersionStore | null): Promise<VersionMe
   return store ? store.listVersions() : [];
 }
 
-/** Sort chats by most recently updated. */
-export function sortChatsByRecent(chats: Chat[]): Chat[] {
-  return [...chats].sort(
-    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-  );
-}
-
 /** Format unknown error to string. */
 export function formatError(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
+
+/**
+ * Ensure there is an active chat: pick the most recent existing chat,
+ * or create a new one if none remain. Calls switchToChat with the result.
+ */
+export async function ensureActiveChat(
+  chatStore: ChatStore,
+  switchToChat: (chatId: string) => Promise<void>,
+): Promise<void> {
+  const chats = chatStore.listChats();
+  if (chats.length > 0) {
+    await switchToChat(sortChatsByRecent(chats)[0].id);
+  } else {
+    const chat = chatStore.createChat();
+    await chatStore.save();
+    await switchToChat(chat.id);
+  }
+}
+
+// Re-export from shared so existing server imports don't break
+export { sortChatsByRecent } from '../../shared/types.js';

@@ -13,6 +13,23 @@ import { ErrorBanner } from './components/ErrorBanner.js';
 import { ActivityStatus } from './components/ActivityStatus.js';
 import { Icon } from './components/Icon.js';
 import { useSurface } from './hooks/useSurface.js';
+import { getActiveSection } from '../shared/types.js';
+
+function Pane({ id, title, isProcessing, changedPanes, className, children }: {
+  id: string;
+  title: string;
+  isProcessing: boolean;
+  changedPanes: Set<string>;
+  className?: string;
+  children: React.ReactNode;
+}): React.ReactElement {
+  return (
+    <div data-testid={`pane-${id}`} className={`flex-1 flex flex-col min-w-0 ${changedPanes.has(id) ? 'pane-updated' : ''} ${className ?? ''}`}>
+      <PaneHeader title={title} isProcessing={isProcessing} />
+      <div className="flex-1 overflow-auto p-6">{children}</div>
+    </div>
+  );
+}
 
 export function App(): React.ReactElement {
   const {
@@ -44,11 +61,11 @@ export function App(): React.ReactElement {
     clearProviderError,
   } = useSurface();
 
-  const [branchPopover, setBranchPopover] = useState<number | null>(null);
+  const [branchPopoverParentVersion, setBranchPopoverParentVersion] = useState<number | null>(null);
 
-  const activeSection = doc?.sections.find((s) => s.id === doc.activeSection);
-  const sectionList = doc?.sections.map((s) => ({ title: s.title })) ?? [];
-  const currentMeta = versions.find((v) => v.version === currentVersion);
+  const activeSection = doc ? getActiveSection(doc) : undefined;
+  const sectionList = doc?.sections.map((section) => ({ title: section.title })) ?? [];
+  const currentVersionMeta = versions.find((v) => v.version === currentVersion);
 
   return (
     <div className="h-dvh flex flex-col bg-surface-900 text-surface-100 overflow-hidden">
@@ -101,32 +118,26 @@ export function App(): React.ReactElement {
         <div className="flex-1 flex flex-col min-w-0">
           {/* Prompt preview */}
           <PromptPreview
-            prompt={currentMeta?.prompt ?? null}
+            prompt={currentVersionMeta?.prompt ?? null}
           />
 
           {/* Panes */}
           <div className="flex-1 flex min-h-0">
-            {/* Canvas pane */}
-            <div data-testid="pane-canvas" className={`flex-1 flex flex-col min-w-0 border-r border-surface-700/40 ${changedPanes.has('canvas') ? 'pane-updated' : ''}`}>
-              <PaneHeader title="Canvas" isProcessing={isProcessing} />
-              <div className="flex-1 overflow-auto p-6 flex items-start justify-center">
+            <Pane id="canvas" title="Canvas" isProcessing={isProcessing} changedPanes={changedPanes} className="border-r border-surface-700/40">
+              <div className="flex items-start justify-center">
                 <Canvas content={activeSection?.canvas ?? null} />
               </div>
-            </div>
+            </Pane>
 
-            {/* Explanation pane */}
-            <div data-testid="pane-explanation" className={`flex-1 flex flex-col min-w-0 ${changedPanes.has('explanation') ? 'pane-updated' : ''}`}>
-              <PaneHeader title="Explanation" isProcessing={isProcessing} />
-              <div className="flex-1 overflow-auto p-6">
-                <Explanation
-                  explanation={activeSection?.explanation ?? null}
-                  checks={activeSection?.checks ?? []}
-                  followups={activeSection?.followups ?? []}
-                  onFollowupClick={submitPrompt}
-                  isProcessing={isProcessing}
-                />
-              </div>
-            </div>
+            <Pane id="explanation" title="Explanation" isProcessing={isProcessing} changedPanes={changedPanes}>
+              <Explanation
+                explanation={activeSection?.explanation ?? null}
+                checks={activeSection?.checks ?? []}
+                followups={activeSection?.followups ?? []}
+                onFollowupClick={submitPrompt}
+                isProcessing={isProcessing}
+              />
+            </Pane>
           </div>
 
           {/* Breadcrumb path */}
@@ -137,15 +148,15 @@ export function App(): React.ReactElement {
               currentVersion={currentVersion}
               forwardPath={forwardPath}
               onVersionSelect={selectVersion}
-              onBranchClick={(v) => setBranchPopover(branchPopover === v ? null : v)}
+              onBranchClick={(v) => setBranchPopoverParentVersion(branchPopoverParentVersion === v ? null : v)}
             />
-            {branchPopover !== null && (
+            {branchPopoverParentVersion !== null && (
               <BranchPopover
-                parentVersion={branchPopover}
+                parentVersion={branchPopoverParentVersion}
                 versions={versions}
                 currentVersion={currentVersion}
                 onSelect={selectVersion}
-                onClose={() => setBranchPopover(null)}
+                onClose={() => setBranchPopoverParentVersion(null)}
               />
             )}
           </div>

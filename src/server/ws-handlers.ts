@@ -15,7 +15,7 @@ import {
   buildSessionInitMsg,
   buildChatListMsg,
   getVersions,
-  sortChatsByRecent,
+  ensureActiveChat,
   formatError,
 } from './utils/ws-helpers.js';
 
@@ -35,6 +35,23 @@ interface HandlerDeps {
   getProviders?: () => import('../shared/providers.js').ProviderInfo[];
   getProvider?: (id: string) => import('../shared/providers.js').ReplProvider | undefined;
   onPrompt?: typeof handlePrompt;
+}
+
+/** Fetch versions and broadcast the full session-init state. */
+async function broadcastSessionState(deps: {
+  state: SessionState;
+  chatStore: ChatStore;
+  broadcast: (msg: WsMessage) => void;
+}): Promise<void> {
+  const { state, chatStore, broadcast } = deps;
+  const versions = await getVersions(state.activeVersionStore);
+  broadcast(buildSessionInitMsg({
+    sessionDir: state.activeChatId ? chatStore.getChatDir(state.activeChatId) : '',
+    document: state.latestDocument,
+    versions,
+    chats: chatStore.listChats(),
+    activeChatId: state.activeChatId,
+  }));
 }
 
 /** Route a parsed client message to the appropriate handler. */
@@ -77,14 +94,7 @@ export async function routeMessage(
 
       await switchToChat(msg.chatId);
 
-      const versions = await getVersions(state.activeVersionStore);
-      broadcast(buildSessionInitMsg({
-        sessionDir: chatStore.getChatDir(msg.chatId),
-        document: state.latestDocument,
-        versions,
-        chats: chatStore.listChats(),
-        activeChatId: msg.chatId,
-      }));
+      await broadcastSessionState({ state, chatStore, broadcast });
       return;
     }
 
@@ -93,25 +103,9 @@ export async function routeMessage(
       await chatStore.deleteChat(msg.chatId);
 
       if (wasActive) {
-        const remaining = chatStore.listChats();
-        if (remaining.length > 0) {
-          await switchToChat(sortChatsByRecent(remaining)[0].id);
-        } else {
-          const newChat = chatStore.createChat();
-          await chatStore.save();
-          await switchToChat(newChat.id);
-        }
+        await ensureActiveChat(chatStore, switchToChat);
 
-        const versions = await getVersions(state.activeVersionStore);
-        broadcast(buildSessionInitMsg({
-          sessionDir: state.activeChatId
-            ? chatStore.getChatDir(state.activeChatId)
-            : '',
-          document: state.latestDocument,
-          versions,
-          chats: chatStore.listChats(),
-          activeChatId: state.activeChatId,
-        }));
+        await broadcastSessionState({ state, chatStore, broadcast });
       } else {
         broadcast(buildChatListMsg(chatStore.listChats(), state.activeChatId));
       }
@@ -146,8 +140,8 @@ export async function routeMessage(
 
     case 'prompt': {
       const { provider: providerId, model: modelId, reasoningEffort, text } = msg;
-      const from = msg.fromVersion ? ` (from v${msg.fromVersion})` : '';
-      console.log(`[prompt]${from} "${text}" provider=${providerId ?? 'none'} model=${modelId ?? 'none'} effort=${reasoningEffort ?? 'default'}`);
+      const versionLogSuffix = msg.fromVersion ? ` (from v${msg.fromVersion})` : '';
+      console.log(`[prompt]${versionLogSuffix} "${text}" provider=${providerId ?? 'none'} model=${modelId ?? 'none'} effort=${reasoningEffort ?? 'default'}`);
 
       if (!providerId || !modelId) {
         console.log('  No provider/model selected — waiting for REPL to call MCP tools');

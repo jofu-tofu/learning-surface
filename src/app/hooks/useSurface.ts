@@ -37,6 +37,10 @@ interface UseSurfaceReturn {
   isProcessing: boolean;
   /** Which panes changed in the most recent document-update */
   changedPanes: Set<string>;
+  /** Panes that changed in the current version vs the previous version (persists until next version transition) */
+  versionChangedPanes: Set<string>;
+  /** Section IDs that were added or modified in the current version (persists until next version transition) */
+  changedSectionIds: Set<string>;
   /** Current tool-call activity during processing, null when idle */
   activity: ToolActivity | null;
   /** Provider/model selection */
@@ -57,7 +61,8 @@ const WS_URL = 'ws://localhost:8080';
 export function useSurface(): UseSurfaceReturn {
   const [state, setState] = useState<SurfaceState>(INITIAL_SURFACE_STATE);
   const { document, versions, currentVersion, chats, activeChatId,
-          isProcessing, changedPanes, activity, providerError } = state;
+          isProcessing, changedPanes, versionChangedPanes, changedSectionIds,
+          activity, providerError } = state;
   const {
     providers, selectedProvider, selectedModel, selectedReasoningEffort,
     setProviders, setSelectedProvider, setSelectedModel, setSelectedReasoningEffort,
@@ -192,7 +197,7 @@ export function useSurface(): UseSurfaceReturn {
     connected, chats, activeChatId,
     submitPrompt, selectVersion, selectSection,
     newChat, switchChat, deleteChat,
-    isProcessing, changedPanes, activity,
+    isProcessing, changedPanes, versionChangedPanes, changedSectionIds, activity,
     providers, selectedProvider, selectedModel, selectedReasoningEffort,
     setSelectedProvider, setSelectedModel, setSelectedReasoningEffort,
     providerError, clearProviderError,

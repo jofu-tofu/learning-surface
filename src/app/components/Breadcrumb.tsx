@@ -58,7 +58,7 @@ export function Breadcrumb({
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onBranchClick?.(v.version); }}
-              className={`shrink-0 ml-0.5 inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-medium bg-purple-500/20 border border-purple-500/30 text-purple-400 cursor-pointer hover:bg-purple-500/30 ${focusRing}`}
+              className={`shrink-0 ml-0.5 inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-medium bg-branch-bg border border-branch-border text-branch-text cursor-pointer hover:bg-branch-bg/80 ${focusRing}`}
               aria-label={`Show ${branches} branches from version ${v.version}`}
             >
               {branches}

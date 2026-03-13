@@ -1,7 +1,7 @@
 import type { LearningDocument, VersionMeta, WsMessage, Chat } from '../../shared/types.js';
 import type { ProviderInfo } from '../../shared/providers.js';
 import { getToolLabel } from '../../shared/tool-labels.js';
-import { detectChangedPanes } from '../utils/detectChangedPanes.js';
+import { detectChangedPanes, detectChangedSections } from '../utils/detectChangedPanes.js';
 import type { ToolActivity } from './useSurface.js';
 
 // === Pure state shape ===
@@ -14,6 +14,10 @@ export interface SurfaceState {
   activeChatId: string | null;
   isProcessing: boolean;
   changedPanes: Set<string>;
+  /** Panes that changed in the current version compared to the previous version (persists until next version transition). */
+  versionChangedPanes: Set<string>;
+  /** Section IDs that were added or modified in the current version (persists until next version transition). */
+  changedSectionIds: Set<string>;
   activity: ToolActivity | null;
   providerError: string | null;
 }
@@ -26,6 +30,8 @@ export const INITIAL_SURFACE_STATE: SurfaceState = {
   activeChatId: null,
   isProcessing: false,
   changedPanes: new Set(),
+  versionChangedPanes: new Set(),
+  changedSectionIds: new Set(),
   activity: null,
   providerError: null,
 };
@@ -76,6 +82,8 @@ export function reduceSurfaceMessage(
           isProcessing: false,
           activity: null,
           changedPanes: new Set(),
+          versionChangedPanes: new Set(),
+          changedSectionIds: new Set(),
           providerError: state.providerError,
         },
         effects: msg.providers
@@ -96,6 +104,7 @@ export function reduceSurfaceMessage(
 
       const next = msg.document;
       let changedPanes = state.changedPanes;
+      let { versionChangedPanes, changedSectionIds } = state;
       const newEffects: SurfaceEffect[] = [{ type: 'reset-settle-timer' }];
 
       if (prevDoc) {
@@ -103,6 +112,12 @@ export function reduceSurfaceMessage(
         if (changed.size > 0) {
           changedPanes = changed;
           newEffects.push({ type: 'schedule-flash-clear' });
+        }
+
+        // On version transition, capture which panes/sections changed vs the previous version
+        if (next.version !== state.currentVersion) {
+          versionChangedPanes = detectChangedPanes(prevDoc, next);
+          changedSectionIds = detectChangedSections(prevDoc, next);
         }
       }
 
@@ -113,6 +128,8 @@ export function reduceSurfaceMessage(
           currentVersion: next.version,
           versions: msg.versions ?? state.versions,
           changedPanes,
+          versionChangedPanes,
+          changedSectionIds,
         },
         effects: newEffects,
         prevDoc: next,
@@ -126,6 +143,8 @@ export function reduceSurfaceMessage(
           document: msg.document ?? state.document,
           currentVersion: msg.version ?? state.currentVersion,
           versions: msg.versions ?? state.versions,
+          versionChangedPanes: new Set(),
+          changedSectionIds: new Set(),
         },
         effects: [],
         prevDoc,

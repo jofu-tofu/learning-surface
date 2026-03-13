@@ -14,7 +14,7 @@ export const sectionHeading = 'text-[11px] font-semibold uppercase tracking-wide
 export const sectionLabel = 'text-[10px] font-semibold uppercase tracking-widest text-surface-500/80';
 
 /** Popover panel chrome shared by dropdown menus and branch popovers. */
-export const popoverPanel = 'absolute bottom-full left-1/2 -translate-x-1/2 mb-2 rounded-xl border border-surface-600/60 bg-surface-800 shadow-xl shadow-black/20';
+export const popoverPanel = 'absolute bottom-full left-1/2 -translate-x-1/2 mb-2 rounded-xl border border-surface-600/60 bg-surface-800 shadow-xl shadow-shadow-color';
 
 /** Active/inactive styles for menu items inside popovers. */
 export const menuItemActive = 'text-accent-300 bg-accent-600/10';

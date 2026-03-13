@@ -36,15 +36,15 @@ export function ChatList({
             className="group relative"
           >
             {isConfirming ? (
-              <div className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg bg-red-900/30 border border-red-500/30">
-                <span className="text-xs text-red-300 flex-1 truncate">Delete this chat?</span>
+              <div className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg bg-danger-bg border border-danger-border">
+                <span className="text-xs text-danger-text flex-1 truncate">Delete this chat?</span>
                 <button
                   data-testid={`chat-delete-confirm-${chat.id}`}
                   onClick={() => {
                     onDeleteChat?.(chat.id);
                     setChatIdPendingDelete(null);
                   }}
-                  className={`text-xs px-2 py-0.5 rounded bg-red-600 text-white hover:bg-red-500 cursor-pointer ${focusRing}`}
+                  className={`text-xs px-2 py-0.5 rounded bg-danger-solid text-inverse-text hover:bg-danger-solid/80 cursor-pointer ${focusRing}`}
                 >
                   Yes
                 </button>

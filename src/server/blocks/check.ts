@@ -28,6 +28,7 @@ export const checkBlock: BlockDefinition = {
     let answerExplanation: string | undefined;
 
     const nonEmpty = lines.filter(line => line.trim() !== '');
+    const questionLines: string[] = [];
     for (const line of nonEmpty) {
       const trimmed = line.trim();
       if (trimmed.startsWith('<!--')) {
@@ -36,12 +37,14 @@ export const checkBlock: BlockDefinition = {
         const hintsVal = extractComment(trimmed, 'hints');
         if (hintsVal) { try { hints = JSON.parse(hintsVal); } catch { /* ignore malformed */ } continue; }
         const answerVal = extractComment(trimmed, 'answer');
-        if (answerVal) { answer = answerVal; continue; }
+        if (answerVal) { try { answer = JSON.parse(answerVal); } catch { answer = answerVal; } continue; }
         const explanationValue = extractComment(trimmed, 'explanation');
-        if (explanationValue) { answerExplanation = explanationValue; continue; }
+        if (explanationValue) { try { answerExplanation = JSON.parse(explanationValue); } catch { answerExplanation = explanationValue; } continue; }
+        continue; // skip unrecognized comments
       }
-      if (!question) { question = trimmed; }
+      questionLines.push(trimmed);
     }
+    question = questionLines.join('\n');
 
     const check: Check = { id: checkId, question, status };
     if (hints) check.hints = hints;
@@ -63,10 +66,10 @@ export const checkBlock: BlockDefinition = {
         lines.push(`<!-- hints: ${JSON.stringify(check.hints)} -->`);
       }
       if (check.answer !== undefined) {
-        lines.push(`<!-- answer: ${check.answer} -->`);
+        lines.push(`<!-- answer: ${JSON.stringify(check.answer)} -->`);
       }
       if (check.answerExplanation !== undefined) {
-        lines.push(`<!-- explanation: ${check.answerExplanation} -->`);
+        lines.push(`<!-- explanation: ${JSON.stringify(check.answerExplanation)} -->`);
       }
       lines.push('');
     }

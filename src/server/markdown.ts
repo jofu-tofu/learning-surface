@@ -82,7 +82,7 @@ export function serialize(doc: LearningDocument): string {
   lines.push(`version: ${doc.version}`);
   lines.push(`active_section: ${doc.activeSection}`);
   if (doc.summary) {
-    lines.push(`summary: ${doc.summary}`);
+    lines.push(`summary: ${JSON.stringify(doc.summary)}`);
   }
   lines.push('---');
   lines.push('');

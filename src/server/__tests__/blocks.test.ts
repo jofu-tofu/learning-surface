@@ -97,8 +97,8 @@ describe('checkBlock', () => {
       });
       const lines = checkBlock.serialize(section);
       expect(lines).toContain('<!-- hints: ["hint1","hint2"] -->');
-      expect(lines).toContain('<!-- answer: A -->');
-      expect(lines).toContain('<!-- explanation: Because -->');
+      expect(lines).toContain('<!-- answer: "A" -->');
+      expect(lines).toContain('<!-- explanation: "Because" -->');
     });
 
     it('round-trips through serialize then parse', () => {

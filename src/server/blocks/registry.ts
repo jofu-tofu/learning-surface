@@ -4,7 +4,7 @@ import { explanationBlock } from './explanation.js';
 import { checkBlock } from './check.js';
 import { followupsBlock } from './followups.js';
 
-export type { BlockDefinition, RawBlock } from './types.js';
+export type { RawBlock } from './types.js';
 
 // Ordered list — serialization follows this order.
 const blocks: BlockDefinition[] = [

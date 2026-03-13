@@ -64,7 +64,7 @@ export function createDocumentService(io: FileIO = nodeFileIO()): DocumentServic
   return {
     read: (filePath) => safeRead(filePath, parse),
 
-    readRaw: (filePath) => safeRead(filePath, (s) => s),
+    readRaw: (filePath) => safeRead(filePath, (rawContent) => rawContent),
 
     write(filePath, doc) {
       io.writeFile(filePath, serialize(doc), 'utf-8');

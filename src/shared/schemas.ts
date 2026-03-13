@@ -64,7 +64,7 @@ export const ClearSchema = z.object({
 
 // === Tool Definitions ===
 
-interface ToolDef {
+interface ToolDefinitionEntry {
   name: string;
   /** Human-readable label for frontend activity status during processing. */
   label: string;
@@ -133,7 +133,7 @@ export const TOOL_DEFS = [
     description: 'Erase content from the learning surface. Target a specific pane (canvas, explanation, checks, followups) in the active section, remove an entire section, or use "all" to wipe the entire document and start fresh. Defaults to the active section; pass section ID to target a different one. Cannot remove the last remaining section (use "all" instead to reset everything).',
     schema: ClearSchema,
   },
-] as const satisfies readonly ToolDef[];
+] as const satisfies readonly ToolDefinitionEntry[];
 
 /** Union of all tool name literals — use in Record types for compile-time completeness checks. */
 export type ToolName = typeof TOOL_DEFS[number]['name'];
@@ -141,8 +141,8 @@ export type ToolName = typeof TOOL_DEFS[number]['name'];
 // === Schema Lookup Map ===
 
 export const toolSchemaMap = new Map<string, z.ZodObject<z.ZodRawShape>>();
-for (const def of TOOL_DEFS) {
-  toolSchemaMap.set(def.name, def.schema);
+for (const toolDef of TOOL_DEFS) {
+  toolSchemaMap.set(toolDef.name, toolDef.schema);
 }
 
 // === JSON Schema Conversion ===
@@ -180,11 +180,11 @@ export function zodToJsonSchema(schema: z.ZodObject<z.ZodRawShape>): Record<stri
   const properties: Record<string, Record<string, unknown>> = {};
   const required: string[] = [];
 
-  for (const [key, value] of Object.entries(shape)) {
+  for (const [propertyName, value] of Object.entries(shape)) {
     const zodType = value as z.ZodTypeAny;
-    properties[key] = zodFieldToJsonSchema(zodType);
+    properties[propertyName] = zodFieldToJsonSchema(zodType);
     if (!zodType.isOptional()) {
-      required.push(key);
+      required.push(propertyName);
     }
   }
 

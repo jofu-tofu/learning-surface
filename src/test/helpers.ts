@@ -142,8 +142,8 @@ export function fakeFileIO(files: Map<string, string> = new Map()): FileIO & { f
       if (content === undefined) throw new Error(`ENOENT: ${path}`);
       return content;
     },
-    writeFile(path: string, data: string) {
-      files.set(path, data);
+    writeFile(path: string, content: string) {
+      files.set(path, content);
     },
     exists(path: string) {
       return files.has(path);
@@ -170,10 +170,10 @@ export function fakeProvider(
   return {
     config,
     async preflight() { return { ok: true }; },
-    async complete(opts) {
-      if (opts.onToolCall) {
-        for (const call of toolCalls) {
-          await opts.onToolCall(call);
+    async complete(completionRequest) {
+      if (completionRequest.onToolCall) {
+        for (const toolCall of toolCalls) {
+          await completionRequest.onToolCall(toolCall);
         }
       }
     },
@@ -184,7 +184,7 @@ export function fakeProvider(
 export function fakeContextCompiler(): ContextCompiler {
   return {
     async compile(doc) {
-      const active = doc.sections.find(s => s.id === doc.activeSection);
+      const active = doc.sections.find(section => section.id === doc.activeSection);
       return {
         session: { topic: 'test', version: doc.version, activeSection: doc.activeSection },
         surface: {
@@ -193,7 +193,7 @@ export function fakeContextCompiler(): ContextCompiler {
           checks: active?.checks ?? [],
           followups: active?.followups ?? [],
         },
-        sections: doc.sections.map(s => ({ title: s.title })),
+        sections: doc.sections.map(section => ({ title: section.title })),
         promptHistory: [],
       };
     },

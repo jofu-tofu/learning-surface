@@ -28,14 +28,14 @@ export function createCliProvider(): ReplProvider {
     },
 
     async complete({ prompt, systemPrompt, model, sessionDir, reasoningEffort }) {
-      const args = [
+      const cliArguments = [
         'exec', '--full-auto', '--skip-git-repo-check', '--ephemeral',
         '-m', model, '-C', sessionDir,
       ];
-      if (reasoningEffort) args.push('-c', `model_reasoning_effort="${reasoningEffort}"`);
-      args.push(buildCliPrompt(systemPrompt, prompt));
+      if (reasoningEffort) cliArguments.push('-c', `model_reasoning_effort="${reasoningEffort}"`);
+      cliArguments.push(buildCliPrompt(systemPrompt, prompt));
 
-      return spawnCli('codex', args, 'codex-cli');
+      return spawnCli('codex', cliArguments, 'codex-cli');
     },
   };
 }

@@ -11,9 +11,9 @@ import type {
 } from '../shared/types.js';
 import type { ChatStore } from './chat-store.js';
 import {
-  sendMsg,
-  buildSessionInitMsg,
-  buildChatListMsg,
+  sendMessage,
+  buildSessionInitMessage,
+  buildChatListMessage,
   getVersions,
   ensureActiveChat,
   formatError,
@@ -31,7 +31,7 @@ interface HandlerDeps {
   chatStore: ChatStore;
   broadcast: (msg: WsMessage) => void;
   switchToChat: (chatId: string) => Promise<void>;
-  docService?: DocumentService;
+  documentService?: DocumentService;
   getProviders?: () => import('../shared/providers.js').ProviderInfo[];
   getProvider?: (id: string) => import('../shared/providers.js').ReplProvider | undefined;
   onPrompt?: typeof handlePrompt;
@@ -45,7 +45,7 @@ async function broadcastSessionState(deps: {
 }): Promise<void> {
   const { state, chatStore, broadcast } = deps;
   const versions = await getVersions(state.activeVersionStore);
-  broadcast(buildSessionInitMsg({
+  broadcast(buildSessionInitMessage({
     sessionDir: state.activeChatId ? chatStore.getChatDir(state.activeChatId) : '',
     document: state.latestDocument,
     versions,
@@ -61,14 +61,14 @@ export async function routeMessage(
   deps: HandlerDeps,
 ): Promise<void> {
   const { state, chatStore, broadcast, switchToChat } = deps;
-  const docService = deps.docService ?? createDocumentService();
+  const documentService = deps.documentService ?? createDocumentService();
   const getProviders = deps.getProviders ?? listProviders;
   const providerLookup = deps.getProvider ?? getProviderFromRegistry;
   const promptHandler = deps.onPrompt ?? handlePrompt;
 
   switch (msg.type) {
     case 'list-chats': {
-      sendMsg(ws, buildChatListMsg(chatStore.listChats(), state.activeChatId));
+      sendMessage(ws, buildChatListMessage(chatStore.listChats(), state.activeChatId));
       return;
     }
 
@@ -77,9 +77,9 @@ export async function routeMessage(
       await chatStore.save();
       await switchToChat(chat.id);
 
-      broadcast(buildChatListMsg(chatStore.listChats(), chat.id));
+      broadcast(buildChatListMessage(chatStore.listChats(), chat.id));
 
-      sendMsg(ws, buildSessionInitMsg({
+      sendMessage(ws, buildSessionInitMessage({
         sessionDir: chatStore.getChatDir(chat.id),
         versions: [],
         chats: chatStore.listChats(),
@@ -107,7 +107,7 @@ export async function routeMessage(
 
         await broadcastSessionState({ state, chatStore, broadcast });
       } else {
-        broadcast(buildChatListMsg(chatStore.listChats(), state.activeChatId));
+        broadcast(buildChatListMessage(chatStore.listChats(), state.activeChatId));
       }
       return;
     }
@@ -119,7 +119,7 @@ export async function routeMessage(
       const doc = parse(versionContent);
       const versionList = await state.activeVersionStore.listVersions();
 
-      sendMsg(ws, {
+      sendMessage(ws, {
         type: 'version-change',
         document: doc,
         version: msg.version,
@@ -130,11 +130,11 @@ export async function routeMessage(
 
     case 'select-section': {
       if (!state.activeChatId) return;
-      const filePath = docService.filePath(chatStore.getChatDir(state.activeChatId));
-      const doc = docService.read(filePath);
+      const filePath = documentService.filePath(chatStore.getChatDir(state.activeChatId));
+      const doc = documentService.read(filePath);
       if (!doc) return;
 
-      docService.applyTool(filePath, 'set_active', { section: msg.sectionId });
+      documentService.applyTool(filePath, 'set_active', { section: msg.sectionId });
       return;
     }
 
@@ -149,7 +149,7 @@ export async function routeMessage(
       }
 
       if (!state.activeChatId || !state.activeVersionStore) {
-        sendMsg(ws, { type: 'provider-error', error: 'No active chat' });
+        sendMessage(ws, { type: 'provider-error', error: 'No active chat' });
         return;
       }
 
@@ -169,7 +169,7 @@ export async function routeMessage(
           },
         });
         state.latestDocument = result.updatedDocument;
-        sendMsg(ws, { type: 'prompt-complete' });
+        sendMessage(ws, { type: 'prompt-complete' });
       } catch (err) {
         console.error('Provider error:', err);
         broadcast({ type: 'provider-error', error: formatError(err) });
@@ -180,20 +180,20 @@ export async function routeMessage(
     case 'preflight': {
       const provider = providerLookup(msg.provider);
       if (!provider) {
-        sendMsg(ws, { type: 'preflight-result', ok: false, error: `Provider "${msg.provider}" not found` });
+        sendMessage(ws, { type: 'preflight-result', ok: false, error: `Provider "${msg.provider}" not found` });
         return;
       }
       try {
         const result = await provider.preflight(msg.model);
-        sendMsg(ws, { type: 'preflight-result', ok: result.ok, error: result.error });
+        sendMessage(ws, { type: 'preflight-result', ok: result.ok, error: result.error });
       } catch (err) {
-        sendMsg(ws, { type: 'preflight-result', ok: false, error: formatError(err) });
+        sendMessage(ws, { type: 'preflight-result', ok: false, error: formatError(err) });
       }
       return;
     }
 
     case 'get-providers': {
-      sendMsg(ws, { type: 'provider-list', providers: getProviders() });
+      sendMessage(ws, { type: 'provider-list', providers: getProviders() });
       return;
     }
   }

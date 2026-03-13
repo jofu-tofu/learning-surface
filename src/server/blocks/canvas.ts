@@ -12,9 +12,9 @@ export const canvasBlock: BlockDefinition = {
   },
 
   parse(header: string, content: string, section: Section) {
-    const m = header.match(HEADER_PATTERN);
-    if (!m) return;
-    section.canvas = { type: m[1] as CanvasContent['type'], content };
+    const headerMatch = header.match(HEADER_PATTERN);
+    if (!headerMatch) return;
+    section.canvas = { type: headerMatch[1] as CanvasContent['type'], content };
   },
 
   serialize(section: Section): string[] {

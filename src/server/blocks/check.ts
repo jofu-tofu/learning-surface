@@ -4,8 +4,8 @@ import type { BlockDefinition, BlockFormatDescription } from './types.js';
 const HEADER_PATTERN = /^###\s+check:\s*(\S+)/;
 
 function extractComment(line: string, key: string): string | null {
-  const m = line.match(new RegExp(`<!--\\s*${key}:\\s*(.*?)\\s*-->`));
-  return m ? m[1] : null;
+  const commentMatch = line.match(new RegExp(`<!--\\s*${key}:\\s*(.*?)\\s*-->`));
+  return commentMatch ? commentMatch[1] : null;
 }
 
 export const checkBlock: BlockDefinition = {
@@ -16,10 +16,10 @@ export const checkBlock: BlockDefinition = {
   },
 
   parse(header: string, content: string, section: Section) {
-    const m = header.match(HEADER_PATTERN);
-    if (!m) return;
+    const headerMatch = header.match(HEADER_PATTERN);
+    if (!headerMatch) return;
 
-    const checkId = m[1];
+    const checkId = headerMatch[1];
     const lines = content.split('\n');
     let question = '';
     let status: Check['status'] = 'unanswered';
@@ -27,7 +27,7 @@ export const checkBlock: BlockDefinition = {
     let answer: string | undefined;
     let answerExplanation: string | undefined;
 
-    const nonEmpty = lines.filter(l => l.trim() !== '');
+    const nonEmpty = lines.filter(line => line.trim() !== '');
     for (const line of nonEmpty) {
       const trimmed = line.trim();
       if (trimmed.startsWith('<!--')) {
@@ -37,8 +37,8 @@ export const checkBlock: BlockDefinition = {
         if (hintsVal) { try { hints = JSON.parse(hintsVal); } catch { /* ignore malformed */ } continue; }
         const answerVal = extractComment(trimmed, 'answer');
         if (answerVal) { answer = answerVal; continue; }
-        const explVal = extractComment(trimmed, 'explanation');
-        if (explVal) { answerExplanation = explVal; continue; }
+        const explanationValue = extractComment(trimmed, 'explanation');
+        if (explanationValue) { answerExplanation = explanationValue; continue; }
       }
       if (!question) { question = trimmed; }
     }

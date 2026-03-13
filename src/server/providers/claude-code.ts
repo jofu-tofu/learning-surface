@@ -33,16 +33,16 @@ export function createClaudeCodeProvider(): ReplProvider {
     },
 
     async complete({ prompt, systemPrompt, model, sessionDir, reasoningEffort }) {
-      const args = [
+      const cliArguments = [
         '--print', '--dangerously-skip-permissions',
         '--model', model,
         '--tools', 'Read,Edit,Write',
         '--no-session-persistence',
       ];
-      if (reasoningEffort) args.push('--effort', reasoningEffort);
-      args.push(buildCliPrompt(systemPrompt, prompt));
+      if (reasoningEffort) cliArguments.push('--effort', reasoningEffort);
+      cliArguments.push(buildCliPrompt(systemPrompt, prompt));
 
-      return spawnCli('claude', args, 'claude-code', { cwd: sessionDir });
+      return spawnCli('claude', cliArguments, 'claude-code', { cwd: sessionDir });
     },
   };
 }

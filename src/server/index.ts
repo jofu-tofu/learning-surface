@@ -6,8 +6,8 @@ import { createDocumentService } from './document-service.js';
 import { listProviders } from './providers/registry.js';
 import { routeMessage, type SessionState } from './ws-handlers.js';
 import {
-  sendMsg,
-  buildSessionInitMsg,
+  sendMessage,
+  buildSessionInitMessage,
   getVersions,
   ensureActiveChat,
 } from './utils/ws-helpers.js';
@@ -22,7 +22,7 @@ export async function startServer(options: {
   const chatStore = createChatStore();
   await chatStore.init(sessionDir);
 
-  const docService = createDocumentService();
+  const documentService = createDocumentService();
 
   // Shared mutable session state (passed to routeMessage)
   const state: SessionState = {
@@ -40,13 +40,13 @@ export async function startServer(options: {
     return store;
   }
 
-  const wss = new WebSocketServer({ port });
+  const webSocketServer = new WebSocketServer({ port });
 
-  function broadcast(msg: WsMessage): void {
-    const data = JSON.stringify(msg);
-    for (const client of wss.clients) {
+  function broadcast(message: WsMessage): void {
+    const serializedMessage = JSON.stringify(message);
+    for (const client of webSocketServer.clients) {
       if (client.readyState === WebSocket.OPEN) {
-        client.send(data);
+        client.send(serializedMessage);
       }
     }
   }
@@ -57,7 +57,7 @@ export async function startServer(options: {
     state.activeVersionStore = await initVersionStoreForChat(chatId);
 
     const chatDir = chatStore.getChatDir(chatId);
-    state.latestDocument = docService.read(docService.filePath(chatDir));
+    state.latestDocument = documentService.read(documentService.filePath(chatDir));
 
     watcher.start(chatDir);
   }
@@ -84,13 +84,13 @@ export async function startServer(options: {
     broadcast({ type: 'version-change', version });
   });
 
-  wss.on('connection', async (ws) => {
+  webSocketServer.on('connection', async (ws) => {
     if (!state.activeChatId) {
       await ensureActiveChat(chatStore, switchToChat);
     }
 
     const versions = await getVersions(state.activeVersionStore);
-    sendMsg(ws, buildSessionInitMsg({
+    sendMessage(ws, buildSessionInitMessage({
       sessionDir: state.activeChatId ? chatStore.getChatDir(state.activeChatId) : sessionDir,
       document: state.latestDocument,
       versions,
@@ -99,10 +99,10 @@ export async function startServer(options: {
       providers: listProviders(),
     }));
 
-    ws.on('message', async (raw) => {
+    ws.on('message', async (rawMessage) => {
       try {
-        const msg = JSON.parse(String(raw)) as ClientMessage;
-        await routeMessage(ws, msg, { state, chatStore, broadcast, switchToChat });
+        const clientMessage = JSON.parse(String(rawMessage)) as ClientMessage;
+        await routeMessage(ws, clientMessage, { state, chatStore, broadcast, switchToChat });
       } catch (err) {
         console.error('Error handling client message:', err);
       }
@@ -116,7 +116,7 @@ export async function startServer(options: {
     process.on('SIGINT', () => {
       console.log('\nShutting down...');
       watcher.stop();
-      wss.close();
+      webSocketServer.close();
       resolve();
     });
   });

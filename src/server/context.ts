@@ -5,7 +5,7 @@ import { readAllVersionMetas } from './utils/readMetas.js';
 export function createContextCompiler(): ContextCompiler {
   return {
     async compile(doc: LearningDocument, sessionDir: string): Promise<SurfaceContext> {
-      const activeSection = doc.sections.find(s => s.id === doc.activeSection);
+      const activeSection = doc.sections.find(section => section.id === doc.activeSection);
 
       const surface = {
         canvas: activeSection?.canvas ?? null,
@@ -14,14 +14,14 @@ export function createContextCompiler(): ContextCompiler {
         followups: activeSection?.followups ?? [],
       };
 
-      const sections = doc.sections.map(s => ({
-        title: s.title,
+      const sections = doc.sections.map(section => ({
+        title: section.title,
       }));
 
       const metas = await readAllVersionMetas(sessionDir).catch(() => []);
       const promptHistory = metas
-        .filter(m => m.prompt)
-        .map(m => m.prompt!);
+        .filter(meta => meta.prompt)
+        .map(meta => meta.prompt!);
 
       const topic = path.basename(sessionDir);
 

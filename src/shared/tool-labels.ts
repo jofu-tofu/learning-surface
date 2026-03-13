@@ -8,7 +8,7 @@ import { TOOL_DEFS } from './schemas.js';
 
 /** Tool name → human-readable label, derived from TOOL_DEFS. */
 export const TOOL_LABELS: Record<string, string> = Object.fromEntries(
-  TOOL_DEFS.map(def => [def.name, def.label]),
+  TOOL_DEFS.map(toolDef => [toolDef.name, toolDef.label]),
 );
 
 /** Pseudo-tool names for non-tool-call processing phases. */

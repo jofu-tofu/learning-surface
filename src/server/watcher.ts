@@ -22,8 +22,8 @@ export function createFileWatcher(): FileWatcherService {
       raw = fs.readFileSync(filePath, 'utf-8');
     } catch {
       // File doesn't exist or can't be read — use default document
-      for (const cb of documentCallbacks) {
-        cb(DEFAULT_DOCUMENT);
+      for (const callback of documentCallbacks) {
+        callback(DEFAULT_DOCUMENT);
       }
       return;
     }
@@ -37,8 +37,8 @@ export function createFileWatcher(): FileWatcherService {
       return;
     }
 
-    for (const cb of documentCallbacks) {
-      cb(doc);
+    for (const callback of documentCallbacks) {
+      callback(doc);
     }
   }
 

@@ -5,7 +5,7 @@ import type { VersionStore, VersionMeta } from '../shared/types.js';
 import { readAllVersionMetas } from './utils/readMetas.js';
 
 export function createVersionStore(): VersionStore {
-  let dir: string;
+  let sessionDir: string;
   let currentVersion = 0;
   const metaIndex = new Map<number, VersionMeta>();
 
@@ -23,14 +23,14 @@ export function createVersionStore(): VersionStore {
 
   async function reconstructVersion(version: number): Promise<string> {
     const chain = getParentChain(version);
-    const base = await readFile(join(dir, 'v1.md'), 'utf-8');
+    const base = await readFile(join(sessionDir, 'v1.md'), 'utf-8');
     let content = base;
     for (let i = 1; i < chain.length; i++) {
-      const v = chain[i];
-      const patch = await readFile(join(dir, `v${v}.patch`), 'utf-8');
+      const chainVersion = chain[i];
+      const patch = await readFile(join(sessionDir, `v${chainVersion}.patch`), 'utf-8');
       const result = applyPatch(content, patch);
       if (result === false) {
-        throw new Error(`Failed to apply patch v${v}`);
+        throw new Error(`Failed to apply patch v${chainVersion}`);
       }
       content = result;
     }
@@ -38,10 +38,10 @@ export function createVersionStore(): VersionStore {
   }
 
   return {
-    async init(sessionDir: string): Promise<void> {
-      dir = sessionDir;
-      await mkdir(dir, { recursive: true });
-      const metas = await readAllVersionMetas(dir);
+    async init(initDir: string): Promise<void> {
+      sessionDir = initDir;
+      await mkdir(sessionDir, { recursive: true });
+      const metas = await readAllVersionMetas(sessionDir);
       for (const meta of metas) {
         metaIndex.set(meta.version, meta);
         if (meta.version > currentVersion) currentVersion = meta.version;
@@ -55,22 +55,22 @@ export function createVersionStore(): VersionStore {
       const fullMeta: VersionMeta = { version, ...meta, parent };
 
       if (version === 1) {
-        await writeFile(join(dir, 'v1.md'), content, 'utf-8');
+        await writeFile(join(sessionDir, 'v1.md'), content, 'utf-8');
       } else {
         const parentContent = await reconstructVersion(parent!);
         const patch = createPatch(`v${version}.md`, parentContent, content, '', '', { context: 3 });
-        await writeFile(join(dir, `v${version}.patch`), patch, 'utf-8');
+        await writeFile(join(sessionDir, `v${version}.patch`), patch, 'utf-8');
       }
 
       metaIndex.set(version, fullMeta);
-      await writeFile(join(dir, `v${version}.meta.json`), JSON.stringify(fullMeta), 'utf-8');
+      await writeFile(join(sessionDir, `v${version}.meta.json`), JSON.stringify(fullMeta), 'utf-8');
 
       return version;
     },
 
     async getVersion(version: number): Promise<string> {
       if (version === 1) {
-        return readFile(join(dir, 'v1.md'), 'utf-8');
+        return readFile(join(sessionDir, 'v1.md'), 'utf-8');
       }
       return reconstructVersion(version);
     },

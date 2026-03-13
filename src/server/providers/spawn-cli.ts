@@ -8,21 +8,21 @@ export function buildCliPrompt(systemPrompt: string, prompt: string): string {
 }
 
 /** Spawn a CLI subprocess and return a promise that resolves on exit code 0. */
-export function spawnCli(command: string, args: string[], label: string, opts?: SpawnOptions): Promise<void> {
+export function spawnCli(command: string, args: string[], label: string, spawnOptions?: SpawnOptions): Promise<void> {
   return new Promise<void>((resolve, reject) => {
-    const child = spawn(command, args, { stdio: ['pipe', 'pipe', 'pipe'], ...opts });
+    const child = spawn(command, args, { stdio: ['pipe', 'pipe', 'pipe'], ...spawnOptions });
     let stderrOutput = '';
 
-    child.stdout?.on('data', (data: Buffer) => {
-      const text = data.toString().trim();
-      if (text) console.log(`[${label}] ${text}`);
+    child.stdout?.on('data', (chunk: Buffer) => {
+      const outputText = chunk.toString().trim();
+      if (outputText) console.log(`[${label}] ${outputText}`);
     });
 
-    child.stderr?.on('data', (data: Buffer) => {
-      const text = data.toString().trim();
-      if (text) {
-        console.error(`[${label} stderr] ${text}`);
-        stderrOutput += text + '\n';
+    child.stderr?.on('data', (chunk: Buffer) => {
+      const errorText = chunk.toString().trim();
+      if (errorText) {
+        console.error(`[${label} stderr] ${errorText}`);
+        stderrOutput += errorText + '\n';
       }
     });
 

@@ -13,7 +13,7 @@ import { formatError } from './utils/ws-helpers.js';
 
 const DEFAULT_DEBOUNCE_MS = 2000;
 
-const mcpResponse = (text: string, isError = false) => ({
+const buildMcpResponse = (text: string, isError = false) => ({
   content: [{ type: 'text' as const, text }],
   ...(isError && { isError: true as const }),
 });
@@ -25,15 +25,15 @@ export function createMcpServer(options: {
   versionStore?: VersionStore;
   debounceMs?: number;
   transport?: Transport;
-  docService?: DocumentService;
+  documentService?: DocumentService;
 }): { start(): Promise<void>; stop(): Promise<void>; flushVersionBatch(): Promise<void> } {
   const { sessionDir, versionStore, debounceMs = DEFAULT_DEBOUNCE_MS, transport: injectedTransport } = options;
 
   if (!versionStore) throw new Error('versionStore is required');
   const store = versionStore;
 
-  const docService = options.docService ?? createDocumentService();
-  const filePath = docService.filePath(sessionDir);
+  const documentService = options.documentService ?? createDocumentService();
+  const filePath = documentService.filePath(sessionDir);
 
   // --- Batch versioning state ---
   let batchStartVersion: number | null = null;
@@ -43,15 +43,15 @@ export function createMcpServer(options: {
     if (debounceTimer) { clearTimeout(debounceTimer); debounceTimer = null; }
     if (batchStartVersion === null) return;
 
-    const content = docService.readRaw(filePath);
-    const doc = docService.read(filePath);
+    const content = documentService.readRaw(filePath);
+    const doc = documentService.read(filePath);
     if (!content || !doc) return;
 
     await store.createVersion(content, buildVersionMeta(null, doc.summary ?? null, new Date().toISOString()));
     batchStartVersion = null;
 
     // Re-write current.md to trigger the file watcher so the UI picks up the new version
-    docService.write(filePath, doc);
+    documentService.write(filePath, doc);
   }
 
   const server = new Server(
@@ -70,31 +70,31 @@ export function createMcpServer(options: {
 
   // Register call-tool handler
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
-    const { name, arguments: args } = request.params;
+    const { name, arguments: toolArguments } = request.params;
     const schemaDef = toolSchemaMap.get(name);
-    if (!schemaDef) return mcpResponse(`Unknown tool: ${name}`, true);
+    if (!schemaDef) return buildMcpResponse(`Unknown tool: ${name}`, true);
 
     // Validate params
-    const parsed = schemaDef.safeParse(args);
-    if (!parsed.success) return mcpResponse(`Invalid params: ${parsed.error.message}`, true);
+    const validatedParams = schemaDef.safeParse(toolArguments);
+    if (!validatedParams.success) return buildMcpResponse(`Invalid params: ${validatedParams.error.message}`, true);
 
     try {
       // Start a new batch if not already in one
       if (batchStartVersion === null) {
-        const doc = docService.read(filePath);
+        const doc = documentService.read(filePath);
         if (doc) batchStartVersion = doc.version;
       }
 
       // Apply tool call — all calls in a batch share the same target version
-      const updated = docService.applyTool(filePath, name, parsed.data as Record<string, unknown>, (batchStartVersion ?? 0) + 1);
+      const updated = documentService.applyTool(filePath, name, validatedParams.data as Record<string, unknown>, (batchStartVersion ?? 0) + 1);
 
       // Reset debounce timer — version is created only after the batch settles
       if (debounceTimer) clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => { flushVersionBatch(); }, debounceMs);
 
-      return mcpResponse(`Applied ${name} → version ${updated.version}`);
+      return buildMcpResponse(`Applied ${name} → version ${updated.version}`);
     } catch (err) {
-      return mcpResponse(`Error applying ${name}: ${formatError(err)}`, true);
+      return buildMcpResponse(`Error applying ${name}: ${formatError(err)}`, true);
     }
   });
 

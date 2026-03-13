@@ -33,8 +33,8 @@ export function createChatStore(): ChatStore {
       await mkdir(join(dir, 'chats'), { recursive: true });
 
       if (existsSync(indexPath())) {
-        const raw = await readFile(indexPath(), 'utf-8');
-        chats = JSON.parse(raw) as Chat[];
+        const fileContent = await readFile(indexPath(), 'utf-8');
+        chats = JSON.parse(fileContent) as Chat[];
       } else {
         chats = [];
         await writeFile(indexPath(), JSON.stringify(chats), 'utf-8');
@@ -58,11 +58,11 @@ export function createChatStore(): ChatStore {
     },
 
     getChat(chatId: string): Chat | undefined {
-      return chats.find((c) => c.id === chatId);
+      return chats.find((chat) => chat.id === chatId);
     },
 
     async updateChatTitle(chatId: string, title: string): Promise<void> {
-      const chat = chats.find((c) => c.id === chatId);
+      const chat = chats.find((chat) => chat.id === chatId);
       if (!chat) return;
       chat.title = title;
       chat.updatedAt = new Date().toISOString();
@@ -70,13 +70,13 @@ export function createChatStore(): ChatStore {
     },
 
     async deleteChat(chatId: string): Promise<void> {
-      const idx = chats.findIndex((c) => c.id === chatId);
-      if (idx === -1) return;
-      chats.splice(idx, 1);
+      const chatIndex = chats.findIndex((chat) => chat.id === chatId);
+      if (chatIndex === -1) return;
+      chats.splice(chatIndex, 1);
 
-      const dir = chatDir(chatId);
-      if (existsSync(dir)) {
-        await rm(dir, { recursive: true, force: true });
+      const chatDirectory = chatDir(chatId);
+      if (existsSync(chatDirectory)) {
+        await rm(chatDirectory, { recursive: true, force: true });
       }
 
       await this.save();

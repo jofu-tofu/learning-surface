@@ -66,13 +66,13 @@ interface PromptResult {
 }
 
 interface PromptDeps {
-  docService: DocumentService;
+  documentService: DocumentService;
   contextCompiler: ContextCompiler;
   getProvider: (id: string) => ReplProvider | undefined;
 }
 
 const defaultDeps: PromptDeps = {
-  docService: createDocumentService(),
+  documentService: createDocumentService(),
   contextCompiler: createContextCompiler(),
   getProvider: getProviderFromRegistry,
 };
@@ -82,30 +82,30 @@ const defaultDeps: PromptDeps = {
  * and create a version snapshot when the AI finishes.
  */
 export async function handlePrompt(
-  req: PromptRequest,
+  request: PromptRequest,
   deps: PromptDeps = defaultDeps,
 ): Promise<PromptResult> {
-  const { text, providerId, modelId, reasoningEffort, chatDir, versionStore } = req;
-  const { docService, contextCompiler, getProvider } = deps;
+  const { text, providerId, modelId, reasoningEffort, chatDir, versionStore } = request;
+  const { documentService, contextCompiler, getProvider } = deps;
 
   const provider = getProvider(providerId);
   if (!provider) {
     throw new Error(`Unknown provider: ${providerId}`);
   }
 
-  const filePath = docService.filePath(chatDir);
+  const filePath = documentService.filePath(chatDir);
   // Always ensure the file exists on disk (latestDocument may be in-memory only)
-  const currentDoc = docService.ensureExists(filePath);
+  const currentDoc = documentService.ensureExists(filePath);
 
   // Build context-aware system prompt
   const context = await contextCompiler.compile(currentDoc, chatDir);
   const systemPrompt = buildSystemPrompt(context);
 
   const startVersion = currentDoc.version;
-  const startContent = docService.readRaw(filePath) ?? '';
+  const startContent = documentService.readRaw(filePath) ?? '';
 
   // Signal "thinking" phase before the AI starts responding
-  req.onProgress?.('thinking', 0);
+  request.onProgress?.('thinking', 0);
 
   if (provider.config.type === 'api') {
     // API mode: pass tool definitions and onToolCall callback
@@ -119,9 +119,9 @@ export async function handlePrompt(
       reasoningEffort,
       async onToolCall(call) {
         toolStep++;
-        req.onProgress?.(call.toolName, toolStep);
+        request.onProgress?.(call.toolName, toolStep);
 
-        const applied = docService.applyTool(
+        const applied = documentService.applyTool(
           filePath,
           call.toolName,
           call.params,
@@ -146,8 +146,8 @@ export async function handlePrompt(
   }
 
   // Create a version snapshot after the AI finishes
-  const finalContent = docService.readRaw(filePath) ?? '';
-  const finalDoc = docService.read(filePath);
+  const finalContent = documentService.readRaw(filePath) ?? '';
+  const finalDoc = documentService.read(filePath);
   if (!finalDoc) {
     throw new Error('Document missing after prompt completion');
   }
@@ -164,16 +164,16 @@ export async function handlePrompt(
     // Ensure version is bumped for CLI mode
     if (finalDoc.version <= startVersion) {
       finalDoc.version = startVersion + 1;
-      docService.write(filePath, finalDoc);
+      documentService.write(filePath, finalDoc);
     }
 
-    const contentForVersion = docService.readRaw(filePath) ?? '';
+    const contentForVersion = documentService.readRaw(filePath) ?? '';
     await versionStore.createVersion(
       contentForVersion,
       buildVersionMeta(text, finalDoc.summary ?? null, new Date().toISOString()),
     );
     // Re-write to trigger watcher with updated version list
-    docService.write(filePath, finalDoc);
+    documentService.write(filePath, finalDoc);
   }
 
   return { updatedDocument: finalDoc };

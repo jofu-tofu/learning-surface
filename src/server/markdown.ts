@@ -17,9 +17,9 @@ function parseSection(title: string, body: string): Section & { _unknownBlocks?:
   const unknownBlocks: RawBlock[] = [];
 
   for (const raw of rawBlocks) {
-    const def = findBlock(raw.header);
-    if (def) {
-      def.parse(raw.header, raw.content, section);
+    const blockDefinition = findBlock(raw.header);
+    if (blockDefinition) {
+      blockDefinition.parse(raw.header, raw.content, section);
     } else {
       unknownBlocks.push(raw);
     }
@@ -40,19 +40,19 @@ export function parse(raw: string): LearningDocument {
     throw new Error('Missing frontmatter: document must start with YAML frontmatter');
   }
 
-  const { data, content } = matter(raw);
+  const { data: frontmatter, content } = matter(raw);
 
-  if (data.version === undefined || data.active_section === undefined) {
+  if (frontmatter.version === undefined || frontmatter.active_section === undefined) {
     throw new Error('Missing frontmatter: version and active_section are required');
   }
 
   // Split content into sections by ## headings
   const sectionRegex = /^## (.+)$/gm;
   const matches: { title: string; start: number }[] = [];
-  let match: RegExpExecArray | null;
+  let sectionMatch: RegExpExecArray | null;
 
-  while ((match = sectionRegex.exec(content)) !== null) {
-    matches.push({ title: match[1].trim(), start: match.index + match[0].length });
+  while ((sectionMatch = sectionRegex.exec(content)) !== null) {
+    matches.push({ title: sectionMatch[1].trim(), start: sectionMatch.index + sectionMatch[0].length });
   }
 
   const sections: Section[] = [];
@@ -66,9 +66,9 @@ export function parse(raw: string): LearningDocument {
   }
 
   return {
-    version: data.version,
-    activeSection: data.active_section,
-    ...(data.summary ? { summary: data.summary } : {}),
+    version: frontmatter.version,
+    activeSection: frontmatter.active_section,
+    ...(frontmatter.summary ? { summary: frontmatter.summary } : {}),
     sections,
   };
 }
@@ -91,9 +91,9 @@ export function serialize(doc: LearningDocument): string {
     lines.push('');
 
     // Unknown blocks first (they were before known blocks typically, but order doesn't matter for tests)
-    const s = section as Section & { _unknownBlocks?: RawBlock[] };
-    if (s._unknownBlocks) {
-      for (const block of s._unknownBlocks) {
+    const sectionWithUnknowns = section as Section & { _unknownBlocks?: RawBlock[] };
+    if (sectionWithUnknowns._unknownBlocks) {
+      for (const block of sectionWithUnknowns._unknownBlocks) {
         lines.push(block.header);
         lines.push(block.content);
         lines.push('');
@@ -115,7 +115,7 @@ export function applyToolCall(
   params: Record<string, unknown>,
 ): LearningDocument {
   // Deep clone the document
-  const result: LearningDocument = structuredClone(doc);
-  applyTool(result, tool, params);
-  return result;
+  const clonedDocument: LearningDocument = structuredClone(doc);
+  applyTool(clonedDocument, tool, params);
+  return clonedDocument;
 }

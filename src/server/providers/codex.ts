@@ -60,12 +60,12 @@ export function createCodexProvider(): ReplProvider {
     },
 
     async complete({ prompt, systemPrompt, tools, model, reasoningEffort, onToolCall }) {
-      const openaiTools: OpenAI.ChatCompletionTool[] = (tools ?? []).map((t) => ({
+      const openaiTools: OpenAI.ChatCompletionTool[] = (tools ?? []).map((tool) => ({
         type: 'function' as const,
         function: {
-          name: t.name,
-          description: t.description,
-          parameters: t.parameters,
+          name: tool.name,
+          description: tool.description,
+          parameters: tool.parameters,
         },
       }));
 
@@ -86,16 +86,16 @@ export function createCodexProvider(): ReplProvider {
         const choice = response.choices[0];
         if (!choice) break;
 
-        const assistantMsg = choice.message;
-        messages.push(assistantMsg);
+        const assistantMessage = choice.message;
+        messages.push(assistantMessage);
 
         // If no tool calls, the model is done
-        if (!assistantMsg.tool_calls || assistantMsg.tool_calls.length === 0) {
+        if (!assistantMessage.tool_calls || assistantMessage.tool_calls.length === 0) {
           break;
         }
 
         // Process each tool call
-        for (const toolCall of assistantMsg.tool_calls) {
+        for (const toolCall of assistantMessage.tool_calls) {
           if (toolCall.type !== 'function') continue;
 
           let params: Record<string, unknown>;

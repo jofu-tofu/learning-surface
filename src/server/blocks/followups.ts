@@ -13,8 +13,8 @@ export const followupsBlock: BlockDefinition = {
   parse(_header: string, content: string, section: Section) {
     section.followups = content
       .split('\n')
-      .filter(l => l.match(/^\s*-\s+/))
-      .map(l => l.replace(/^\s*-\s+/, '').trim());
+      .filter(line => line.match(/^\s*-\s+/))
+      .map(line => line.replace(/^\s*-\s+/, '').trim());
   },
 
   serialize(section: Section): string[] {

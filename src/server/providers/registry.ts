@@ -27,9 +27,9 @@ export function getProvider(id: string): ReplProvider | undefined {
 }
 
 export function listProviders(): ProviderInfo[] {
-  return [...providers.values()].map((p) => ({
-    id: p.config.id,
-    name: p.config.name,
-    models: p.config.models,
+  return [...providers.values()].map((provider) => ({
+    id: provider.config.id,
+    name: provider.config.name,
+    models: provider.config.models,
   }));
 }

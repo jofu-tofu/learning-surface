@@ -9,12 +9,12 @@ import type { ChatStore } from '../chat-store.js';
 export const CURRENT_MD = 'current.md';
 
 /** Send a typed WsMessage over a WebSocket connection. */
-export function sendMsg(ws: WebSocket, msg: WsMessage): void {
+export function sendMessage(ws: WebSocket, msg: WsMessage): void {
   ws.send(JSON.stringify(msg));
 }
 
 /** Build a session-init message from current state. */
-export function buildSessionInitMsg(opts: {
+export function buildSessionInitMessage(opts: {
   sessionDir: string;
   document?: LearningDocument | null;
   versions: VersionMeta[];
@@ -34,7 +34,7 @@ export function buildSessionInitMsg(opts: {
 }
 
 /** Build a chat-list message. */
-export function buildChatListMsg(chats: Chat[], activeChatId?: string | null): WsChatList {
+export function buildChatListMessage(chats: Chat[], activeChatId?: string | null): WsChatList {
   return {
     type: 'chat-list',
     chats,
@@ -69,6 +69,3 @@ export async function ensureActiveChat(
     await switchToChat(chat.id);
   }
 }
-
-// Re-export from shared so existing server imports don't break
-export { sortChatsByRecent } from '../../shared/types.js';

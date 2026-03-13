@@ -6,7 +6,7 @@ Data contracts and shared abstractions consumed by both server and app.
 
 - `schemas.ts` defines Zod schemas for MCP tool parameters. `types.ts` defines data model interfaces (`LearningDocument`, `Section`, `Check`, etc.) and behavioral interfaces (`VersionStore`, `ContextCompiler`, `FileWatcherService`) independently — they are not derived from Zod via `z.infer<>`.
 - `schemas.ts` contains `TOOL_DEFS` (all 11 MCP tool definitions with name/label/description/Zod schema, typed `as const satisfies readonly ToolDef[]` so `ToolName` is a literal union), `toolSchemaMap` (lookup by tool name), and `zodToJsonSchema()` for MCP SDK integration.
-- `providers.ts` defines the `ReplProvider` interface (strategy pattern) — `complete()` accepts an `onToolCall` callback for API-mode tool execution loops.
+- `providers.ts` defines Zod schemas for provider data contracts (`ProviderConfigSchema`, `ModelConfigSchema`, `PreflightResultSchema`, `ProviderToolCallSchema`, `ToolCallResultSchema`, `ToolDefinitionSchema`, `ProviderInfoSchema`) with types derived via `z.infer<>`. The `ReplProvider` interface (strategy pattern, has methods) stays as a plain TypeScript interface.
 
 ## Structured Markdown Format
 
@@ -33,13 +33,14 @@ The data contract between all modules. Documents use YAML frontmatter + `##` sec
 |------|------|
 | `schemas.ts` | Zod schemas, tool definitions (`TOOL_DEFS`, `toolSchemaMap`), JSON schema conversion |
 | `types.ts` | Data model interfaces, behavioral interface contracts, and utility functions (`sortChatsByRecent`, `getActiveSection`) |
-| `providers.ts` | `ReplProvider` interface, `ProviderConfig`, `ToolCallResult` |
+| `providers.ts` | Zod schemas + `z.infer<>` types for provider data contracts; `ReplProvider` interface |
 | `tool-labels.ts` | Derives tool labels from `TOOL_DEFS`; only phase labels are defined locally |
 | `version-tree.ts` | Pure tree traversal for version history (parent chain, children, forward path) |
 | `slugify.ts` | Title -> URL-safe slug |
 
 ## Gotchas
 
+- **Schema changes require integration test verification.** When adding or modifying Zod schemas in `providers.ts` or `schemas.ts`, run `INTEGRATION_TEST=1 npm test` (add `OPENAI_API_KEY` for API round-trip) to validate schemas against real provider responses. The integration tests in `server/__tests__/provider-integration.test.ts` catch schema drift — fields that don't match what the actual APIs return, hallucinated enum values, or missing required properties.
 - Changes to `schemas.ts` tool definitions must stay in sync with `server/tool-handlers.ts` (the handler registry) and `server/blocks/` (the block definitions).
 - The CLI system prompt format section in `server/system-prompt.ts` is auto-generated from the block registry — adding a new block type in `server/blocks/` automatically updates the prompt.
 - `CANVAS_TYPES` in `types.ts` is the canonical source for canvas type values. `schemas.ts` `ShowVisualSchema` uses a subset (excludes `diagram` which has its own `show_diagram` tool).

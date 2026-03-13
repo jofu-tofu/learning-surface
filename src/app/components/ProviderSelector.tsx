@@ -80,9 +80,9 @@ export function ProviderSelector({
 
   const toggleMenu = (id: DropdownId) => setOpenMenu(prev => prev === id ? null : id);
 
-  const activeProvider = providers.find((p) => p.id === selectedProvider);
+  const activeProvider = providers.find((provider) => provider.id === selectedProvider);
   const models = activeProvider?.models ?? [];
-  const activeModel = models.find((m) => m.id === selectedModel);
+  const activeModel = models.find((model) => model.id === selectedModel);
   const efforts = activeModel?.reasoningEfforts ?? [];
 
   const providerLabel = activeProvider?.name ?? 'Provider';
@@ -114,7 +114,7 @@ export function ProviderSelector({
           <DropdownMenu
             options={providerOptions}
             value={selectedProvider ?? ''}
-            onChange={(v) => { onProviderChange(v); closeMenu(); }}
+            onChange={(selectedValue) => { onProviderChange(selectedValue); closeMenu(); }}
           />
         )}
       </div>
@@ -138,7 +138,7 @@ export function ProviderSelector({
           <DropdownMenu
             options={modelOptions}
             value={selectedModel ?? ''}
-            onChange={(v) => { onModelChange(v); closeMenu(); }}
+            onChange={(selectedValue) => { onModelChange(selectedValue); closeMenu(); }}
           />
         )}
       </div>
@@ -162,7 +162,7 @@ export function ProviderSelector({
               <DropdownMenu
                 options={effortOptions}
                 value={selectedReasoningEffort ?? ''}
-                onChange={(v) => { onReasoningEffortChange(v as ReasoningEffort); closeMenu(); }}
+                onChange={(selectedValue) => { onReasoningEffortChange(selectedValue as ReasoningEffort); closeMenu(); }}
               />
             )}
           </div>

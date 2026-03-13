@@ -8,8 +8,8 @@ interface AsyncRenderState {
 }
 
 export function useAsyncRender(
-  renderFn: () => Promise<string>,
-  deps: DependencyList,
+  asyncRenderer: () => Promise<string>,
+  dependencies: DependencyList,
   initialState?: Partial<AsyncRenderState>,
 ): AsyncRenderState {
   const [html, setHtml] = useState<string | null>(initialState?.html ?? null);
@@ -24,9 +24,9 @@ export function useAsyncRender(
 
     (async () => {
       try {
-        const result = await renderFn();
+        const renderedHtml = await asyncRenderer();
         if (!cancelled) {
-          setHtml(result);
+          setHtml(renderedHtml);
           setLoading(false);
         }
       } catch (e) {
@@ -39,7 +39,7 @@ export function useAsyncRender(
 
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps);
+  }, dependencies);
 
   return { html, error, loading };
 }

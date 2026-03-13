@@ -25,18 +25,18 @@ export function useProviderSelection(): UseProviderSelectionReturn {
     if (providerList.length > 0) {
       setSelectedProviderState((prev) => {
         if (prev) return prev;
-        const p = providerList[0];
-        const firstModel = p.models[0];
-        setSelectedModelState((prevM) => prevM ?? firstModel?.id ?? null);
-        setSelectedReasoningEffortState((prevE) => prevE ?? firstModel?.defaultEffort ?? null);
-        return p.id;
+        const firstProvider = providerList[0];
+        const firstModel = firstProvider.models[0];
+        setSelectedModelState((previousModelId) => previousModelId ?? firstModel?.id ?? null);
+        setSelectedReasoningEffortState((previousEffort) => previousEffort ?? firstModel?.defaultEffort ?? null);
+        return firstProvider.id;
       });
     }
   }, []);
 
   const setSelectedProvider = useCallback((id: string) => {
     setSelectedProviderState(id);
-    const p = providers.find((p) => p.id === id);
+    const p = providers.find((provider) => provider.id === id);
     if (p && p.models.length > 0) {
       const firstModel = p.models[0];
       setSelectedModelState(firstModel.id);
@@ -49,8 +49,8 @@ export function useProviderSelection(): UseProviderSelectionReturn {
 
   const setSelectedModel = useCallback((id: string) => {
     setSelectedModelState(id);
-    const p = providers.find((p) => p.id === selectedProvider);
-    const model = p?.models.find((m) => m.id === id);
+    const p = providers.find((provider) => provider.id === selectedProvider);
+    const model = p?.models.find((model) => model.id === id);
     setSelectedReasoningEffortState(model?.defaultEffort ?? null);
   }, [providers, selectedProvider]);
 

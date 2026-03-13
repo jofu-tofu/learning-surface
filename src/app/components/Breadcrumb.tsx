@@ -30,18 +30,18 @@ export function Breadcrumb({
     );
   }
 
-  const renderCrumb = (v: VersionMeta, idx: number, isCurrent: boolean, faded: boolean) => {
-    const label = getVersionLabel(v, v.version === 1 || (idx === 0 && !faded));
-    const branches = getChildren(v.version, versions).length;
+  const renderCrumb = (versionMeta: VersionMeta, crumbIndex: number, isCurrent: boolean, faded: boolean) => {
+    const label = getVersionLabel(versionMeta, versionMeta.version === 1 || (crumbIndex === 0 && !faded));
+    const branches = getChildren(versionMeta.version, versions).length;
 
     return (
-      <React.Fragment key={v.version}>
-        {(idx > 0 || faded) && (
+      <React.Fragment key={versionMeta.version}>
+        {(crumbIndex > 0 || faded) && (
           <span className="shrink-0 text-surface-600/60 text-xs select-none">›</span>
         )}
         <button
-          data-testid={`crumb-${v.version}`}
-          onClick={() => onVersionSelect?.(v.version)}
+          data-testid={`crumb-${versionMeta.version}`}
+          onClick={() => onVersionSelect?.(versionMeta.version)}
           className={`
             shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs transition-all duration-150 cursor-pointer border
             ${focusRing}
@@ -52,14 +52,14 @@ export function Breadcrumb({
             }
           `}
         >
-          <VersionDot isCurrent={isCurrent} source={v.source} />
+          <VersionDot isCurrent={isCurrent} source={versionMeta.source} />
           <span className="truncate max-w-40">{label}</span>
           {branches > 1 && (
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); onBranchClick?.(v.version); }}
+              onClick={(e) => { e.stopPropagation(); onBranchClick?.(versionMeta.version); }}
               className={`shrink-0 ml-0.5 inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-medium bg-branch-bg border border-branch-border text-branch-text cursor-pointer hover:bg-branch-bg/80 ${focusRing}`}
-              aria-label={`Show ${branches} branches from version ${v.version}`}
+              aria-label={`Show ${branches} branches from version ${versionMeta.version}`}
             >
               {branches}
             </button>
@@ -75,8 +75,8 @@ export function Breadcrumb({
         <span className={`shrink-0 ${sectionLabel} select-none`}>
           Path
         </span>
-        {path.map((v, i) => renderCrumb(v, i, v.version === currentVersion, false))}
-        {forwardPath.map((v, i) => renderCrumb(v, i, false, true))}
+        {path.map((versionMeta, crumbIndex) => renderCrumb(versionMeta, crumbIndex, versionMeta.version === currentVersion, false))}
+        {forwardPath.map((versionMeta, crumbIndex) => renderCrumb(versionMeta, crumbIndex, false, true))}
       </div>
     </div>
   );

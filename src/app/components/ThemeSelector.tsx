@@ -16,7 +16,7 @@ export function ThemeSelector({ currentTheme, onThemeChange }: ThemeSelectorProp
   const close = useCallback(() => setOpen(false), []);
   useClickOutside(containerRef, close);
 
-  const activeLabel = THEMES.find(t => t.id === currentTheme)?.label ?? 'Theme';
+  const activeLabel = THEMES.find(theme => theme.id === currentTheme)?.label ?? 'Theme';
 
   return (
     <div ref={containerRef} className="relative">

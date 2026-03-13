@@ -45,7 +45,7 @@ import {
 } from './diagram-layout.js';
 import { edgeLabelRect } from './overlap-resolution.js';
 
-export { parseDiagramData, computeDiagramLayout } from './diagram-layout.js';
+
 
 // --- Node Shape Rendering ---
 
@@ -63,13 +63,13 @@ function NodeShape({ shape, width, height, fill, stroke }: {
         />
       );
     case 'circle': {
-      const geo = ellipseGeometry(width, height);
+      const ellipseParams = ellipseGeometry(width, height);
       return (
         <ellipse
-          cx={geo.cx}
-          cy={geo.cy}
-          rx={geo.rx}
-          ry={geo.ry}
+          cx={ellipseParams.cx}
+          cy={ellipseParams.cy}
+          rx={ellipseParams.rx}
+          ry={ellipseParams.ry}
           fill={fill}
           stroke={stroke}
           strokeWidth={SHAPE_STROKE_WIDTH}
@@ -284,10 +284,10 @@ export function DiagramRenderer({ content, containerWidth, containerHeight }: Re
     return () => cancelAnimationFrame(timer);
   }, [content]);
 
-  const data = useMemo(() => parseDiagramData(content), [content]);
-  const layout = useMemo(() => data ? computeDiagramLayout(data) : null, [data]);
+  const diagramData = useMemo(() => parseDiagramData(content), [content]);
+  const layout = useMemo(() => diagramData ? computeDiagramLayout(diagramData) : null, [diagramData]);
 
-  if (!data || !layout) {
+  if (!diagramData || !layout) {
     return <ErrorBanner message="Invalid diagram data — expected JSON with nodes and edges arrays" />;
   }
 
@@ -295,7 +295,7 @@ export function DiagramRenderer({ content, containerWidth, containerHeight }: Re
     return <div className="text-sm text-surface-400">Empty diagram</div>;
   }
 
-  const hoveredNode = hoveredNodeId ? layout.nodes.find(n => n.id === hoveredNodeId) : null;
+  const hoveredNode = hoveredNodeId ? layout.nodes.find(node => node.id === hoveredNodeId) : null;
 
   const svgStyle = computeSvgFitStyle(layout.width, layout.height, containerWidth, containerHeight);
 
@@ -362,24 +362,24 @@ export function DiagramRenderer({ content, containerWidth, containerHeight }: Re
         ))}
 
         {/* Edges (behind nodes) */}
-        {layout.edges.map((e, i) => (
+        {layout.edges.map((edge, edgeIndex) => (
           <g
-            key={`edge-${i}`}
+            key={`edge-${edgeIndex}`}
             style={{
               opacity: mounted ? 1 : 0,
-              transition: edgeTransition(i),
+              transition: edgeTransition(edgeIndex),
             }}
           >
             <path
-              d={e.path}
+              d={edge.path}
               fill="none"
               stroke="var(--color-accent-400)"
               strokeOpacity={0.5}
               strokeWidth={SHAPE_STROKE_WIDTH}
               markerEnd={`url(#dg-arrow-${markerId})`}
             />
-            {e.label && (() => {
-              const pill = edgeLabelRect(e.label, e.labelX, e.labelY);
+            {edge.label && (() => {
+              const pill = edgeLabelRect(edge.label, edge.labelX, edge.labelY);
               return (
                 <>
                   {/* Background pill for edge label */}
@@ -396,8 +396,8 @@ export function DiagramRenderer({ content, containerWidth, containerHeight }: Re
                     strokeWidth={0.75}
                   />
                   <text
-                    x={e.labelX}
-                    y={e.labelY - EDGE_LABEL_TEXT_OFFSET_Y}
+                    x={edge.labelX}
+                    y={edge.labelY - EDGE_LABEL_TEXT_OFFSET_Y}
                     textAnchor="middle"
                     fill="var(--color-accent-400)"
                     fillOpacity={0.85}
@@ -405,7 +405,7 @@ export function DiagramRenderer({ content, containerWidth, containerHeight }: Re
                     fontFamily="var(--font-sans)"
                     fontWeight={500}
                   >
-                    {e.label}
+                    {edge.label}
                   </text>
                 </>
               );

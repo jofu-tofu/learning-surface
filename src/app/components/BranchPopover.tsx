@@ -37,25 +37,25 @@ export function BranchPopover({
           </span>
         </div>
         <div className="px-1.5 pb-1.5">
-          {children.map(v => {
-            const isActive = v.version === currentVersion;
-            const label = getVersionLabel(v);
+          {children.map(childVersion => {
+            const isActive = childVersion.version === currentVersion;
+            const label = getVersionLabel(childVersion);
 
             return (
               <button
-                key={v.version}
-                data-testid={`branch-option-${v.version}`}
-                onClick={() => { onSelect(v.version); onClose(); }}
+                key={childVersion.version}
+                data-testid={`branch-option-${childVersion.version}`}
+                onClick={() => { onSelect(childVersion.version); onClose(); }}
                 className={`
                   w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs transition-all duration-150 cursor-pointer
                   ${focusRing}
                   ${isActive ? menuItemActive : menuItemInactive}
                 `}
               >
-                <VersionDot isCurrent={isActive} source={v.source} />
+                <VersionDot isCurrent={isActive} source={childVersion.source} />
                 <span className="truncate flex-1 text-left">{label}</span>
-                {v.timestamp && (
-                  <span className="shrink-0 text-[10px] text-surface-500">{formatTime(v.timestamp)}</span>
+                {childVersion.timestamp && (
+                  <span className="shrink-0 text-[10px] text-surface-500">{formatTime(childVersion.timestamp)}</span>
                 )}
               </button>
             );

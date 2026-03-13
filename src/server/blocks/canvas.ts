@@ -2,7 +2,7 @@ import type { Section, CanvasContent } from '../../shared/types.js';
 import { CANVAS_TYPES } from '../../shared/types.js';
 import type { BlockDefinition, BlockFormatDescription } from './types.js';
 
-const HEADER_PATTERN = /^###\s+canvas:\s*(\S+)/;
+const HEADER_PATTERN = /^###\s+canvas:\s*(\S+)(?:\s+(\S+))?/;
 
 export const canvasBlock: BlockDefinition = {
   type: 'canvas',
@@ -15,12 +15,16 @@ export const canvasBlock: BlockDefinition = {
     const headerMatch = header.match(HEADER_PATTERN);
     if (!headerMatch) return;
     section.canvas = { type: headerMatch[1] as CanvasContent['type'], content };
+    if (headerMatch[2]) section.canvas.language = headerMatch[2];
   },
 
   serialize(section: Section): string[] {
     if (!section.canvas) return [];
+    const header = section.canvas.language
+      ? `### canvas: ${section.canvas.type} ${section.canvas.language}`
+      : `### canvas: ${section.canvas.type}`;
     return [
-      `### canvas: ${section.canvas.type}`,
+      header,
       section.canvas.content,
       '',
     ];

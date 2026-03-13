@@ -59,22 +59,22 @@ export interface ToolDef {
 export const TOOL_DEFS: ToolDef[] = [
   {
     name: 'show_visual',
-    description: 'Replace the canvas pane with a new visual. Erases any existing visual in the active section. Use this for the first visual or to redraw from scratch. For code visuals, set language for syntax highlighting.',
+    description: 'Replace the canvas pane with a new visual. Erases any existing visual in the active section. For code visuals, set language for syntax highlighting.',
     schema: ShowVisualSchema,
   },
   {
     name: 'build_visual',
-    description: 'Append content to the existing canvas visual line by line. Requires a prior show_visual — does nothing if the canvas is empty. Use this to build up a diagram or code block incrementally.',
+    description: 'Append content to the existing canvas visual line by line. Requires a prior show_visual — does nothing if the canvas is empty.',
     schema: BuildVisualSchema,
   },
   {
     name: 'explain',
-    description: 'Replace the explanation pane with new content. Erases any existing explanation in the active section. Use this for the first explanation or to rewrite from scratch. Keep content concise — 2-4 short paragraphs that fit on screen without scrolling. If more depth is needed, create a new section instead.',
+    description: 'Replace the explanation pane with new content. Erases any existing explanation in the active section.',
     schema: ExplainSchema,
   },
   {
     name: 'extend',
-    description: 'Append content to the existing explanation. Creates the explanation if it does not exist yet. Use this to elaborate or add detail without rewriting. Keep the total explanation concise — if extending would push past 4 paragraphs, consider creating a new section for the additional detail.',
+    description: 'Append content to the existing explanation. Creates the explanation if it does not exist yet.',
     schema: ExtendSchema,
   },
   {

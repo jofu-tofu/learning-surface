@@ -5,7 +5,7 @@ AI provider abstraction — strategy pattern for REPL integration.
 ## Architecture
 
 - **`ReplProvider` interface** (defined in `shared/providers.ts`): `config` property + `complete()` method
-- **Registry** (`registry.ts`): Module-level singleton `Map`. Registers CLI provider eagerly, API provider via dynamic `import()` with try/catch. Exports `getProvider()`, `listProviders()`, `getDefaultProvider()`.
+- **Registry** (`registry.ts`): Module-level singleton `Map`. Registers CLI provider eagerly, API provider via dynamic `import()` with try/catch. Exports `getProvider()`, `listProviders()`.
 
 ## Provider Modes
 

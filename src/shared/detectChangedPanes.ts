@@ -1,18 +1,46 @@
 import type { LearningDocument, Section } from './types.js';
 
+/** Section keys that are metadata or parser internals, not renderable content. */
+const META_KEYS = new Set(['id', 'title', '_unknownBlocks']);
+
+/** Map Section content keys → pane IDs. Unmapped keys default to their own name. */
+export const CONTENT_KEY_TO_PANE: Record<string, string> = {
+  canvas: 'canvas',
+  explanation: 'explanation',
+  checks: 'explanation',      // grouped: checks render inside explanation pane
+  followups: 'explanation',   // grouped: followups render inside explanation pane
+};
+
+function contentKeyToPane(key: string): string {
+  return CONTENT_KEY_TO_PANE[key] ?? key;
+}
+
+/** Collect all non-meta keys present on either section. */
+function allContentKeys(sectionA: Section | undefined, sectionB: Section | undefined): Set<string> {
+  const keys = new Set<string>();
+  for (const section of [sectionA, sectionB]) {
+    if (!section) continue;
+    for (const key of Object.keys(section)) {
+      if (!META_KEYS.has(key)) keys.add(key);
+    }
+  }
+  return keys;
+}
+
 /** Compare two documents and return which panes changed. */
 export function detectChangedPanes(prev: LearningDocument, next: LearningDocument): Set<string> {
   const changed = new Set<string>();
   const prevActive = prev.sections.find(section => section.id === prev.activeSection);
   const nextActive = next.sections.find(section => section.id === next.activeSection);
-  if (JSON.stringify(prevActive?.canvas ?? null) !== JSON.stringify(nextActive?.canvas ?? null)) {
-    changed.add('canvas');
+
+  for (const key of allContentKeys(prevActive, nextActive)) {
+    const prevVal = (prevActive as unknown as Record<string, unknown>)?.[key] ?? null;
+    const nextVal = (nextActive as unknown as Record<string, unknown>)?.[key] ?? null;
+    if (JSON.stringify(prevVal) !== JSON.stringify(nextVal)) {
+      changed.add(contentKeyToPane(key));
+    }
   }
-  if ((prevActive?.explanation ?? null) !== (nextActive?.explanation ?? null) ||
-      JSON.stringify(prevActive?.checks ?? []) !== JSON.stringify(nextActive?.checks ?? []) ||
-      JSON.stringify(prevActive?.followups ?? []) !== JSON.stringify(nextActive?.followups ?? [])) {
-    changed.add('explanation');
-  }
+
   if (prev.sections.length !== next.sections.length) {
     changed.add('sections');
   }
@@ -21,10 +49,14 @@ export function detectChangedPanes(prev: LearningDocument, next: LearningDocumen
 
 /** Return true if a section's content differs from another. */
 function sectionContentChanged(prevSection: Section, nextSection: Section): boolean {
-  return JSON.stringify(prevSection.canvas ?? null) !== JSON.stringify(nextSection.canvas ?? null) ||
-    (prevSection.explanation ?? null) !== (nextSection.explanation ?? null) ||
-    JSON.stringify(prevSection.checks ?? []) !== JSON.stringify(nextSection.checks ?? []) ||
-    JSON.stringify(prevSection.followups ?? []) !== JSON.stringify(nextSection.followups ?? []);
+  for (const key of allContentKeys(prevSection, nextSection)) {
+    const prevVal = (prevSection as unknown as Record<string, unknown>)[key] ?? null;
+    const nextVal = (nextSection as unknown as Record<string, unknown>)[key] ?? null;
+    if (JSON.stringify(prevVal) !== JSON.stringify(nextVal)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /** Compare all sections between two documents and return IDs of sections that were added or modified. */

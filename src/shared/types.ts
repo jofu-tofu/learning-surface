@@ -63,12 +63,7 @@ export interface SurfaceContext {
     version: number;
     activeSection: string;
   };
-  surface: {
-    canvas: CanvasContent | null;
-    explanation: string | null;
-    checks: Check[];
-    followups: string[];
-  };
+  surface: Record<string, unknown>;
   sections: Array<{ title: string }>;
   promptHistory: string[];
 }
@@ -189,7 +184,6 @@ export interface ContextCompiler {
 
 export interface FileWatcherService {
   onDocumentChange(callback: (doc: LearningDocument) => void): void;
-  onVersionChange(callback: (version: number) => void): void;
   start(sessionDir: string): void;
   stop(): void;
 }

@@ -35,6 +35,7 @@ src/
   app/                 # React frontend — multi-pane tutoring surface
     components/        # Canvas, Explanation, Sidebar, SidebarPanel, ChatList, Breadcrumb, ChatBar, ProviderSelector, PromptPreview, ActivityStatus, BranchPopover, PaneHeader, ErrorBanner, EmptyState, Icon, VersionDot, ThemeSelector
       renderers/       # Registry-based visual renderers (Mermaid, KaTeX, Code, Diagram)
+      content-slots/   # Registry-based content slots for Explanation pane (ExplanationSlot, ChecksSlot, FollowupsSlot)
     hooks/             # useSurface (central state), surfaceReducer (pure state machine), SurfaceStatusContext, useWebSocket, useMarkdown, useAsyncRender, useProviderSelection, useClickOutside, useContainerSize
     utils/             # versionLabel, styles, formatTime, detectChangedPanes
   test/                # Test data builders, mock factories, markdown fixtures

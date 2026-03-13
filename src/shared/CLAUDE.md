@@ -7,6 +7,8 @@ Data contracts and shared abstractions consumed by both server and app.
 - `schemas.ts` defines Zod schemas for MCP tool parameters. `types.ts` defines data model interfaces (`LearningDocument`, `Section`, `Check`, etc.) and behavioral interfaces (`VersionStore`, `ContextCompiler`, `FileWatcherService`) independently — they are not derived from Zod via `z.infer<>`.
 - `schemas.ts` contains `TOOL_DEFS` (all 10 MCP tool definitions with name/label/description/Zod schema, typed `as const satisfies readonly ToolDefinitionEntry[]` so `ToolName` is a literal union), `toolSchemaMap` (lookup by tool name), and `zodToJsonSchema()` for MCP SDK integration.
 - `providers.ts` defines Zod schemas for provider data contracts (`ProviderConfigSchema`, `ModelConfigSchema`, `PreflightResultSchema`, `ProviderToolCallSchema`, `ToolCallResultSchema`, `ToolDefinitionSchema`, `ProviderInfoSchema`) with types derived via `z.infer<>`. The `ReplProvider` interface (strategy pattern, has methods) stays as a plain TypeScript interface.
+- `detectChangedPanes.ts` uses `CONTENT_KEY_TO_PANE` map to group Section keys into pane IDs. Unmapped keys default to their own name — this is intentional so new content types are automatically detected without editing the map. Only add explicit mappings when multiple keys should trigger the same pane flash.
+- `SurfaceContext.surface` is `Record<string, unknown>` (not typed) because the only consumer is the AI via JSON serialization — TypeScript narrowing adds no value.
 
 ## Structured Markdown Format
 
@@ -41,6 +43,7 @@ The data contract between all modules. Documents use YAML frontmatter + `##` sec
 
 ## Gotchas
 
+- **`_unknownBlocks` is a runtime-only property** added by the markdown parser (`server/markdown.ts`) via type intersection — it's not on the `Section` interface but appears in `Object.keys()`. Excluded from pane comparison and AI context via `META_KEYS` in both `detectChangedPanes.ts` and `server/context.ts`.
 - **Schema changes require integration test verification.** When adding or modifying Zod schemas in `providers.ts` or `schemas.ts`, run `INTEGRATION_TEST=1 npm test` (add `OPENAI_API_KEY` for API round-trip) to validate schemas against real provider responses. The integration tests in `server/__tests__/provider-integration.test.ts` catch schema drift — fields that don't match what the actual APIs return, hallucinated enum values, or missing required properties.
 - Changes to `schemas.ts` tool definitions must stay in sync with `server/tool-handlers.ts` (the handler registry) and `server/blocks/` (the block definitions).
 - The CLI system prompt format section in `server/system-prompt.ts` is auto-generated from the block registry — adding a new block type in `server/blocks/` automatically updates the prompt.

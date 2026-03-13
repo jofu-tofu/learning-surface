@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Canvas } from './components/Canvas.js';
 import { Explanation } from './components/Explanation.js';
+import type { Section } from '../shared/types.js';
 import { Sidebar } from './components/Sidebar.js';
 import { ChatList } from './components/ChatList.js';
 import { SidebarPanel } from './components/SidebarPanel.js';
@@ -33,6 +34,28 @@ function Pane({ id, title, className, scrollRef, children }: {
     </div>
   );
 }
+
+interface PaneConfig {
+  id: string;
+  title: string;
+  render: (props: { section: Section | undefined; onFollowupClick: (q: string) => void }) => React.ReactElement;
+  centerContent?: boolean;
+}
+
+const PANE_CONFIGS: PaneConfig[] = [
+  {
+    id: 'canvas',
+    title: 'Canvas',
+    centerContent: true,
+    render: ({ section }) => <Canvas content={section?.canvas ?? null} />,
+  },
+  {
+    id: 'explanation',
+    title: 'Explanation',
+    render: ({ section, onFollowupClick }) =>
+      <Explanation section={section} onFollowupClick={onFollowupClick} />,
+  },
+];
 
 export function App(): React.ReactElement {
   const {
@@ -68,16 +91,22 @@ export function App(): React.ReactElement {
 
   const [branchPopoverParentVersion, setBranchPopoverParentVersion] = useState<number | null>(null);
   const [currentTheme, setCurrentTheme] = useState<ThemeId>(getStoredTheme);
-  const canvasScrollRef = useRef<HTMLDivElement | null>(null);
-  const explanationScrollRef = useRef<HTMLDivElement | null>(null);
+  const paneScrollRefs = useMemo(() => {
+    const refs: Record<string, React.RefObject<HTMLDivElement | null>> = {};
+    for (const config of PANE_CONFIGS) {
+      refs[config.id] = React.createRef<HTMLDivElement>();
+    }
+    return refs;
+  }, []);
 
   useEffect(() => { applyTheme(currentTheme); }, [currentTheme]);
 
   const handlePromptSubmit = useCallback((text: string) => {
-    canvasScrollRef.current?.scrollTo({ top: 0 });
-    explanationScrollRef.current?.scrollTo({ top: 0 });
+    for (const ref of Object.values(paneScrollRefs)) {
+      ref.current?.scrollTo({ top: 0 });
+    }
     submitPrompt(text);
-  }, [submitPrompt]);
+  }, [submitPrompt, paneScrollRefs]);
 
   const activeSection = doc ? getActiveSection(doc) : undefined;
   const sectionList = doc?.sections.map((section) => ({ title: section.title })) ?? [];
@@ -145,20 +174,23 @@ export function App(): React.ReactElement {
 
             {/* Panes */}
             <div className="flex-1 flex min-h-0">
-              <Pane id="canvas" title="Canvas" className="border-r border-surface-700/40" scrollRef={canvasScrollRef}>
-                <div className="flex items-center justify-center w-full h-full">
-                  <Canvas content={activeSection?.canvas ?? null} />
-                </div>
-              </Pane>
-
-              <Pane id="explanation" title="Explanation" scrollRef={explanationScrollRef}>
-                <Explanation
-                  explanation={activeSection?.explanation ?? null}
-                  checks={activeSection?.checks ?? []}
-                  followups={activeSection?.followups ?? []}
-                  onFollowupClick={handlePromptSubmit}
-                />
-              </Pane>
+              {PANE_CONFIGS.map((config, index) => (
+                <Pane
+                  key={config.id}
+                  id={config.id}
+                  title={config.title}
+                  className={index < PANE_CONFIGS.length - 1 ? 'border-r border-surface-700/40' : undefined}
+                  scrollRef={paneScrollRefs[config.id]}
+                >
+                  {config.centerContent ? (
+                    <div className="flex items-center justify-center w-full h-full">
+                      {config.render({ section: activeSection, onFollowupClick: handlePromptSubmit })}
+                    </div>
+                  ) : (
+                    config.render({ section: activeSection, onFollowupClick: handlePromptSubmit })
+                  )}
+                </Pane>
+              ))}
             </div>
 
             {/* Breadcrumb path */}

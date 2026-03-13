@@ -7,12 +7,14 @@ export function createContextCompiler(): ContextCompiler {
     async compile(doc: LearningDocument, sessionDir: string): Promise<SurfaceContext> {
       const activeSection = doc.sections.find(section => section.id === doc.activeSection);
 
-      const surface = {
-        canvas: activeSection?.canvas ?? null,
-        explanation: activeSection?.explanation ?? null,
-        checks: activeSection?.checks ?? [],
-        followups: activeSection?.followups ?? [],
-      };
+      const META_KEYS = new Set(['id', 'title', '_unknownBlocks']);
+      const surface: Record<string, unknown> = {};
+      if (activeSection) {
+        for (const [key, value] of Object.entries(activeSection)) {
+          if (META_KEYS.has(key)) continue;
+          surface[key] = value ?? null;
+        }
+      }
 
       const sections = doc.sections.map(section => ({
         title: section.title,

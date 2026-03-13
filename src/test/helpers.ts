@@ -182,17 +182,20 @@ export function fakeProvider(
 
 /** Fake ContextCompiler that returns a minimal SurfaceContext. */
 export function fakeContextCompiler(): ContextCompiler {
+  const META_KEYS = new Set(['id', 'title', '_unknownBlocks']);
   return {
     async compile(doc) {
       const active = doc.sections.find(section => section.id === doc.activeSection);
+      const surface: Record<string, unknown> = {};
+      if (active) {
+        for (const [key, value] of Object.entries(active)) {
+          if (META_KEYS.has(key)) continue;
+          surface[key] = value ?? null;
+        }
+      }
       return {
         session: { topic: 'test', version: doc.version, activeSection: doc.activeSection },
-        surface: {
-          canvas: active?.canvas ?? null,
-          explanation: active?.explanation ?? null,
-          checks: active?.checks ?? [],
-          followups: active?.followups ?? [],
-        },
+        surface,
         sections: doc.sections.map(section => ({ title: section.title })),
         promptHistory: [],
       };

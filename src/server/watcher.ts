@@ -13,7 +13,6 @@ const DEFAULT_DOCUMENT: LearningDocument = {
 
 export function createFileWatcher(): FileWatcherService {
   const documentCallbacks: Array<(doc: LearningDocument) => void> = [];
-  const versionCallbacks: Array<(version: number) => void> = [];
   let chokidarWatcher: FSWatcher | null = null;
 
   function handleFileChange(filePath: string): void {
@@ -45,10 +44,6 @@ export function createFileWatcher(): FileWatcherService {
   return {
     onDocumentChange(callback) {
       documentCallbacks.push(callback);
-    },
-
-    onVersionChange(callback) {
-      versionCallbacks.push(callback);
     },
 
     start(sessionDir) {

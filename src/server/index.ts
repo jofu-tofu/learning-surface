@@ -80,10 +80,6 @@ export async function startServer(options: {
     }
   });
 
-  watcher.onVersionChange((version) => {
-    broadcast({ type: 'version-change', version });
-  });
-
   webSocketServer.on('connection', async (ws) => {
     if (!state.activeChatId) {
       await ensureActiveChat(chatStore, switchToChat);

@@ -30,7 +30,7 @@ All application state flows through `useSurface()` hook — document, versions, 
 | Component | Pane | Role |
 |-----------|------|------|
 | `Canvas` | Upper main | Dispatches to type-specific renderer via registry |
-| `Explanation` | Lower main | Markdown text, concept checks, follow-up questions |
+| `Explanation` | Lower main | Orchestrator — renders registered content slots from `content-slots/registry.ts`. Takes `section: Section \| undefined` |
 | `PromptPreview` | Below explanation | Shows compiled prompt preview |
 | `Sidebar` | Left (bottom) | Section TOC with status indicators |
 | `ChatList` | Left (top) | Chat list with create/switch/delete |
@@ -46,6 +46,10 @@ All application state flows through `useSurface()` hook — document, versions, 
 | `VersionDot` | In Breadcrumb | Colored dot indicating version source (AI vs user) |
 
 Renderers (`components/renderers/`): `MermaidRenderer`, `KatexRenderer`, `CodeRenderer`, `DiagramRenderer` — each handles async or synchronous rendering with loading/error states. All implement the `RendererProps` interface from `registry.ts`. Canvas type -> renderer mapping is managed by a registry (`registry.ts`), not a switch statement — adding a new visual type requires only a new renderer file and a `registerRenderer()` call. `DiagramRenderer` accepts JSON content (`{nodes, edges}`) and delegates layout computation (topological sort) to `diagram-layout.ts`.
+
+Content slots (`components/content-slots/`): `ExplanationSlot`, `ChecksSlot`, `FollowupsSlot` — each self-registers via `registerContentSlot()` with an order and `hasContent` predicate. `Explanation.tsx` is an orchestrator that renders registered slots — adding a new content type requires only a new slot file that self-registers, no `Explanation.tsx` edits needed. Mirrors the Canvas renderer registry pattern.
+
+`PANE_CONFIGS` array in `App.tsx` drives pane layout. Adding a new pane = one array entry with `id`, `title`, `render`, and optional `centerContent`.
 
 ## Conventions
 

@@ -3,25 +3,21 @@
  *
  * Extracted from diagram-layout.ts so the logic is independently testable.
  * All spatial queries use axis-aligned bounding boxes (AABB).
- *
- * Self-contained: defines its own minimal types and constants to avoid
- * circular imports with diagram-layout.ts. Structural compatibility is
- * enforced by TypeScript at call sites.
  */
 
-// Constants duplicated from diagram-layout.ts to avoid circular dependency.
-// Canonical values live there — keep in sync.
-const NODE_WIDTH = 160;
-const NODE_HEIGHT = 44;
-const HORIZONTAL_GAP = 48;
-const EDGE_LABEL_CHAR_WIDTH = 7;
-const EDGE_LABEL_PADDING = 16;
-const EDGE_LABEL_HEIGHT = 20;
-const EDGE_LABEL_TEXT_OFFSET_Y = 4;
-const BEZIER_CONTROL_FACTOR = 0.4;
-const BEZIER_CONTROL_MIN = 20;
-const REROUTE_LABEL_WEIGHT_ENDPOINT = 0.125;
-const REROUTE_LABEL_WEIGHT_ROUTE = 0.75;
+import {
+  NODE_WIDTH,
+  NODE_HEIGHT,
+  HORIZONTAL_GAP,
+  EDGE_LABEL_CHAR_WIDTH,
+  EDGE_LABEL_PADDING,
+  EDGE_LABEL_HEIGHT,
+  EDGE_LABEL_TEXT_OFFSET_Y,
+  BEZIER_CONTROL_FACTOR,
+  BEZIER_CONTROL_MIN,
+  REROUTE_LABEL_WEIGHT_ENDPOINT,
+  REROUTE_LABEL_WEIGHT_ROUTE,
+} from './diagram-constants.js';
 
 /** Minimal positioned-node shape needed by overlap resolution. */
 export interface OverlapNode {
@@ -65,11 +61,11 @@ export function rectsOverlap(a: Rect, b: Rect): boolean {
 const LABEL_CLEARANCE = 6;
 
 /** Bounding rect of an edge-label pill as rendered in DiagramRenderer. */
-export function edgeLabelRect(label: string, lx: number, ly: number): Rect {
+export function edgeLabelRect(label: string, labelCenterX: number, labelCenterY: number): Rect {
   const width = label.length * EDGE_LABEL_CHAR_WIDTH + EDGE_LABEL_PADDING;
   return {
-    x: lx - width / 2,
-    y: ly - EDGE_LABEL_HEIGHT + EDGE_LABEL_TEXT_OFFSET_Y,
+    x: labelCenterX - width / 2,
+    y: labelCenterY - EDGE_LABEL_HEIGHT + EDGE_LABEL_TEXT_OFFSET_Y,
     width,
     height: EDGE_LABEL_HEIGHT,
   };
@@ -107,7 +103,7 @@ export function findNonOverlappingPosition(
   obstacles: readonly Rect[],
 ): [number, number] {
   const orig = edgeLabelRect(label, origX, origY);
-  if (!obstacles.some(o => rectsOverlap(orig, o))) return [origX, origY];
+  if (!obstacles.some(obstacle => rectsOverlap(orig, obstacle))) return [origX, origY];
 
   const labelW = label.length * EDGE_LABEL_CHAR_WIDTH + EDGE_LABEL_PADDING;
   const labelHalfW = labelW / 2;
@@ -115,28 +111,28 @@ export function findNonOverlappingPosition(
 
   const candidates: [number, number][] = [];
 
-  for (const obs of obstacles) {
+  for (const obstacle of obstacles) {
     // Above: place label so its bottom edge clears the obstacle's top
-    candidates.push([origX, obs.y - EDGE_LABEL_TEXT_OFFSET_Y - gap]);
+    candidates.push([origX, obstacle.y - EDGE_LABEL_TEXT_OFFSET_Y - gap]);
     // Below: place label so its top edge clears the obstacle's bottom
-    candidates.push([origX, obs.y + obs.height + EDGE_LABEL_HEIGHT - EDGE_LABEL_TEXT_OFFSET_Y + gap]);
+    candidates.push([origX, obstacle.y + obstacle.height + EDGE_LABEL_HEIGHT - EDGE_LABEL_TEXT_OFFSET_Y + gap]);
     // Left: center label to the left of the obstacle
-    candidates.push([obs.x - labelHalfW - gap, origY]);
+    candidates.push([obstacle.x - labelHalfW - gap, origY]);
     // Right: center label to the right of the obstacle
-    candidates.push([obs.x + obs.width + labelHalfW + gap, origY]);
+    candidates.push([obstacle.x + obstacle.width + labelHalfW + gap, origY]);
   }
 
   // Sort by squared distance from original position (prefer small shifts)
-  candidates.sort(([ax, ay], [bx, by]) => {
-    const da = (ax - origX) ** 2 + (ay - origY) ** 2;
-    const db = (bx - origX) ** 2 + (by - origY) ** 2;
-    return da - db;
+  candidates.sort(([candidateAx, candidateAy], [candidateBx, candidateBy]) => {
+    const distanceA = (candidateAx - origX) ** 2 + (candidateAy - origY) ** 2;
+    const distanceB = (candidateBx - origX) ** 2 + (candidateBy - origY) ** 2;
+    return distanceA - distanceB;
   });
 
-  for (const [cx, cy] of candidates) {
-    const rect = edgeLabelRect(label, cx, cy);
-    if (!obstacles.some(o => rectsOverlap(rect, o))) {
-      return [cx, cy];
+  for (const [candidateX, candidateY] of candidates) {
+    const rect = edgeLabelRect(label, candidateX, candidateY);
+    if (!obstacles.some(obstacle => rectsOverlap(rect, obstacle))) {
+      return [candidateX, candidateY];
     }
   }
 
@@ -157,7 +153,7 @@ export function resolveEdgeLabelOverlaps(
   edges: OverlapEdge[],
   nodes: OverlapNode[],
 ): void {
-  const paddedNodeRects = nodes.map(n => nodeRect(n, LABEL_CLEARANCE));
+  const paddedNodeRects = nodes.map(node => nodeRect(node, LABEL_CLEARANCE));
   const placedRects: Rect[] = [];
 
   for (const edge of edges) {
@@ -210,9 +206,9 @@ export function routeCrossLayerEdges(
     const minLayer = Math.min(fromLayer, toLayer);
     const maxLayer = Math.max(fromLayer, toLayer);
 
-    const intermediateNodes = nodes.filter(n => {
-      const l = layerMap.get(n.id);
-      return l !== undefined && l > minLayer && l < maxLayer;
+    const intermediateNodes = nodes.filter(node => {
+      const layerIndex = layerMap.get(node.id);
+      return layerIndex !== undefined && layerIndex > minLayer && layerIndex < maxLayer;
     });
     if (intermediateNodes.length === 0) continue;
 
@@ -290,20 +286,20 @@ export function hasOverlaps(
   edges: readonly OverlapEdge[],
   nodes: readonly OverlapNode[],
 ): boolean {
-  const nodeRects = nodes.map(n => nodeRect(n));
+  const nodeRects = nodes.map(node => nodeRect(node));
   const labelRects: Rect[] = [];
 
   for (const edge of edges) {
     if (!edge.label) continue;
-    const lr = edgeLabelRect(edge.label, edge.labelX, edge.labelY);
+    const labelRect = edgeLabelRect(edge.label, edge.labelX, edge.labelY);
 
-    for (const nr of nodeRects) {
-      if (rectsOverlap(lr, nr)) return true;
+    for (const nodeBounds of nodeRects) {
+      if (rectsOverlap(labelRect, nodeBounds)) return true;
     }
-    for (const prev of labelRects) {
-      if (rectsOverlap(lr, prev)) return true;
+    for (const previousLabel of labelRects) {
+      if (rectsOverlap(labelRect, previousLabel)) return true;
     }
-    labelRects.push(lr);
+    labelRects.push(labelRect);
   }
 
   return false;

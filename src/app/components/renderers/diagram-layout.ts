@@ -3,6 +3,21 @@ import {
   resolveEdgeLabelOverlaps,
   routeCrossLayerEdges,
 } from './overlap-resolution.js';
+import {
+  NODE_WIDTH,
+  NODE_HEIGHT,
+  HORIZONTAL_GAP,
+  EDGE_LABEL_CHAR_WIDTH,
+  EDGE_LABEL_PADDING,
+  EDGE_LABEL_HEIGHT,
+  EDGE_LABEL_TEXT_OFFSET_Y,
+  BEZIER_CONTROL_FACTOR,
+  BEZIER_CONTROL_MIN,
+  REROUTE_LABEL_WEIGHT_ENDPOINT,
+  REROUTE_LABEL_WEIGHT_ROUTE,
+} from './diagram-constants.js';
+
+export { NODE_WIDTH, NODE_HEIGHT, EDGE_LABEL_TEXT_OFFSET_Y } from './diagram-constants.js';
 
 // --- Data Shape ---
 
@@ -33,34 +48,27 @@ export interface DiagramData {
 
 // --- Layout Constants ---
 
-export const NODE_WIDTH = 160;
-export const NODE_HEIGHT = 44;
-export const HORIZONTAL_GAP = 48;
-export const VERTICAL_GAP = 64;
-export const DIAGRAM_PADDING = 32;
-export const GROUP_PADDING = 12;
+const VERTICAL_GAP = 64;
+const DIAGRAM_PADDING = 32;
+const GROUP_PADDING = 12;
 
 // --- Shape Constants ---
 
-export const SHAPE_INSET = 1;
+const SHAPE_INSET = 1;
 export const RECT_CORNER_RADIUS = 4;
 export const ROUNDED_CORNER_RADIUS = 12;
 export const SHAPE_STROKE_WIDTH = 1.5;
 
 // --- Edge Label Constants ---
 
-export const EDGE_LABEL_CHAR_WIDTH = 7;
-export const EDGE_LABEL_PADDING = 16;
-export const EDGE_LABEL_HEIGHT = 20;
 export const EDGE_LABEL_PILL_RADIUS = 10;
-export const EDGE_LABEL_TEXT_OFFSET_Y = 4;
 export const EDGE_LABEL_FONT_SIZE = 11;
 
 // --- Node Content Constants ---
 
 export const CATEGORY_DOT_X = 12;
 export const CATEGORY_DOT_RADIUS = 3.5;
-export const CATEGORY_TEXT_OFFSET = 4;
+const CATEGORY_TEXT_OFFSET = 4;
 export const NODE_LABEL_FONT_SIZE = 13;
 export const INFO_ICON_MARGIN = 12;
 export const INFO_ICON_RADIUS = 5;
@@ -85,34 +93,27 @@ export const GROUP_RECT_DASH = '6 3';
 // --- Tooltip Constants ---
 
 export const TOOLTIP_MAX_WIDTH = 200;
-export const TOOLTIP_EDGE_PADDING = 4;
-export const TOOLTIP_Y_OFFSET = 8;
+const TOOLTIP_EDGE_PADDING = 4;
+const TOOLTIP_Y_OFFSET = 8;
 export const TOOLTIP_FO_HEIGHT = 100;
 
 // --- Animation Constants ---
 
-export const ANIMATION_DURATION = 0.4;
-export const NODE_STAGGER_DELAY = 0.05;
-export const EDGE_BASE_DELAY = 0.1;
-export const EDGE_STAGGER_DELAY = 0.03;
-export const DIMMED_OPACITY = 0.4;
-
-// --- Bezier Curve Constants ---
-
-export const BEZIER_CONTROL_FACTOR = 0.4;
-export const BEZIER_CONTROL_MIN = 20;
-export const REROUTE_LABEL_WEIGHT_ENDPOINT = 0.125;
-export const REROUTE_LABEL_WEIGHT_ROUTE = 0.75;
+const ANIMATION_DURATION = 0.4;
+const NODE_STAGGER_DELAY = 0.05;
+const EDGE_BASE_DELAY = 0.1;
+const EDGE_STAGGER_DELAY = 0.03;
+const DIMMED_OPACITY = 0.4;
 
 // --- Category Color Palette ---
 
 export const CATEGORY_COLORS: Record<NodeCategory, { fill: string; stroke: string; text: string }> = {
-  input:    { fill: '#1e3a5f', stroke: '#3b82f6', text: '#93c5fd' },
-  process:  { fill: '#14532d', stroke: '#22c55e', text: '#86efac' },
-  output:   { fill: '#431407', stroke: '#f97316', text: '#fdba74' },
-  decision: { fill: '#422006', stroke: '#eab308', text: '#fde047' },
-  concept:  { fill: '#2e1065', stroke: '#a855f7', text: '#d8b4fe' },
-  warning:  { fill: '#450a0a', stroke: '#ef4444', text: '#fca5a5' },
+  input:    { fill: 'var(--color-cat-input-fill)', stroke: 'var(--color-cat-input-stroke)', text: 'var(--color-cat-input-text)' },
+  process:  { fill: 'var(--color-cat-process-fill)', stroke: 'var(--color-cat-process-stroke)', text: 'var(--color-cat-process-text)' },
+  output:   { fill: 'var(--color-cat-output-fill)', stroke: 'var(--color-cat-output-stroke)', text: 'var(--color-cat-output-text)' },
+  decision: { fill: 'var(--color-cat-decision-fill)', stroke: 'var(--color-cat-decision-stroke)', text: 'var(--color-cat-decision-text)' },
+  concept:  { fill: 'var(--color-cat-concept-fill)', stroke: 'var(--color-cat-concept-stroke)', text: 'var(--color-cat-concept-text)' },
+  warning:  { fill: 'var(--color-cat-warning-fill)', stroke: 'var(--color-cat-warning-stroke)', text: 'var(--color-cat-warning-text)' },
 };
 
 export const DEFAULT_COLORS = {
@@ -176,11 +177,11 @@ export function computeSvgFitStyle(
   diagramWidth: number, diagramHeight: number,
   containerWidth: number | undefined, containerHeight: number | undefined,
 ): { width: string; height: string; maxWidth?: string } {
-  const cw = containerWidth ?? 0;
-  const ch = containerHeight ?? 0;
-  if (cw > 0 && ch > 0) {
+  const safeContainerWidth = containerWidth ?? 0;
+  const safeContainerHeight = containerHeight ?? 0;
+  if (safeContainerWidth > 0 && safeContainerHeight > 0) {
     const diagramAspect = diagramWidth / diagramHeight;
-    const containerAspect = cw / ch;
+    const containerAspect = safeContainerWidth / safeContainerHeight;
     if (diagramAspect > containerAspect) {
       return { width: '100%', height: 'auto' };
     }
@@ -284,8 +285,8 @@ export function computeDiagramLayout(data: DiagramData): {
     const batch = nodes
       .filter(node => !assigned.has(node.id))
       .filter(node => {
-        const preds = incoming.get(node.id) ?? new Set();
-        return [...preds].every(p => assigned.has(p) || !nodeIds.has(p));
+        const predecessors = incoming.get(node.id) ?? new Set();
+        return [...predecessors].every(predecessorId => assigned.has(predecessorId) || !nodeIds.has(predecessorId));
       })
       .map(node => node.id);
 
@@ -376,8 +377,8 @@ export function computeDiagramLayout(data: DiagramData): {
       endX = to.x;
       endY = to.y + NODE_HEIGHT / 2;
       const dx = endX - startX;
-      const cpOff = controlPointOffset(dx);
-      const path = `M ${startX} ${startY} C ${startX + cpOff} ${startY}, ${endX - cpOff} ${endY}, ${endX} ${endY}`;
+      const bezierControlOffset = controlPointOffset(dx);
+      const path = `M ${startX} ${startY} C ${startX + bezierControlOffset} ${startY}, ${endX - bezierControlOffset} ${endY}, ${endX} ${endY}`;
       positionedEdges.push({ ...edge, path, labelX: (startX + endX) / 2, labelY: (startY + endY) / 2 });
     } else {
       // Exit from bottom, enter from top
@@ -386,8 +387,8 @@ export function computeDiagramLayout(data: DiagramData): {
       endX = to.x + NODE_WIDTH / 2;
       endY = to.y;
       const dy = endY - startY;
-      const cpOff = controlPointOffset(dy);
-      const path = `M ${startX} ${startY} C ${startX} ${startY + cpOff}, ${endX} ${endY - cpOff}, ${endX} ${endY}`;
+      const bezierControlOffset = controlPointOffset(dy);
+      const path = `M ${startX} ${startY} C ${startX} ${startY + bezierControlOffset}, ${endX} ${endY - bezierControlOffset}, ${endX} ${endY}`;
       positionedEdges.push({ ...edge, path, labelX: (startX + endX) / 2, labelY: (startY + endY) / 2 });
     }
   }
@@ -412,9 +413,9 @@ export function computeDiagramLayout(data: DiagramData): {
   const groupMap = new Map<string, PositionedNode[]>();
   for (const node of positionedNodes) {
     if (node.group) {
-      const list = groupMap.get(node.group) ?? [];
-      list.push(node);
-      groupMap.set(node.group, list);
+      const groupedNodes = groupMap.get(node.group) ?? [];
+      groupedNodes.push(node);
+      groupMap.set(node.group, groupedNodes);
     }
   }
 

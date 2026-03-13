@@ -51,15 +51,21 @@ export async function startServer(options: {
     }
   }
 
+  let switchLock = Promise.resolve();
+
   async function switchToChat(chatId: string): Promise<void> {
-    watcher.stop();
-    state.activeChatId = chatId;
-    state.activeVersionStore = await initVersionStoreForChat(chatId);
+    const op = switchLock.then(async () => {
+      watcher.stop();
+      state.activeChatId = chatId;
+      state.activeVersionStore = await initVersionStoreForChat(chatId);
 
-    const chatDir = chatStore.getChatDir(chatId);
-    state.latestDocument = documentService.read(documentService.filePath(chatDir));
+      const chatDir = chatStore.getChatDir(chatId);
+      state.latestDocument = documentService.read(documentService.filePath(chatDir));
 
-    watcher.start(chatDir);
+      watcher.start(chatDir);
+    });
+    switchLock = op.catch(() => {});
+    return op;
   }
 
   watcher.onDocumentChange(async (doc) => {

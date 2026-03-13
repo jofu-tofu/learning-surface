@@ -5,7 +5,10 @@ export function getVersionPath(version: number, versions: VersionMeta[]): Versio
   const versionMap = new Map(versions.map((meta) => [meta.version, meta]));
   const path: VersionMeta[] = [];
   let cursor = version;
+  const visited = new Set<number>();
   while (cursor >= 1) {
+    if (visited.has(cursor)) break;
+    visited.add(cursor);
     const meta = versionMap.get(cursor);
     if (!meta) break;
     path.unshift(meta);
@@ -25,7 +28,10 @@ export function getChildren(version: number, versions: VersionMeta[]): VersionMe
 export function getForwardPath(version: number, versions: VersionMeta[]): VersionMeta[] {
   const forward: VersionMeta[] = [];
   let cursor = version;
+  const visited = new Set<number>();
   while (true) {
+    if (visited.has(cursor)) break;
+    visited.add(cursor);
     const children = getChildren(cursor, versions);
     if (children.length !== 1) break;
     forward.push(children[0]);

@@ -8,11 +8,15 @@ export function createVersionStore(): VersionStore {
   let sessionDir: string;
   let currentVersion = 0;
   const metaIndex = new Map<number, VersionMeta>();
+  let versionLock = Promise.resolve();
 
   function getParentChain(version: number): number[] {
     const chain: number[] = [];
     let current = version;
+    const visited = new Set<number>();
     while (current >= 1) {
+      if (visited.has(current)) break;
+      visited.add(current);
       chain.unshift(current);
       if (current === 1) break;
       const meta = metaIndex.get(current);
@@ -48,24 +52,28 @@ export function createVersionStore(): VersionStore {
       }
     },
 
-    async createVersion(content: string, meta: Omit<VersionMeta, 'version'>): Promise<number> {
-      currentVersion++;
-      const version = currentVersion;
-      const parent = meta.parent ?? (version > 1 ? version - 1 : undefined);
-      const fullMeta: VersionMeta = { version, ...meta, parent };
+    createVersion(content: string, meta: Omit<VersionMeta, 'version'>): Promise<number> {
+      const result = versionLock.then(async () => {
+        currentVersion++;
+        const version = currentVersion;
+        const parent = meta.parent ?? (version > 1 ? version - 1 : undefined);
+        const fullMeta: VersionMeta = { version, ...meta, parent };
 
-      if (version === 1) {
-        await writeFile(join(sessionDir, 'v1.md'), content, 'utf-8');
-      } else {
-        const parentContent = await reconstructVersion(parent!);
-        const patch = createPatch(`v${version}.md`, parentContent, content, '', '', { context: 3 });
-        await writeFile(join(sessionDir, `v${version}.patch`), patch, 'utf-8');
-      }
+        if (version === 1) {
+          await writeFile(join(sessionDir, 'v1.md'), content, 'utf-8');
+        } else {
+          const parentContent = await reconstructVersion(parent!);
+          const patch = createPatch(`v${version}.md`, parentContent, content, '', '', { context: 3 });
+          await writeFile(join(sessionDir, `v${version}.patch`), patch, 'utf-8');
+        }
 
-      metaIndex.set(version, fullMeta);
-      await writeFile(join(sessionDir, `v${version}.meta.json`), JSON.stringify(fullMeta), 'utf-8');
+        metaIndex.set(version, fullMeta);
+        await writeFile(join(sessionDir, `v${version}.meta.json`), JSON.stringify(fullMeta), 'utf-8');
 
-      return version;
+        return version;
+      });
+      versionLock = result.then(() => {}, () => {});
+      return result;
     },
 
     async getVersion(version: number): Promise<string> {

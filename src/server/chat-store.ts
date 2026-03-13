@@ -24,6 +24,9 @@ export function createChatStore(): ChatStore {
   }
 
   function chatDir(chatId: string): string {
+    if (chatId.includes('/') || chatId.includes('\\') || chatId.includes('..')) {
+      throw new Error(`Invalid chat ID: ${chatId}`);
+    }
     return join(dataDir, 'chats', chatId);
   }
 

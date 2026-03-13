@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import MarkdownIt from 'markdown-it';
 
 const markdownParser = new MarkdownIt({
-  html: true,
+  html: false,
   linkify: true,
   typographer: true,
 });

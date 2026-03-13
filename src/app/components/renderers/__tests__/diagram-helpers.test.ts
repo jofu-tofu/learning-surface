@@ -13,6 +13,8 @@ import {
   shapeCornerRadius,
   portPosition,
   selectPorts,
+  cubicBezierPoint,
+  edgeLabelOnCurve,
   NODE_WIDTH,
   NODE_HEIGHT,
 } from '../diagram-layout.js';
@@ -320,5 +322,73 @@ describe('selectPorts', () => {
     // Both at same position — flow bias breaks the tie toward vertical
     const result = selectPorts({ x: 100, y: 100 }, { x: 100, y: 100 }, 'TB');
     expect(result.fromPort === 'bottom' || result.fromPort === 'top').toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// cubicBezierPoint — Bézier evaluation at parameter t
+// ---------------------------------------------------------------------------
+
+describe('cubicBezierPoint', () => {
+  const p0 = { x: 0, y: 0 };
+  const p3 = { x: 300, y: 0 };
+
+  it('returns start point at t=0', () => {
+    const cp1 = { x: 100, y: -50 };
+    const cp2 = { x: 200, y: 50 };
+    const result = cubicBezierPoint(p0, cp1, cp2, p3, 0);
+    expect(result.x).toBeCloseTo(0);
+    expect(result.y).toBeCloseTo(0);
+  });
+
+  it('returns end point at t=1', () => {
+    const cp1 = { x: 100, y: -50 };
+    const cp2 = { x: 200, y: 50 };
+    const result = cubicBezierPoint(p0, cp1, cp2, p3, 1);
+    expect(result.x).toBeCloseTo(300);
+    expect(result.y).toBeCloseTo(0);
+  });
+
+  it('returns midpoint at t=0.5 when all points are collinear', () => {
+    // Straight line: control points on the line segment
+    const cp1 = { x: 100, y: 0 };
+    const cp2 = { x: 200, y: 0 };
+    const result = cubicBezierPoint(p0, cp1, cp2, p3, 0.5);
+    expect(result.x).toBeCloseTo(150);
+    expect(result.y).toBeCloseTo(0);
+  });
+
+  it('degenerate curve (all points coincident) returns that point', () => {
+    const p = { x: 42, y: 7 };
+    const result = cubicBezierPoint(p, p, p, p, 0.5);
+    expect(result.x).toBeCloseTo(42);
+    expect(result.y).toBeCloseTo(7);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// edgeLabelOnCurve — label position at curve midpoint
+// ---------------------------------------------------------------------------
+
+describe('edgeLabelOnCurve', () => {
+  it('returns midpoint for a straight-line curve (symmetric control points)', () => {
+    const start = { x: 0, y: 0 };
+    const end = { x: 200, y: 0 };
+    // Collinear control points
+    const result = edgeLabelOnCurve(start, { x: 66, y: 0 }, { x: 133, y: 0 }, end);
+    expect(result.x).toBeCloseTo(100, 0);
+    expect(result.y).toBeCloseTo(0);
+  });
+
+  it('deviates from linear midpoint when control points are asymmetric', () => {
+    const start = { x: 0, y: 0 };
+    const end = { x: 0, y: 200 };
+    // Control points pull the curve to the right
+    const cp1 = { x: 100, y: 0 };
+    const cp2 = { x: 100, y: 200 };
+    const result = edgeLabelOnCurve(start, cp1, cp2, end);
+    // Linear midpoint would be (0, 100); curve midpoint is pulled right
+    expect(result.x).toBeGreaterThan(0);
+    expect(result.y).toBeCloseTo(100);
   });
 });

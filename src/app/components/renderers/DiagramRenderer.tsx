@@ -41,6 +41,7 @@ import {
   edgeTransition,
   nodeOpacity,
   nodeLabelX,
+  LEADER_LINE_THRESHOLD,
   type PositionedNode,
 } from './diagram-layout.js';
 import { edgeLabelRect } from './overlap-resolution.js';
@@ -380,8 +381,25 @@ export function DiagramRenderer({ content, containerWidth, containerHeight }: Re
             />
             {edge.label && (() => {
               const pill = edgeLabelRect(edge.label, edge.labelX, edge.labelY);
+              const displacement = Math.hypot(
+                edge.labelX - edge.anchorX,
+                edge.labelY - edge.anchorY,
+              );
               return (
                 <>
+                  {/* Leader line connecting displaced label back to edge */}
+                  {displacement > LEADER_LINE_THRESHOLD && (
+                    <line
+                      x1={edge.anchorX}
+                      y1={edge.anchorY}
+                      x2={edge.labelX}
+                      y2={edge.labelY}
+                      stroke="var(--color-accent-400)"
+                      strokeOpacity={0.3}
+                      strokeWidth={1}
+                      strokeDasharray="3 2"
+                    />
+                  )}
                   {/* Background pill for edge label */}
                   <rect
                     x={pill.x}

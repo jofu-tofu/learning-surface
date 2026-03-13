@@ -262,13 +262,13 @@ export function selectPorts(
     : { fromPort: 'left', toPort: 'right' };
 }
 
-/** Compute Bezier edge path between two port positions. */
-function computePortEdgePath(
+/** Compute Bezier control points for an edge between two ports. */
+function computeControlPoints(
   start: { x: number; y: number },
   end: { x: number; y: number },
   fromPort: Port,
   toPort: Port,
-): string {
+): { cp1: { x: number; y: number }; cp2: { x: number; y: number } } {
   const isVertical = fromPort === 'top' || fromPort === 'bottom';
   const axisDist = isVertical ? end.y - start.y : end.x - start.x;
   const cpOffset = controlPointOffset(axisDist);
@@ -289,7 +289,32 @@ function computePortEdgePath(
     case 'right': cp2x += cpOffset; break;
   }
 
-  return `M ${start.x} ${start.y} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${end.x} ${end.y}`;
+  return { cp1: { x: cp1x, y: cp1y }, cp2: { x: cp2x, y: cp2y } };
+}
+
+/** Evaluate a cubic Bezier curve at parameter t. */
+export function cubicBezierPoint(
+  p0: { x: number; y: number },
+  p1: { x: number; y: number },
+  p2: { x: number; y: number },
+  p3: { x: number; y: number },
+  t: number,
+): { x: number; y: number } {
+  const mt = 1 - t;
+  return {
+    x: mt * mt * mt * p0.x + 3 * mt * mt * t * p1.x + 3 * mt * t * t * p2.x + t * t * t * p3.x,
+    y: mt * mt * mt * p0.y + 3 * mt * mt * t * p1.y + 3 * mt * t * t * p2.y + t * t * t * p3.y,
+  };
+}
+
+/** Evaluate edge label position on the Bezier curve at t=0.5. */
+export function edgeLabelOnCurve(
+  start: { x: number; y: number },
+  cp1: { x: number; y: number },
+  cp2: { x: number; y: number },
+  end: { x: number; y: number },
+): { x: number; y: number } {
+  return cubicBezierPoint(start, cp1, cp2, end, 0.5);
 }
 
 // --- Parsing ---
@@ -321,7 +346,13 @@ export interface PositionedEdge extends DiagramEdge {
   path: string;
   labelX: number;
   labelY: number;
+  /** On-curve anchor point (pre-displacement). Used for leader lines. */
+  anchorX: number;
+  anchorY: number;
 }
+
+/** Displacement threshold beyond which a leader line is drawn. */
+export const LEADER_LINE_THRESHOLD = 15;
 
 export interface GroupRect {
   group: string;
@@ -447,20 +478,31 @@ export function computeDiagramLayout(data: DiagramData): {
     const { fromPort, toPort } = selectPorts(from, to, direction);
     const start = portPosition(from.x, from.y, fromPort);
     const end = portPosition(to.x, to.y, toPort);
-    const path = computePortEdgePath(start, end, fromPort, toPort);
+    const { cp1, cp2 } = computeControlPoints(start, end, fromPort, toPort);
+    const path = `M ${start.x} ${start.y} C ${cp1.x} ${cp1.y}, ${cp2.x} ${cp2.y}, ${end.x} ${end.y}`;
+    const labelPos = edgeLabelOnCurve(start, cp1, cp2, end);
 
     positionedEdges.push({
       ...edge,
       path,
-      labelX: (start.x + end.x) / 2,
-      labelY: (start.y + end.y) / 2,
+      labelX: labelPos.x,
+      labelY: labelPos.y,
+      anchorX: labelPos.x,
+      anchorY: labelPos.y,
     });
   }
 
   // --- Overlap resolution ---
   // 1. Reroute cross-layer edges around intermediate nodes
   routeCrossLayerEdges(positionedEdges, positionedNodes, layerMap, posMap, isLR, totalWidth, totalHeight);
-  // 2. Shift edge labels away from nodes and each other
+
+  // 2. Snapshot on-curve anchors after rerouting but before label displacement
+  for (const edge of positionedEdges) {
+    edge.anchorX = edge.labelX;
+    edge.anchorY = edge.labelY;
+  }
+
+  // 3. Shift edge labels away from nodes and each other
   resolveEdgeLabelOverlaps(positionedEdges, positionedNodes);
 
   // Expand bounds if rerouted edges or shifted labels extend beyond original area

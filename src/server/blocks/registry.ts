@@ -16,7 +16,7 @@ const blocks: BlockDefinition[] = [
 
 /** Find the block definition that matches a ### header line. */
 export function findBlock(header: string): BlockDefinition | undefined {
-  return blocks.find(b => b.match(header));
+  return blocks.find(block => block.match(header));
 }
 
 /** All registered block definitions, in serialization order. */
@@ -29,9 +29,9 @@ export function allBlocks(): readonly BlockDefinition[] {
  * Auto-derived from registered block definitions — stays in sync automatically.
  */
 export function generateBlockRulesTable(): string {
-  const rows = blocks.map(b => {
-    const desc = b.describe();
-    return `| ${desc.header} | ${desc.maxPerSection} | ${desc.contentFormat} |`;
+  const rows = blocks.map(block => {
+    const blockFormat = block.describe();
+    return `| ${blockFormat.header} | ${blockFormat.maxPerSection} | ${blockFormat.contentFormat} |`;
   });
   return [
     '| Block | Max per section | Content format |',
@@ -52,10 +52,10 @@ export function generatePanesSummary(): string {
     followups: 'Suggested follow-up questions as a bullet list',
   };
 
-  return blocks.map(b => {
-    const desc = b.describe();
-    const paneDesc = descriptions[b.type] ?? desc.contentFormat;
-    return `- **${b.type.charAt(0).toUpperCase() + b.type.slice(1)}** (${desc.header}): ${paneDesc}`;
+  return blocks.map(block => {
+    const blockFormat = block.describe();
+    const paneDesc = descriptions[block.type] ?? blockFormat.contentFormat;
+    return `- **${block.type.charAt(0).toUpperCase() + block.type.slice(1)}** (${blockFormat.header}): ${paneDesc}`;
   }).join('\n');
 }
 
@@ -63,7 +63,7 @@ export function generatePanesSummary(): string {
  * Generate the BNF grammar BLOCK line from registered block definitions.
  */
 export function generateBlockGrammar(): string {
-  const names = blocks.map(b => `${b.type.toUpperCase()}_BLOCK`);
+  const names = blocks.map(block => `${block.type.toUpperCase()}_BLOCK`);
   return `BLOCK := ${names.join(' | ')}`;
 }
 

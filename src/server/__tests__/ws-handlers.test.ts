@@ -3,7 +3,7 @@ import { routeMessage, type SessionState } from '../ws-handlers.js';
 import { handlePrompt } from '../prompt-handler.js';
 import { createDocumentService } from '../document-service.js';
 import type { ChatStore } from '../chat-store.js';
-import type { ClientMessage, WsMessage } from '../../shared/types.js';
+import type { ClientMessage, WsMessage, WsProviderError } from '../../shared/types.js';
 import type { ReplProvider } from '../../shared/providers.js';
 import {
   MINIMAL_DOC,
@@ -143,7 +143,7 @@ describe('ws-handlers prompt flow', () => {
       ([m]) => (m as WsMessage).type === 'provider-error',
     );
     expect(error).toBeDefined();
-    expect((error![0] as WsMessage).error).toContain('API rate limited');
+    expect((error![0] as WsProviderError).error).toContain('API rate limited');
   });
 
   it('multi-turn: second prompt gets prompt-complete after first', async () => {
@@ -237,5 +237,49 @@ describe('ws-handlers prompt flow', () => {
     const error = ws.sent.find(m => m.type === 'provider-error');
     expect(error).toBeDefined();
     expect(error!.error).toContain('No active chat');
+  });
+
+  it('broadcasts tool-progress for each tool call during prompt', async () => {
+    const { broadcast, send } = setup({
+      toolCalls: [
+        { tool: 'show_visual', params: { type: 'mermaid', content: 'graph LR\n  A-->B' } },
+        { tool: 'explain', params: { content: 'Hello' } },
+      ],
+    });
+
+    await send({
+      type: 'prompt',
+      text: 'teach me',
+      provider: 'fake',
+      model: 'fake-model',
+    });
+
+    const progressCalls = broadcast.mock.calls
+      .map(([m]) => m as WsMessage)
+      .filter(m => m.type === 'tool-progress');
+
+    // thinking + 2 tool calls = 3 progress messages
+    expect(progressCalls).toHaveLength(3);
+    expect(progressCalls[0]).toMatchObject({ type: 'tool-progress', toolName: 'thinking', step: 0 });
+    expect(progressCalls[1]).toMatchObject({ type: 'tool-progress', toolName: 'show_visual', step: 1 });
+    expect(progressCalls[2]).toMatchObject({ type: 'tool-progress', toolName: 'explain', step: 2 });
+  });
+
+  it('broadcasts tool-progress thinking even with zero tool calls', async () => {
+    const { broadcast, send } = setup({ toolCalls: [] });
+
+    await send({
+      type: 'prompt',
+      text: 'just chatting',
+      provider: 'fake',
+      model: 'fake-model',
+    });
+
+    const progressCalls = broadcast.mock.calls
+      .map(([m]) => m as WsMessage)
+      .filter(m => m.type === 'tool-progress');
+
+    expect(progressCalls).toHaveLength(1);
+    expect(progressCalls[0]).toMatchObject({ toolName: 'thinking', step: 0 });
   });
 });

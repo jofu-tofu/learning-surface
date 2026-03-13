@@ -6,7 +6,7 @@ Data contracts and shared abstractions consumed by both server and app.
 
 - **Zod is the single source of truth** for all data shapes. Types in `types.ts` are re-exported `z.infer<>` results from `schemas.ts` — never define data types manually.
 - `types.ts` also defines **behavioral interfaces** (`VersionStore`, `ContextCompiler`, `FileWatcherService`) — these are the DI seams used throughout the server.
-- `schemas.ts` contains `TOOL_DEFS` (all 10 MCP tool definitions with name/description/Zod schema) and `zodToJsonSchema()` for MCP SDK integration.
+- `schemas.ts` contains `TOOL_DEFS` (all 11 MCP tool definitions with name/description/Zod schema) and `zodToJsonSchema()` for MCP SDK integration. `zodToJsonSchema()` handles nested `ZodObject` within properties (used by `ShowDiagramSchema`).
 - `providers.ts` defines the `ReplProvider` interface (strategy pattern) — `complete()` accepts an `onToolCall` callback for API-mode tool execution loops.
 
 ## Structured Markdown Format
@@ -21,7 +21,7 @@ The data contract between all modules. Documents use YAML frontmatter + `##` sec
 
 | Block | Header | Max | Notes |
 |-------|--------|-----|-------|
-| Canvas | `### canvas: TYPE` (mermaid/katex/code/flowchart/sequence) | 1 | Raw content until next heading; flowchart/sequence use JSON |
+| Canvas | `### canvas: TYPE` (diagram/mermaid/katex/code) | 1 | Raw content until next heading; diagram uses JSON |
 | Explanation | `### explanation` | 1 | Markdown text |
 | Check | `### check: ID` | unlimited | Question + `<!-- status: unanswered|attempted|revealed -->` |
 | Followups | `### followups` | 1 | Unordered list |

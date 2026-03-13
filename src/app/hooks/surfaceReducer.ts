@@ -1,0 +1,212 @@
+import type { LearningDocument, VersionMeta, WsMessage, Chat } from '../../shared/types.js';
+import type { ProviderInfo } from '../../shared/providers.js';
+import { getToolLabel } from '../../shared/tool-labels.js';
+import { detectChangedPanes } from '../utils/detectChangedPanes.js';
+import type { ToolActivity } from './useSurface.js';
+
+// === Pure state shape ===
+
+export interface SurfaceState {
+  document: LearningDocument | null;
+  versions: VersionMeta[];
+  currentVersion: number;
+  chats: Chat[];
+  activeChatId: string | null;
+  isProcessing: boolean;
+  changedPanes: Set<string>;
+  activity: ToolActivity | null;
+  providerError: string | null;
+}
+
+export const INITIAL_SURFACE_STATE: SurfaceState = {
+  document: null,
+  versions: [],
+  currentVersion: 0,
+  chats: [],
+  activeChatId: null,
+  isProcessing: false,
+  changedPanes: new Set(),
+  activity: null,
+  providerError: null,
+};
+
+// === Described side effects (executed by the hook shell) ===
+
+export type SurfaceEffect =
+  | { type: 'auto-select-providers'; providers: ProviderInfo[] }
+  | { type: 'set-providers'; providers: ProviderInfo[] }
+  | { type: 'reset-settle-timer' }
+  | { type: 'schedule-flash-clear' }
+  | { type: 'clear-settle-timer' }
+  | { type: 'send-pending-prompt' }
+  | { type: 'clear-pending-prompt' };
+
+export interface ReducerResult {
+  state: SurfaceState;
+  effects: SurfaceEffect[];
+  /** Updated prevDoc for change detection (carried as a ref in the hook). */
+  prevDoc: LearningDocument | null;
+}
+
+// === Pure reducer ===
+
+/**
+ * Pure state machine: given current state, a WebSocket message, and the
+ * previous document (for change detection), returns the next state plus
+ * a list of side effects to execute.
+ */
+export function reduceSurfaceMessage(
+  state: SurfaceState,
+  msg: WsMessage,
+  prevDoc: LearningDocument | null,
+): ReducerResult {
+  const effects: SurfaceEffect[] = [];
+
+  switch (msg.type) {
+    case 'session-init': {
+      const doc = msg.document ?? null;
+      return {
+        state: {
+          ...state,
+          document: doc,
+          currentVersion: doc?.version ?? 0,
+          versions: msg.versions,
+          chats: msg.chats,
+          activeChatId: msg.activeChatId ?? state.activeChatId,
+          isProcessing: false,
+          activity: null,
+          changedPanes: new Set(),
+          providerError: state.providerError,
+        },
+        effects: msg.providers
+          ? [{ type: 'auto-select-providers', providers: msg.providers }]
+          : [],
+        prevDoc: doc,
+      };
+    }
+
+    case 'document-update': {
+      if (!msg.document) {
+        return {
+          state: msg.versions ? { ...state, versions: msg.versions } : state,
+          effects: [],
+          prevDoc,
+        };
+      }
+
+      const next = msg.document;
+      let changedPanes = state.changedPanes;
+      const newEffects: SurfaceEffect[] = [{ type: 'reset-settle-timer' }];
+
+      if (prevDoc) {
+        const changed = detectChangedPanes(prevDoc, next);
+        if (changed.size > 0) {
+          changedPanes = changed;
+          newEffects.push({ type: 'schedule-flash-clear' });
+        }
+      }
+
+      return {
+        state: {
+          ...state,
+          document: next,
+          currentVersion: next.version,
+          versions: msg.versions ?? state.versions,
+          changedPanes,
+        },
+        effects: newEffects,
+        prevDoc: next,
+      };
+    }
+
+    case 'version-change':
+      return {
+        state: {
+          ...state,
+          document: msg.document ?? state.document,
+          currentVersion: msg.version ?? state.currentVersion,
+          versions: msg.versions ?? state.versions,
+        },
+        effects: [],
+        prevDoc,
+      };
+
+    case 'chat-list':
+      return {
+        state: {
+          ...state,
+          chats: msg.chats,
+          activeChatId: msg.activeChatId ?? state.activeChatId,
+        },
+        effects: [],
+        prevDoc,
+      };
+
+    case 'provider-list':
+      return {
+        state,
+        effects: [{ type: 'set-providers', providers: msg.providers }],
+        prevDoc,
+      };
+
+    case 'provider-error':
+      return {
+        state: {
+          ...state,
+          providerError: msg.error,
+          isProcessing: false,
+          activity: null,
+        },
+        effects: [],
+        prevDoc,
+      };
+
+    case 'tool-progress':
+      return {
+        state: {
+          ...state,
+          activity: {
+            label: getToolLabel(msg.toolName),
+            toolName: msg.toolName,
+            step: msg.step ?? 0,
+          },
+        },
+        effects: [],
+        prevDoc,
+      };
+
+    case 'preflight-result': {
+      if (msg.ok) {
+        effects.push({ type: 'send-pending-prompt' });
+      } else {
+        effects.push({ type: 'clear-pending-prompt' });
+      }
+      return {
+        state: msg.ok
+          ? state
+          : {
+              ...state,
+              providerError: msg.error ?? 'Provider is unavailable',
+              isProcessing: false,
+              activity: null,
+            },
+        effects,
+        prevDoc,
+      };
+    }
+
+    case 'prompt-complete':
+      return {
+        state: {
+          ...state,
+          isProcessing: false,
+          activity: null,
+        },
+        effects: [{ type: 'clear-settle-timer' }],
+        prevDoc,
+      };
+
+    default:
+      return { state, effects: [], prevDoc };
+  }
+}

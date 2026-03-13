@@ -2,10 +2,9 @@ import { useState, useCallback, useMemo, useRef } from 'react';
 import type { LearningDocument, VersionMeta, WsMessage, Chat, ClientMessage } from '../../shared/types.js';
 import type { ProviderInfo, ReasoningEffort } from '../../shared/providers.js';
 import { getVersionPath, getForwardPath } from '../../shared/version-tree.js';
-import { getToolLabel } from '../../shared/tool-labels.js';
 import { useWebSocket } from './useWebSocket.js';
-import { detectChangedPanes } from '../utils/detectChangedPanes.js';
 import { useProviderSelection } from './useProviderSelection.js';
+import { reduceSurfaceMessage } from './surfaceReducer.js';
 
 export interface ToolActivity {
   /** Human-readable label (e.g. "Building diagram") */
@@ -77,108 +76,65 @@ export function useSurface(): UseSurfaceReturn {
   const sendRef = useRef<(data: unknown) => void>(() => {});
 
   const onMessage = useCallback((msg: WsMessage) => {
-    switch (msg.type) {
-      case 'session-init':
-        setDocument(msg.document ?? null);
-        setCurrentVersion(msg.document?.version ?? 0);
-        setVersions(msg.versions ?? []);
-        if (msg.chats) setChats(msg.chats);
-        if (msg.activeChatId) setActiveChatId(msg.activeChatId);
-        if (msg.providers) autoSelectProvider(msg.providers);
-        prevDocRef.current = msg.document ?? null;
-        setIsProcessing(false);
-        setActivity(null);
-        setChangedPanes(new Set());
-        break;
+    const prev = prevDocRef.current;
+    const result = reduceSurfaceMessage(
+      { document, versions, currentVersion, chats, activeChatId,
+        isProcessing, changedPanes, activity, providerError },
+      msg,
+      prev,
+    );
 
-      case 'document-update':
-        if (msg.document) {
-          const prev = prevDocRef.current;
-          const next = msg.document;
-          if (prev) {
-            const changed = detectChangedPanes(prev, next);
-            if (changed.size > 0) {
-              setChangedPanes(changed);
-              clearTimeout(flashRef.current);
-              flashRef.current = setTimeout(() => setChangedPanes(new Set()), 1200);
-            }
-          }
-          prevDocRef.current = next;
-          setDocument(next);
-          setCurrentVersion(next.version);
-          // Reset settle timer
+    // Apply state updates
+    const s = result.state;
+    setDocument(s.document);
+    setVersions(s.versions);
+    setCurrentVersion(s.currentVersion);
+    setChats(s.chats);
+    setActiveChatId(s.activeChatId);
+    setIsProcessing(s.isProcessing);
+    setChangedPanes(s.changedPanes);
+    setActivity(s.activity);
+    setProviderError(s.providerError);
+    prevDocRef.current = result.prevDoc;
+
+    // Execute side effects
+    for (const effect of result.effects) {
+      switch (effect.type) {
+        case 'auto-select-providers':
+          autoSelectProvider(effect.providers);
+          break;
+        case 'set-providers':
+          setProviders(effect.providers);
+          break;
+        case 'reset-settle-timer':
           clearTimeout(settleRef.current);
           settleRef.current = setTimeout(() => {
             setIsProcessing(false);
             setActivity(null);
           }, 2500);
-        }
-        if (msg.versions) {
-          setVersions(msg.versions);
-        }
-        break;
-
-      case 'version-change':
-        if (msg.document) {
-          setDocument(msg.document);
-        }
-        if (msg.version !== undefined) {
-          setCurrentVersion(msg.version);
-        }
-        if (msg.versions) {
-          setVersions(msg.versions);
-        }
-        break;
-
-      case 'chat-list':
-        if (msg.chats) {
-          setChats(msg.chats);
-        }
-        if (msg.activeChatId) {
-          setActiveChatId(msg.activeChatId);
-        }
-        break;
-
-      case 'provider-list':
-        if (msg.providers) {
-          setProviders(msg.providers);
-        }
-        break;
-
-      case 'provider-error':
-        console.error('[provider-error]', msg.error);
-        setProviderError(msg.error ?? 'An error occurred with the provider');
-        setIsProcessing(false);
-        setActivity(null);
-        break;
-
-      case 'tool-progress':
-        if (msg.toolName !== undefined) {
-          setActivity({
-            label: getToolLabel(msg.toolName),
-            toolName: msg.toolName,
-            step: msg.step ?? 0,
-          });
-        }
-        break;
-
-      case 'preflight-result':
-        if (msg.ok && pendingPromptRef.current) {
-          sendRef.current({ type: 'prompt', ...pendingPromptRef.current });
+          break;
+        case 'schedule-flash-clear':
+          clearTimeout(flashRef.current);
+          flashRef.current = setTimeout(() => setChangedPanes(new Set()), 1200);
+          break;
+        case 'clear-settle-timer':
+          clearTimeout(settleRef.current);
+          break;
+        case 'send-pending-prompt':
+          if (pendingPromptRef.current) {
+            sendRef.current({ type: 'prompt', ...pendingPromptRef.current });
+            pendingPromptRef.current = null;
+          }
+          break;
+        case 'clear-pending-prompt':
           pendingPromptRef.current = null;
-        } else if (!msg.ok) {
-          setProviderError(msg.error ?? 'Provider is unavailable');
-          setIsProcessing(false);
-          setActivity(null);
-          pendingPromptRef.current = null;
-        }
-        break;
+          break;
+      }
+    }
 
-      case 'prompt-complete':
-        clearTimeout(settleRef.current);
-        setIsProcessing(false);
-        setActivity(null);
-        break;
+    // Log provider errors
+    if (msg.type === 'provider-error') {
+      console.error('[provider-error]', msg.error);
     }
   }, []);
 

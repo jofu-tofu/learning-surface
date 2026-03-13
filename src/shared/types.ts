@@ -3,7 +3,7 @@ import type { ProviderInfo, ReasoningEffort } from './providers.js';
 // === Core Data Types ===
 
 export interface CanvasContent {
-  type: 'mermaid' | 'katex' | 'code' | 'flowchart' | 'sequence';
+  type: 'mermaid' | 'katex' | 'code' | 'diagram';
   content: string;
   language?: string; // for code type
 }
@@ -86,23 +86,73 @@ export type ClientMessage =
 
 // === Server → Client Message Types ===
 
-export interface WsMessage {
-  type: 'document-update' | 'version-change' | 'session-init' | 'chat-list' | 'chat-deleted' | 'provider-list' | 'provider-error' | 'preflight-result' | 'tool-progress' | 'prompt-complete';
+export interface WsSessionInit {
+  type: 'session-init';
+  sessionDir: string;
+  document?: LearningDocument;
+  versions: VersionMeta[];
+  chats: Chat[];
+  activeChatId?: string;
+  providers?: ProviderInfo[];
+}
+
+export interface WsDocumentUpdate {
+  type: 'document-update';
+  document?: LearningDocument;
+  versions?: VersionMeta[];
+}
+
+export interface WsVersionChange {
+  type: 'version-change';
   document?: LearningDocument;
   version?: number;
   versions?: VersionMeta[];
-  sessionDir?: string;
-  chats?: Chat[];
+}
+
+export interface WsChatList {
+  type: 'chat-list';
+  chats: Chat[];
   activeChatId?: string;
-  chatId?: string;
-  providers?: ProviderInfo[];
+}
+
+export interface WsProviderList {
+  type: 'provider-list';
+  providers: ProviderInfo[];
+}
+
+export interface WsProviderError {
+  type: 'provider-error';
+  error: string;
+}
+
+export interface WsPreflightResult {
+  type: 'preflight-result';
+  ok: boolean;
   error?: string;
-  ok?: boolean;
-  /** Tool progress: raw tool or phase name (e.g. 'show_visual', 'thinking') */
-  toolName?: string;
-  /** Tool progress: 1-based step counter within the current prompt */
+}
+
+export interface WsToolProgress {
+  type: 'tool-progress';
+  /** Raw tool or phase name (e.g. 'show_visual', 'thinking') */
+  toolName: string;
+  /** 1-based step counter within the current prompt */
   step?: number;
 }
+
+export interface WsPromptComplete {
+  type: 'prompt-complete';
+}
+
+export type WsMessage =
+  | WsSessionInit
+  | WsDocumentUpdate
+  | WsVersionChange
+  | WsChatList
+  | WsProviderList
+  | WsProviderError
+  | WsPreflightResult
+  | WsToolProgress
+  | WsPromptComplete;
 
 // === Module Interface Contracts ===
 

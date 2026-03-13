@@ -202,3 +202,118 @@ describe('handlePrompt integration', () => {
     expect(store.createVersion).not.toHaveBeenCalled();
   });
 });
+
+describe('handlePrompt onProgress', () => {
+  function setup(opts: {
+    toolCalls?: Array<{ tool: string; params: Record<string, unknown> }>;
+    providerType?: 'api' | 'cli';
+  } = {}) {
+    const io = fakeFileIO(new Map([
+      ['/chat/current.md', MINIMAL_DOC],
+    ]));
+    const docService = createDocumentService(io);
+    const store = spyVersionStore();
+    const provider = fakeProvider(opts.toolCalls ?? [], {
+      type: opts.providerType ?? 'api',
+    });
+
+    const deps = {
+      docService,
+      contextCompiler: fakeContextCompiler(),
+      getProvider: (id: string) => id === 'fake' ? provider : undefined,
+    };
+
+    return { io, docService, store, provider, deps };
+  }
+
+  it('API mode: emits thinking then each tool call with incrementing step', async () => {
+    const onProgress = vi.fn();
+    const { deps, store } = setup({
+      toolCalls: [
+        { tool: 'show_visual', params: { type: 'mermaid', content: 'graph LR\n  A-->B' } },
+        { tool: 'explain', params: { content: 'An explanation.' } },
+        { tool: 'challenge', params: { question: 'Why?' } },
+      ],
+    });
+
+    await handlePrompt({
+      text: 'teach me',
+      providerId: 'fake',
+      modelId: 'fake-model',
+      chatDir: '/chat',
+      latestDocument: null,
+      versionStore: store,
+      onProgress,
+    }, deps);
+
+    expect(onProgress).toHaveBeenCalledTimes(4); // thinking + 3 tools
+    expect(onProgress.mock.calls[0]).toEqual(['thinking', 0]);
+    expect(onProgress.mock.calls[1]).toEqual(['show_visual', 1]);
+    expect(onProgress.mock.calls[2]).toEqual(['explain', 2]);
+    expect(onProgress.mock.calls[3]).toEqual(['challenge', 3]);
+  });
+
+  it('API mode: zero tool calls emits only thinking', async () => {
+    const onProgress = vi.fn();
+    const { deps, store } = setup({ toolCalls: [] });
+
+    await handlePrompt({
+      text: 'no tools',
+      providerId: 'fake',
+      modelId: 'fake-model',
+      chatDir: '/chat',
+      latestDocument: null,
+      versionStore: store,
+      onProgress,
+    }, deps);
+
+    expect(onProgress).toHaveBeenCalledTimes(1);
+    expect(onProgress).toHaveBeenCalledWith('thinking', 0);
+  });
+
+  it('CLI mode: emits thinking only (no per-tool progress)', async () => {
+    const onProgress = vi.fn();
+    const io = fakeFileIO(new Map([
+      ['/chat/current.md', MINIMAL_DOC],
+    ]));
+    const docService = createDocumentService(io);
+    const store = spyVersionStore();
+    const cliProvider = fakeProvider([], { type: 'cli', id: 'fake' });
+    cliProvider.complete = async () => {};
+
+    const deps = {
+      docService,
+      contextCompiler: fakeContextCompiler(),
+      getProvider: (id: string) => id === 'fake' ? cliProvider : undefined,
+    };
+
+    await handlePrompt({
+      text: 'cli prompt',
+      providerId: 'fake',
+      modelId: 'any',
+      chatDir: '/chat',
+      latestDocument: null,
+      versionStore: store,
+      onProgress,
+    }, deps);
+
+    expect(onProgress).toHaveBeenCalledTimes(1);
+    expect(onProgress).toHaveBeenCalledWith('thinking', 0);
+  });
+
+  it('onProgress is optional — works without it', async () => {
+    const { deps, store } = setup({
+      toolCalls: [{ tool: 'explain', params: { content: 'works' } }],
+    });
+
+    // Should not throw when onProgress is omitted
+    await expect(handlePrompt({
+      text: 'no callback',
+      providerId: 'fake',
+      modelId: 'fake-model',
+      chatDir: '/chat',
+      latestDocument: null,
+      versionStore: store,
+    }, deps)).resolves.toBeDefined();
+  });
+});

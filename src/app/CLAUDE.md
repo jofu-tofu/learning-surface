@@ -35,7 +35,7 @@ All application state flows through `useSurface()` hook — document, versions, 
 | `ChatBar` | Bottom | Prompt input with provider/model selector |
 | `ProviderSelector` | In ChatBar | Provider and model dropdown |
 
-Renderers (`components/renderers/`): `MermaidRenderer`, `KatexRenderer`, `CodeRenderer`, `FlowchartRenderer`, `SequenceRenderer` — each handles async or synchronous rendering with loading/error states. All implement the `RendererProps` interface from `registry.ts`. Canvas type → renderer mapping is managed by a registry (`registry.ts`), not a switch statement — adding a new visual type requires only a new renderer file and a `registerRenderer()` call. Flowchart and sequence renderers accept JSON content (structured data), not markup syntax.
+Renderers (`components/renderers/`): `MermaidRenderer`, `KatexRenderer`, `CodeRenderer`, `DiagramRenderer` — each handles async or synchronous rendering with loading/error states. All implement the `RendererProps` interface from `registry.ts`. Canvas type -> renderer mapping is managed by a registry (`registry.ts`), not a switch statement — adding a new visual type requires only a new renderer file and a `registerRenderer()` call. `DiagramRenderer` accepts JSON content (`{nodes, edges}`) and renders custom React+SVG diagrams with topological sort layout.
 
 ## Conventions
 

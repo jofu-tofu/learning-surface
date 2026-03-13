@@ -1,5 +1,5 @@
 import type { WebSocket } from 'ws';
-import type { WsMessage, VersionMeta, Chat } from '../../shared/types.js';
+import type { WsMessage, WsSessionInit, WsChatList, VersionMeta, Chat } from '../../shared/types.js';
 import type { ProviderInfo } from '../../shared/providers.js';
 import type { LearningDocument, VersionStore } from '../../shared/types.js';
 
@@ -19,7 +19,7 @@ export function buildSessionInitMsg(opts: {
   chats: Chat[];
   activeChatId?: string | null;
   providers?: ProviderInfo[];
-}): WsMessage {
+}): WsSessionInit {
   return {
     type: 'session-init',
     sessionDir: opts.sessionDir,
@@ -32,7 +32,7 @@ export function buildSessionInitMsg(opts: {
 }
 
 /** Build a chat-list message. */
-export function buildChatListMsg(chats: Chat[], activeChatId?: string | null): WsMessage {
+export function buildChatListMsg(chats: Chat[], activeChatId?: string | null): WsChatList {
   return {
     type: 'chat-list',
     chats,

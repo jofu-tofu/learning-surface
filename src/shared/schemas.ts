@@ -3,9 +3,22 @@ import { z } from 'zod';
 // === Zod Schemas for MCP Tool Parameters ===
 
 export const ShowVisualSchema = z.object({
-  type: z.enum(['mermaid', 'katex', 'code', 'flowchart', 'sequence']),
+  type: z.enum(['mermaid', 'katex', 'code']),
   content: z.string(),
   language: z.string().optional(),
+});
+
+export const ShowDiagramSchema = z.object({
+  nodes: z.array(z.object({
+    id: z.string(),
+    label: z.string(),
+    shape: z.enum(['rectangle', 'rounded', 'diamond', 'circle']).optional(),
+  })),
+  edges: z.array(z.object({
+    from: z.string(),
+    to: z.string(),
+    label: z.string().optional(),
+  })),
 });
 
 export const BuildVisualSchema = z.object({
@@ -58,8 +71,13 @@ interface ToolDef {
 
 export const TOOL_DEFS: ToolDef[] = [
   {
+    name: 'show_diagram',
+    description: 'Show a diagram on the canvas. Replaces any existing visual in the active section. Pass nodes (boxes) and edges (arrows between them) — the surface handles layout and rendering.',
+    schema: ShowDiagramSchema,
+  },
+  {
     name: 'show_visual',
-    description: 'Replace the canvas pane with a new visual. Erases any existing visual in the active section. Content format depends on type:\n- mermaid: raw Mermaid diagram syntax\n- katex: LaTeX math expression\n- code: source code (set language for syntax highlighting)\n- flowchart: JSON — {"nodes":[{"id":"string","label":"string","shape?":"rectangle|rounded|diamond|circle"}],"edges":[{"from":"id","to":"id","label?":"string"}]}\n- sequence: JSON — {"actors":["string"],"messages":[{"from":"actor","to":"actor","label":"string","dashed?":true}]}',
+    description: 'Replace the canvas pane with a Mermaid diagram, KaTeX math, or syntax-highlighted code. Erases any existing visual in the active section. For code, set language for highlighting.',
     schema: ShowVisualSchema,
   },
   {
@@ -135,6 +153,10 @@ function zodFieldToJsonSchema(field: z.ZodTypeAny): Record<string, unknown> {
 
   if (field instanceof z.ZodArray) {
     return { type: 'array', items: zodFieldToJsonSchema(field.element) };
+  }
+
+  if (field instanceof z.ZodObject) {
+    return zodToJsonSchema(field);
   }
 
   // Fallback

@@ -4,6 +4,12 @@
 // TEACHING_SYSTEM_PROMPT is the shared persona + pedagogy, used by all providers.
 // SYSTEM_PROMPT is used by API providers (tool-calling mode).
 // CLI_SYSTEM_PROMPT is used by CLI providers (file-editing mode).
+//
+// Block-specific format sections (panes summary, block rules table, BNF grammar)
+// are auto-generated from the block registry — adding a new block type automatically
+// updates these sections.
+
+import { generatePanesSummary, generateBlockRulesTable, generateBlockGrammar } from './blocks/registry.js';
 
 /**
  * Shared persona and teaching principles.
@@ -36,7 +42,8 @@ export const SYSTEM_PROMPT = `${TEACHING_SYSTEM_PROMPT}
 You control the learning surface exclusively through tool calls. Every response to the learner is a tool call — your text output is your internal reasoning and the learner never sees it. Call at least one tool per response.
 
 - Create a section with \`new_section\`, then switch to it with \`set_active\`
-- Show a diagram or code visual with \`show_visual\`, build it up incrementally with \`build_visual\`. Prefer flowchart/sequence types over mermaid when the diagram fits — the rendering is cleaner.
+- Show a diagram with \`show_diagram\` — pass nodes and edges, the surface handles layout and rendering
+- Show other visuals (Mermaid, math, code) with \`show_visual\`, add to them with \`build_visual\`
 - Write an explanation with \`explain\`, add to it with \`extend\`
 - Add a comprehension check with \`challenge\`
 - Suggest follow-up questions with \`suggest_followups\`
@@ -54,7 +61,7 @@ export const CLI_SYSTEM_PROMPT = `${TEACHING_SYSTEM_PROMPT}
 Edit the file \`current.md\` in the current directory. The UI renders this file in real time. Only modify this one file.
 
 ## Panes
-- **Canvas** (\`### canvas: TYPE\`): Visuals — Mermaid diagrams (\`mermaid\`), KaTeX math (\`katex\`), code blocks (\`code\`), flowcharts (\`flowchart\`), or sequence diagrams (\`sequence\`). For flowchart and sequence, content is JSON (see format below).
+- **Canvas** (\`### canvas: TYPE\`): Visuals — diagrams (\`diagram\`), Mermaid (\`mermaid\`), KaTeX math (\`katex\`), or code blocks (\`code\`). For diagram, content is JSON (see format below).
 - **Explanation** (\`### explanation\`): Text explanations in markdown
 - **Checks** (\`### check: ID\`): Comprehension check questions
 - **Follow-ups** (\`### followups\`): Suggested follow-up questions as a bullet list
@@ -101,7 +108,7 @@ summary: <string>            # (optional) AI-generated short label for this vers
 
 | Block | Header | Max per section | Content format |
 |-------|--------|-----------------|----------------|
-| Canvas | \`### canvas: TYPE\` (mermaid, katex, code, flowchart, sequence) | 1 | Raw content until next heading |
+| Canvas | \`### canvas: TYPE\` (diagram, mermaid, katex, code) | 1 | Raw content until next heading |
 | Explanation | \`### explanation\` | 1 | Markdown text |
 | Check | \`### check: ID\` | Unlimited | Question text, then \`<!-- status: unanswered|attempted|revealed -->\` |
 | Followups | \`### followups\` | 1 | Markdown unordered list |
@@ -113,13 +120,11 @@ summary: <string>            # (optional) AI-generated short label for this vers
 
 ### Structured canvas types
 
-For \`flowchart\` and \`sequence\` canvas types, content is a JSON object:
+For \`diagram\` canvas type, content is a JSON object:
 
-**flowchart:** \`{"nodes":[{"id":"string","label":"string","shape?":"rectangle|rounded|diamond|circle"}],"edges":[{"from":"id","to":"id","label?":"string"}]}\`
+\`{"nodes":[{"id":"string","label":"string","shape?":"rectangle|rounded|diamond|circle"}],"edges":[{"from":"id","to":"id","label?":"string"}]}\`
 
-**sequence:** \`{"actors":["string"],"messages":[{"from":"actor","to":"actor","label":"string","dashed?":true}]}\`
-
-Prefer flowchart/sequence over mermaid when the diagram fits these shapes — the rendering is cleaner.
+Prefer diagram over mermaid — the rendering is cleaner.
 
 ### Example
 
@@ -132,20 +137,16 @@ summary: TCP Handshake
 
 ## What is TCP?
 
-### canvas: mermaid
-graph LR
-  A[Application] --> B[TCP] --> C[IP] --> D[Network]
+### canvas: diagram
+{"nodes":[{"id":"app","label":"Application"},{"id":"tcp","label":"TCP"},{"id":"ip","label":"IP"},{"id":"net","label":"Network"}],"edges":[{"from":"app","to":"tcp"},{"from":"tcp","to":"ip"},{"from":"ip","to":"net"}]}
 
 ### explanation
 TCP is a connection-oriented protocol that ensures reliable data delivery...
 
 ## The Three-Way Handshake
 
-### canvas: mermaid
-sequenceDiagram
-  Client->>Server: SYN
-  Server->>Client: SYN-ACK
-  Client->>Server: ACK
+### canvas: diagram
+{"nodes":[{"id":"syn","label":"Client sends SYN"},{"id":"synack","label":"Server sends SYN-ACK"},{"id":"ack","label":"Client sends ACK"},{"id":"done","label":"Connected","shape":"rounded"}],"edges":[{"from":"syn","to":"synack"},{"from":"synack","to":"ack"},{"from":"ack","to":"done"}]}
 
 ### explanation
 The three-way handshake establishes a reliable connection...

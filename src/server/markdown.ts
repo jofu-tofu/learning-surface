@@ -2,125 +2,28 @@ import matter from 'gray-matter';
 import type {
   LearningDocument,
   Section,
-  CanvasContent,
-  Check,
 } from '../shared/types.js';
 import { slugify } from '../shared/slugify.js';
 import { applyTool } from './tool-handlers.js';
+import { findBlock, allBlocks, splitBlocks, type RawBlock } from './blocks/registry.js';
 
 // === Helpers ===
 
-interface RawBlock {
-  header: string; // the full ### line, e.g. "### canvas: mermaid"
-  content: string; // trimmed content between this header and the next
-}
-
-function parseBlocks(body: string): RawBlock[] {
-  const lines = body.split('\n');
-  const blocks: RawBlock[] = [];
-  let currentHeader: string | null = null;
-  let currentLines: string[] = [];
-
-  for (const line of lines) {
-    if (line.startsWith('### ')) {
-      if (currentHeader !== null) {
-        blocks.push({ header: currentHeader, content: currentLines.join('\n').trim() });
-      }
-      currentHeader = line;
-      currentLines = [];
-    } else if (currentHeader !== null) {
-      currentLines.push(line);
-    }
-  }
-  if (currentHeader !== null) {
-    blocks.push({ header: currentHeader, content: currentLines.join('\n').trim() });
-  }
-  return blocks;
-}
-
-function extractComment(line: string, key: string): string | null {
-  const m = line.match(new RegExp(`<!--\\s*${key}:\\s*(.*?)\\s*-->`));
-  return m ? m[1] : null;
-}
-
 function parseSection(title: string, body: string): Section & { _unknownBlocks?: RawBlock[] } {
   const id = slugify(title);
+  const rawBlocks = splitBlocks(body);
 
-  const blocks = parseBlocks(body);
-
-  let canvas: CanvasContent | undefined;
-  let explanation: string | undefined;
-  const checks: Check[] = [];
-  let followups: string[] | undefined;
+  const section: Section & { _unknownBlocks?: RawBlock[] } = { id, title };
   const unknownBlocks: RawBlock[] = [];
 
-  for (const block of blocks) {
-    const canvasMatch = block.header.match(/^###\s+canvas:\s*(\S+)/);
-    if (canvasMatch) {
-      canvas = { type: canvasMatch[1] as CanvasContent['type'], content: block.content };
-      continue;
+  for (const raw of rawBlocks) {
+    const def = findBlock(raw.header);
+    if (def) {
+      def.parse(raw.header, raw.content, section);
+    } else {
+      unknownBlocks.push(raw);
     }
-
-    if (block.header.match(/^###\s+explanation\s*$/)) {
-      explanation = block.content;
-      continue;
-    }
-
-    const checkMatch = block.header.match(/^###\s+check:\s*(\S+)/);
-    if (checkMatch) {
-      const checkId = checkMatch[1];
-      const checkLines = block.content.split('\n');
-      // First non-empty, non-comment line is the question
-      let question = '';
-      let checkStatus: Check['status'] = 'unanswered';
-      let hints: string[] | undefined;
-      let answer: string | undefined;
-      let answerExplanation: string | undefined;
-
-      const nonEmpty = checkLines.filter(l => l.trim() !== '');
-      for (const line of nonEmpty) {
-        const trimmed = line.trim();
-        if (trimmed.startsWith('<!--')) {
-          const statusVal = trimmed.match(/<!--\s*status:\s*(unanswered|attempted|revealed)\s*-->/)?.[1];
-          if (statusVal) { checkStatus = statusVal as Check['status']; continue; }
-          const hintsVal = extractComment(trimmed, 'hints');
-          if (hintsVal) { try { hints = JSON.parse(hintsVal); } catch { /* ignore malformed */ } continue; }
-          const answerVal = extractComment(trimmed, 'answer');
-          if (answerVal) { answer = answerVal; continue; }
-          const explVal = extractComment(trimmed, 'explanation');
-          if (explVal) { answerExplanation = explVal; continue; }
-        }
-        if (!question) { question = trimmed; }
-      }
-
-      const check: Check = { id: checkId, question, status: checkStatus };
-      if (hints) check.hints = hints;
-      if (answer !== undefined) check.answer = answer;
-      if (answerExplanation !== undefined) check.answerExplanation = answerExplanation;
-      checks.push(check);
-      continue;
-    }
-
-    if (block.header.match(/^###\s+followups\s*$/)) {
-      followups = block.content
-        .split('\n')
-        .filter(l => l.match(/^\s*-\s+/))
-        .map(l => l.replace(/^\s*-\s+/, '').trim());
-      continue;
-    }
-
-    // Unknown block — preserve for round-trip
-    unknownBlocks.push(block);
   }
-
-  const section: Section & { _unknownBlocks?: RawBlock[] } = {
-    id,
-    title,
-    ...(canvas ? { canvas } : {}),
-    ...(explanation !== undefined ? { explanation } : {}),
-    ...(checks.length > 0 ? { checks } : {}),
-    ...(followups ? { followups } : {}),
-  };
 
   if (unknownBlocks.length > 0) {
     section._unknownBlocks = unknownBlocks;
@@ -197,42 +100,9 @@ export function serialize(doc: LearningDocument): string {
       }
     }
 
-    if (section.canvas) {
-      lines.push(`### canvas: ${section.canvas.type}`);
-      lines.push(section.canvas.content);
-      lines.push('');
-    }
-
-    if (section.explanation !== undefined) {
-      lines.push('### explanation');
-      lines.push(section.explanation);
-      lines.push('');
-    }
-
-    if (section.checks) {
-      for (const check of section.checks) {
-        lines.push(`### check: ${check.id}`);
-        lines.push(check.question);
-        lines.push(`<!-- status: ${check.status} -->`);
-        if (check.hints && check.hints.length > 0) {
-          lines.push(`<!-- hints: ${JSON.stringify(check.hints)} -->`);
-        }
-        if (check.answer !== undefined) {
-          lines.push(`<!-- answer: ${check.answer} -->`);
-        }
-        if (check.answerExplanation !== undefined) {
-          lines.push(`<!-- explanation: ${check.answerExplanation} -->`);
-        }
-        lines.push('');
-      }
-    }
-
-    if (section.followups) {
-      lines.push('### followups');
-      for (const followup of section.followups) {
-        lines.push(`- ${followup}`);
-      }
-      lines.push('');
+    // Delegate to registered block definitions in registry order
+    for (const def of allBlocks()) {
+      lines.push(...def.serialize(section));
     }
   }
 

@@ -70,7 +70,7 @@ export async function startServer(options: {
       const chat = chatStore.getChat(state.activeChatId);
       if (chat && chat.title === 'New Chat') {
         await chatStore.updateChatTitle(state.activeChatId, doc.summary);
-        broadcast({ type: 'chat-list', chats: chatStore.listChats(), activeChatId: state.activeChatId });
+        broadcast({ type: 'chat-list', chats: chatStore.listChats(), activeChatId: state.activeChatId ?? undefined });
       }
     }
 

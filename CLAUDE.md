@@ -32,8 +32,8 @@ src/
     utils/             # WebSocket helpers, version meta reader
   app/                 # React frontend — multi-pane tutoring surface
     components/        # Canvas, Explanation, Sidebar, SidebarPanel, ChatList, Breadcrumb, ChatBar, ProviderSelector, ErrorBanner
-      renderers/       # Registry-based visual renderers (Mermaid, KaTeX, Code, Flowchart, Sequence)
-    hooks/             # useSurface (central state), useWebSocket, useMarkdown, useAsyncRender, useProviderSelection, useClickOutside
+      renderers/       # Registry-based visual renderers (Mermaid, KaTeX, Code, Diagram)
+    hooks/             # useSurface (central state), surfaceReducer (pure state machine), useWebSocket, useMarkdown, useAsyncRender, useProviderSelection, useClickOutside
     utils/             # versionLabel, styles, formatTime, detectChangedPanes
   test/                # Test data builders, mock factories, markdown fixtures
 ```
@@ -46,7 +46,7 @@ src/
 
 - Single window — no tab-switching, no separate apps
 - Must work with existing REPL subscriptions — CLI provider uses codex CLI auth (default, no API key); API provider uses `OPENAI_API_KEY` env var
-- Use existing libraries (markdown-it, Mermaid, KaTeX, chokidar) — do not build custom parsers or renderers
+- Use existing libraries (markdown-it, Mermaid, KaTeX, chokidar) where they fit — custom renderers (e.g., DiagramRenderer) are appropriate when structured data needs bespoke SVG layout
 - Desktop-first (VS Code / browser)
 
 ## Design Principles

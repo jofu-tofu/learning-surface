@@ -17,7 +17,7 @@ import {
  */
 describe('handlePrompt integration', () => {
   function setup(opts: {
-    toolCalls?: Array<{ tool: string; params: Record<string, unknown> }>;
+    toolCalls?: Array<{ toolName: string; params: Record<string, unknown> }>;
     providerType?: 'api' | 'cli';
     initialDoc?: string;
   } = {}) {
@@ -55,7 +55,7 @@ describe('handlePrompt integration', () => {
 
   it('API mode: single tool call mutates document', async () => {
     const { deps, store } = setup({
-      toolCalls: [{ tool: 'explain', params: { content: 'TCP is a transport protocol.' } }],
+      toolCalls: [{ toolName: 'explain', params: { content: 'TCP is a transport protocol.' } }],
     });
 
     const result = await handlePrompt({
@@ -73,11 +73,11 @@ describe('handlePrompt integration', () => {
   it('API mode: multi-tool sequence composes correctly', async () => {
     const { deps, store } = setup({
       toolCalls: [
-        { tool: 'new_section', params: { title: 'TCP Basics' } },
-        { tool: 'set_active', params: { section: 'tcp-basics' } },
-        { tool: 'show_visual', params: { type: 'mermaid', content: 'graph TD\n  SYN-->ACK' } },
-        { tool: 'explain', params: { content: 'TCP uses a three-way handshake.' } },
-        { tool: 'challenge', params: { question: 'What are the three steps?' } },
+        { toolName: 'new_section', params: { title: 'TCP Basics' } },
+        { toolName: 'set_active', params: { section: 'tcp-basics' } },
+        { toolName: 'show_visual', params: { type: 'mermaid', content: 'graph TD\n  SYN-->ACK' } },
+        { toolName: 'explain', params: { content: 'TCP uses a three-way handshake.' } },
+        { toolName: 'challenge', params: { question: 'What are the three steps?' } },
       ],
     });
 
@@ -115,7 +115,7 @@ describe('handlePrompt integration', () => {
 
   it('API mode: tool calls bump version → version store receives snapshot', async () => {
     const { deps, store } = setup({
-      toolCalls: [{ tool: 'explain', params: { content: 'New content' } }],
+      toolCalls: [{ toolName: 'explain', params: { content: 'New content' } }],
     });
 
     await handlePrompt({
@@ -204,7 +204,7 @@ describe('handlePrompt integration', () => {
 
 describe('handlePrompt onProgress', () => {
   function setup(opts: {
-    toolCalls?: Array<{ tool: string; params: Record<string, unknown> }>;
+    toolCalls?: Array<{ toolName: string; params: Record<string, unknown> }>;
     providerType?: 'api' | 'cli';
   } = {}) {
     const io = fakeFileIO(new Map([
@@ -229,9 +229,9 @@ describe('handlePrompt onProgress', () => {
     const onProgress = vi.fn();
     const { deps, store } = setup({
       toolCalls: [
-        { tool: 'show_visual', params: { type: 'mermaid', content: 'graph LR\n  A-->B' } },
-        { tool: 'explain', params: { content: 'An explanation.' } },
-        { tool: 'challenge', params: { question: 'Why?' } },
+        { toolName: 'show_visual', params: { type: 'mermaid', content: 'graph LR\n  A-->B' } },
+        { toolName: 'explain', params: { content: 'An explanation.' } },
+        { toolName: 'challenge', params: { question: 'Why?' } },
       ],
     });
 
@@ -302,7 +302,7 @@ describe('handlePrompt onProgress', () => {
 
   it('onProgress is optional — works without it', async () => {
     const { deps, store } = setup({
-      toolCalls: [{ tool: 'explain', params: { content: 'works' } }],
+      toolCalls: [{ toolName: 'explain', params: { content: 'works' } }],
     });
 
     // Should not throw when onProgress is omitted

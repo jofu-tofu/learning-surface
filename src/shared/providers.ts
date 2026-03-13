@@ -24,7 +24,7 @@ export interface ToolDefinition {
 }
 
 export interface ProviderToolCall {
-  tool: string;
+  toolName: string;
   params: Record<string, unknown>;
 }
 

@@ -47,7 +47,7 @@ function fakeChatStore(chatDir = '/chat'): ChatStore {
 // === Test helpers ===
 
 function setup(opts: {
-  toolCalls?: Array<{ tool: string; params: Record<string, unknown> }>;
+  toolCalls?: Array<{ toolName: string; params: Record<string, unknown> }>;
   providerType?: 'api' | 'cli';
   initialDoc?: string;
 } = {}) {
@@ -96,7 +96,7 @@ function setup(opts: {
 describe('ws-handlers prompt flow', () => {
   it('sends prompt-complete after successful prompt', async () => {
     const { ws, send } = setup({
-      toolCalls: [{ tool: 'explain', params: { content: 'Hello' } }],
+      toolCalls: [{ toolName: 'explain', params: { content: 'Hello' } }],
     });
 
     await send({
@@ -164,7 +164,7 @@ describe('ws-handlers prompt flow', () => {
 
     // First prompt: AI adds an explanation
     let currentProvider: ReplProvider = fakeProvider([
-      { tool: 'explain', params: { content: 'TCP is a transport protocol.' } },
+      { toolName: 'explain', params: { content: 'TCP is a transport protocol.' } },
     ]);
 
     const promptDeps = {
@@ -197,7 +197,7 @@ describe('ws-handlers prompt flow', () => {
 
     // Second prompt: AI replaces explanation
     currentProvider = fakeProvider([
-      { tool: 'explain', params: { content: 'TCP uses a three-way handshake.' } },
+      { toolName: 'explain', params: { content: 'TCP uses a three-way handshake.' } },
     ]);
 
     await routeMessage(ws as unknown as import('ws').WebSocket, {
@@ -242,8 +242,8 @@ describe('ws-handlers prompt flow', () => {
   it('broadcasts tool-progress for each tool call during prompt', async () => {
     const { broadcast, send } = setup({
       toolCalls: [
-        { tool: 'show_visual', params: { type: 'mermaid', content: 'graph LR\n  A-->B' } },
-        { tool: 'explain', params: { content: 'Hello' } },
+        { toolName: 'show_visual', params: { type: 'mermaid', content: 'graph LR\n  A-->B' } },
+        { toolName: 'explain', params: { content: 'Hello' } },
       ],
     });
 

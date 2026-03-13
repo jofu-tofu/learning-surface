@@ -106,7 +106,7 @@ export function createCodexProvider(): ReplProvider {
           }
 
           const call: ProviderToolCall = {
-            tool: toolCall.function.name,
+            toolName: toolCall.function.name,
             params,
           };
 

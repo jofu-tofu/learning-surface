@@ -119,18 +119,18 @@ export async function handlePrompt(
       reasoningEffort,
       async onToolCall(call) {
         toolStep++;
-        req.onProgress?.(call.tool, toolStep);
+        req.onProgress?.(call.toolName, toolStep);
 
         const applied = docService.applyTool(
           filePath,
-          call.tool,
+          call.toolName,
           call.params,
           startVersion + 1,
         );
 
         return {
           success: true,
-          message: `Applied ${call.tool} → version ${applied.version}`,
+          message: `Applied ${call.toolName} → version ${applied.version}`,
         };
       },
     });

@@ -8,7 +8,8 @@ A comprehension engine that transforms AI output into a multi-pane learning surf
 |---------|---------|
 | `npm test` | Run all tests (vitest) |
 | `npx tsc --noEmit` | Type check |
-| `npm run dev` | Start Vite dev server (frontend) |
+| `npm run dev` | Start server + Vite dev UI (concurrently) |
+| `npm run typecheck` | Type check (alias for `tsc --noEmit`) |
 
 Server tests run in node environment; component tests run in jsdom.
 
@@ -32,8 +33,8 @@ src/
     providers/         # AI provider abstraction (CLI via codex exec, API via OpenAI SDK)
     utils/             # WebSocket helpers, version meta reader
   app/                 # React frontend — multi-pane tutoring surface
-    components/        # Canvas, Explanation, Sidebar, SidebarPanel, ChatList, Breadcrumb, ChatBar, ProviderSelector, ErrorBanner
-      renderers/       # Registry-based visual renderers (Mermaid, KaTeX, Code, Diagram)
+    components/        # Canvas, Explanation, Sidebar, SidebarPanel, ChatList, Breadcrumb, ChatBar, ProviderSelector, PromptPreview, ActivityStatus, BranchPopover, PaneHeader, ErrorBanner, EmptyState, Icon, VersionDot
+      renderers/       # Registry-based visual renderers (Mermaid, KaTeX, Code, Diagram, Sequence)
     hooks/             # useSurface (central state), surfaceReducer (pure state machine), useWebSocket, useMarkdown, useAsyncRender, useProviderSelection, useClickOutside
     utils/             # versionLabel, styles, formatTime, detectChangedPanes
   test/                # Test data builders, mock factories, markdown fixtures

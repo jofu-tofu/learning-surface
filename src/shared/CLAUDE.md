@@ -4,9 +4,8 @@ Data contracts and shared abstractions consumed by both server and app.
 
 ## Conventions
 
-- **Zod is the single source of truth** for all data shapes. Types in `types.ts` are re-exported `z.infer<>` results from `schemas.ts` — never define data types manually.
-- `types.ts` also defines **behavioral interfaces** (`VersionStore`, `ContextCompiler`, `FileWatcherService`) — these are the DI seams used throughout the server.
-- `schemas.ts` contains `TOOL_DEFS` (all 11 MCP tool definitions with name/description/Zod schema) and `zodToJsonSchema()` for MCP SDK integration. `zodToJsonSchema()` handles nested `ZodObject` within properties (used by `ShowDiagramSchema`).
+- `schemas.ts` defines Zod schemas for MCP tool parameters. `types.ts` defines data model interfaces (`LearningDocument`, `Section`, `Check`, etc.) and behavioral interfaces (`VersionStore`, `ContextCompiler`, `FileWatcherService`) independently — they are not derived from Zod via `z.infer<>`.
+- `schemas.ts` contains `TOOL_DEFS` (all 11 MCP tool definitions with name/description/Zod schema), `toolSchemaMap` (lookup by tool name), and `zodToJsonSchema()` for MCP SDK integration.
 - `providers.ts` defines the `ReplProvider` interface (strategy pattern) — `complete()` accepts an `onToolCall` callback for API-mode tool execution loops.
 
 ## Structured Markdown Format
@@ -32,9 +31,10 @@ The data contract between all modules. Documents use YAML frontmatter + `##` sec
 
 | File | Role |
 |------|------|
-| `schemas.ts` | Zod schemas, tool definitions, JSON schema conversion |
-| `types.ts` | Re-exports data types + behavioral interface contracts |
+| `schemas.ts` | Zod schemas, tool definitions (`TOOL_DEFS`, `toolSchemaMap`), JSON schema conversion |
+| `types.ts` | Data model interfaces + behavioral interface contracts |
 | `providers.ts` | `ReplProvider` interface, `ProviderConfig`, `ToolCallResult` |
+| `tool-labels.ts` | Human-readable tool/phase labels for UI activity display |
 | `version-tree.ts` | Pure tree traversal for version history (parent chain, children, forward path) |
 | `slugify.ts` | Title -> URL-safe slug |
 

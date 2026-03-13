@@ -29,11 +29,19 @@ All application state flows through `useSurface()` hook — document, versions, 
 |-----------|------|------|
 | `Canvas` | Upper main | Dispatches to type-specific renderer via registry |
 | `Explanation` | Lower main | Markdown text, concept checks, follow-up questions |
+| `PromptPreview` | Below explanation | Shows compiled prompt preview |
 | `Sidebar` | Left (bottom) | Section TOC with status indicators |
 | `ChatList` | Left (top) | Chat list with create/switch/delete |
 | `Breadcrumb` | Below main | Version timeline with dot navigation |
 | `ChatBar` | Bottom | Prompt input with provider/model selector |
 | `ProviderSelector` | In ChatBar | Provider and model dropdown |
+| `PaneHeader` | Above each pane | Pane label with processing shimmer |
+| `ActivityStatus` | Top bar | Live tool-call activity during processing |
+| `BranchPopover` | Over breadcrumb | Popover for exploring version branches |
+| `ErrorBanner` | Inline | Error display with icon |
+| `EmptyState` | Inline | Reusable empty-state placeholder |
+| `Icon` | Inline | SVG icon system with named icons |
+| `VersionDot` | In Breadcrumb | Colored dot indicating version source (AI vs user) |
 
 Renderers (`components/renderers/`): `MermaidRenderer`, `KatexRenderer`, `CodeRenderer`, `DiagramRenderer` — each handles async or synchronous rendering with loading/error states. All implement the `RendererProps` interface from `registry.ts`. Canvas type -> renderer mapping is managed by a registry (`registry.ts`), not a switch statement — adding a new visual type requires only a new renderer file and a `registerRenderer()` call. `DiagramRenderer` accepts JSON content (`{nodes, edges}`) and renders custom React+SVG diagrams with topological sort layout.
 

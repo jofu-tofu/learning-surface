@@ -28,6 +28,7 @@ No find/replace tools — they're fragile (silent no-op on mismatch). When the A
 | File | Role |
 |------|------|
 | `index.ts` | Server factory — wires WebSocket, watcher, chat store |
+| `cli.ts` | CLI entry point — resolves session dir and port, calls `startServer()` |
 | `ws-handlers.ts` | Message routing with `HandlerDeps` DI |
 | `prompt-handler.ts` | AI orchestration — pure functions + `handlePrompt` imperative shell |
 | `system-prompt.ts` | Single source of truth for all AI system prompts and teaching principles |
@@ -37,7 +38,7 @@ No find/replace tools — they're fragile (silent no-op on mismatch). When the A
 | `tool-handlers.ts` | Pure tool mutations — `applyTool(doc, tool, params)` mutates in-place |
 | `versions.ts` | Version store — v1.md + patches via `diff` library |
 | `chat-store.ts` | Multi-chat CRUD, `chats.json` index, per-chat directories |
-| `context.ts` | Pure `compileContext()` + imperative `createContextCompiler()` shell |
+| `context.ts` | `createContextCompiler()` factory — returns a `ContextCompiler` with `.compile()` method |
 | `mcp-server.ts` | MCP server over stdio — batch versioning with 2s debounce |
 | `watcher.ts` | chokidar watches `current.md`, notifies via callbacks |
 

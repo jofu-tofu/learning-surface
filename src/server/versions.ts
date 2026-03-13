@@ -80,7 +80,7 @@ export function createVersionStore(): VersionStore {
     },
 
     async listVersions(): Promise<VersionMeta[]> {
-      return readAllVersionMetas(dir);
+      return [...metaIndex.values()].sort((a, b) => a.version - b.version);
     },
 
     async getDiff(fromVersion: number, toVersion: number): Promise<string> {

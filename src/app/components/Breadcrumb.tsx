@@ -2,6 +2,7 @@ import React from 'react';
 import type { VersionMeta } from '../../shared/types.js';
 import { getChildren } from '../../shared/version-tree.js';
 import { getVersionLabel } from '../utils/versionLabel.js';
+import { focusRing, sectionLabel } from '../utils/styles.js';
 import { VersionDot } from './VersionDot.js';
 
 export interface BreadcrumbProps {
@@ -43,7 +44,7 @@ export function Breadcrumb({
           onClick={() => onVersionSelect?.(v.version)}
           className={`
             shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs transition-all duration-150 cursor-pointer border
-            focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent-400
+            ${focusRing}
             ${faded ? 'opacity-35' : ''}
             ${isCurrent
               ? 'bg-accent-600/15 border-accent-500/30 text-accent-300 shadow-sm shadow-accent-500/5'
@@ -57,7 +58,7 @@ export function Breadcrumb({
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onBranchClick?.(v.version); }}
-              className="shrink-0 ml-0.5 inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-medium bg-purple-500/20 border border-purple-500/30 text-purple-400 cursor-pointer hover:bg-purple-500/30 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent-400"
+              className={`shrink-0 ml-0.5 inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-medium bg-purple-500/20 border border-purple-500/30 text-purple-400 cursor-pointer hover:bg-purple-500/30 ${focusRing}`}
               aria-label={`Show ${branches} branches from version ${v.version}`}
             >
               {branches}
@@ -71,7 +72,7 @@ export function Breadcrumb({
   return (
     <div data-testid="breadcrumb" className="px-5 py-2.5">
       <div className="flex items-center gap-2.5 overflow-x-auto pb-1">
-        <span className="shrink-0 text-[10px] font-semibold tracking-widest text-surface-500/70 uppercase select-none">
+        <span className={`shrink-0 ${sectionLabel} select-none`}>
           Path
         </span>
         {path.map((v, i) => renderCrumb(v, i, v.version === currentVersion, false))}

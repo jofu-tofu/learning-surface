@@ -4,6 +4,7 @@ import { getChildren } from '../../shared/version-tree.js';
 import { useClickOutside } from '../hooks/useClickOutside.js';
 import { formatTime } from '../utils/formatTime.js';
 import { getVersionLabel } from '../utils/versionLabel.js';
+import { focusRing, popoverPanel, sectionLabel, menuItemActive, menuItemInactive } from '../utils/styles.js';
 import { VersionDot } from './VersionDot.js';
 
 export interface BranchPopoverProps {
@@ -29,9 +30,9 @@ export function BranchPopover({
 
   return (
     <div className="relative z-50" ref={panelRef}>
-      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 min-w-56 rounded-xl border border-surface-600/60 bg-surface-800 shadow-xl shadow-black/20">
+      <div className={`${popoverPanel} min-w-56`}>
         <div className="px-3 pt-2.5 pb-1.5">
-          <span className="text-[10px] font-semibold tracking-widest text-surface-500/80 uppercase">
+          <span className={`${sectionLabel} select-none`}>
             Explorations from here
           </span>
         </div>
@@ -47,11 +48,8 @@ export function BranchPopover({
                 onClick={() => { onSelect(v.version); onClose(); }}
                 className={`
                   w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs transition-all duration-150 cursor-pointer
-                  focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent-400
-                  ${isActive
-                    ? 'text-accent-300 bg-accent-600/10'
-                    : 'text-surface-400 hover:bg-surface-700/50 hover:text-surface-300'
-                  }
+                  ${focusRing}
+                  ${isActive ? menuItemActive : menuItemInactive}
                 `}
               >
                 <VersionDot isCurrent={isActive} source={v.source} />

@@ -9,6 +9,9 @@ import { BranchPopover } from './components/BranchPopover.js';
 import { ChatBar } from './components/ChatBar.js';
 import { PromptPreview } from './components/PromptPreview.js';
 import { PaneHeader } from './components/PaneHeader.js';
+import { ErrorBanner } from './components/ErrorBanner.js';
+import { ActivityStatus } from './components/ActivityStatus.js';
+import { Icon } from './components/Icon.js';
 import { useSurface } from './hooks/useSurface.js';
 
 export function App(): React.ReactElement {
@@ -29,6 +32,7 @@ export function App(): React.ReactElement {
     deleteChat,
     isProcessing,
     changedPanes,
+    activity,
     providers,
     selectedProvider,
     selectedModel,
@@ -36,6 +40,8 @@ export function App(): React.ReactElement {
     setSelectedProvider,
     setSelectedModel,
     setSelectedReasoningEffort,
+    providerError,
+    clearProviderError,
   } = useSurface();
 
   const [branchPopover, setBranchPopover] = useState<number | null>(null);
@@ -50,10 +56,7 @@ export function App(): React.ReactElement {
       <header className="shrink-0 flex items-center justify-between px-5 py-2.5 bg-surface-800/90 border-b border-surface-700/60 backdrop-blur-sm">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-accent-500 to-accent-700 flex items-center justify-center shadow-sm shadow-accent-500/20">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
-              <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-            </svg>
+            <Icon name="book" size={15} strokeWidth={2.5} className="text-white" />
           </div>
           <h1 className="text-sm font-semibold text-surface-50 tracking-tight">Learning Surface</h1>
         </div>
@@ -105,7 +108,7 @@ export function App(): React.ReactElement {
           <div className="flex-1 flex min-h-0">
             {/* Canvas pane */}
             <div data-testid="pane-canvas" className={`flex-1 flex flex-col min-w-0 border-r border-surface-700/40 ${changedPanes.has('canvas') ? 'pane-updated' : ''}`}>
-              <PaneHeader title="Canvas" />
+              <PaneHeader title="Canvas" isProcessing={isProcessing} />
               <div className="flex-1 overflow-auto p-6 flex items-start justify-center">
                 <Canvas content={activeSection?.canvas ?? null} />
               </div>
@@ -113,13 +116,14 @@ export function App(): React.ReactElement {
 
             {/* Explanation pane */}
             <div data-testid="pane-explanation" className={`flex-1 flex flex-col min-w-0 ${changedPanes.has('explanation') ? 'pane-updated' : ''}`}>
-              <PaneHeader title="Explanation" />
+              <PaneHeader title="Explanation" isProcessing={isProcessing} />
               <div className="flex-1 overflow-auto p-6">
                 <Explanation
                   explanation={activeSection?.explanation ?? null}
                   checks={activeSection?.checks ?? []}
                   followups={activeSection?.followups ?? []}
                   onFollowupClick={submitPrompt}
+                  isProcessing={isProcessing}
                 />
               </div>
             </div>
@@ -146,18 +150,30 @@ export function App(): React.ReactElement {
             )}
           </div>
 
+          {/* Provider error banner */}
+          {providerError && (
+            <div className="shrink-0 px-4 py-2 border-t border-surface-700/40">
+              <ErrorBanner message={providerError} onDismiss={clearProviderError} />
+            </div>
+          )}
+
+          {/* Activity status */}
+          <ActivityStatus activity={activity} isProcessing={isProcessing} />
+
           {/* Chat bar */}
           <div data-testid="pane-chatbar" className="shrink-0 border-t border-surface-700/40">
             <ChatBar
               onSubmit={submitPrompt}
               isProcessing={isProcessing}
-              providers={providers}
-              selectedProvider={selectedProvider}
-              selectedModel={selectedModel}
-              selectedReasoningEffort={selectedReasoningEffort}
-              onProviderChange={setSelectedProvider}
-              onModelChange={setSelectedModel}
-              onReasoningEffortChange={setSelectedReasoningEffort}
+              providerSelection={{
+                providers,
+                selectedProvider,
+                selectedModel,
+                selectedReasoningEffort,
+                onProviderChange: setSelectedProvider,
+                onModelChange: setSelectedModel,
+                onReasoningEffortChange: setSelectedReasoningEffort,
+              }}
             />
           </div>
         </div>

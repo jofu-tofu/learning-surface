@@ -1,5 +1,8 @@
-import React from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import type { ProviderInfo, ReasoningEffort } from '../../shared/providers.js';
+import { useClickOutside } from '../hooks/useClickOutside.js';
+import { focusRing, popoverPanel, menuItemActive, menuItemInactive } from '../utils/styles.js';
+import { Icon } from './Icon.js';
 
 function ProviderIcon({ providerId }: { providerId: string }): React.ReactElement | null {
   if (providerId === 'claude-code') {
@@ -20,28 +23,32 @@ function ProviderIcon({ providerId }: { providerId: string }): React.ReactElemen
   return null;
 }
 
-function SelectField({ value, onChange, label, disabled, className, children }: {
+interface DropdownOption {
+  value: string;
+  label: string;
+}
+
+type DropdownId = 'provider' | 'model' | 'effort';
+
+function DropdownMenu({ options, value, onChange }: {
+  options: DropdownOption[];
   value: string;
   onChange: (value: string) => void;
-  label: string;
-  disabled?: boolean;
-  className?: string;
-  children: React.ReactNode;
 }): React.ReactElement {
   return (
-    <div className="relative">
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className={`appearance-none bg-transparent text-xs h-8 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/30 cursor-pointer transition-colors ${className ?? ''}`}
-        disabled={disabled}
-        aria-label={label}
-      >
-        {children}
-      </select>
-      <svg className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-surface-500" width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="6 9 12 15 18 9" />
-      </svg>
+    <div className={`${popoverPanel} min-w-36 py-1 z-50`}>
+      {options.map(opt => (
+        <button
+          key={opt.value}
+          type="button"
+          onClick={() => onChange(opt.value)}
+          className={`w-full text-left px-3 py-1.5 text-xs transition-colors cursor-pointer ${focusRing} ${
+            opt.value === value ? menuItemActive : menuItemInactive
+          }`}
+        >
+          {opt.label}
+        </button>
+      ))}
     </div>
   );
 }
@@ -65,56 +72,100 @@ export function ProviderSelector({
   onModelChange,
   onReasoningEffortChange,
 }: ProviderSelectorProps): React.ReactElement {
+  const [openMenu, setOpenMenu] = useState<DropdownId | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const close = useCallback(() => setOpenMenu(null), []);
+  useClickOutside(containerRef, close);
+
+  const toggle = (id: DropdownId) => setOpenMenu(prev => prev === id ? null : id);
+
   const activeProvider = providers.find((p) => p.id === selectedProvider);
   const models = activeProvider?.models ?? [];
   const activeModel = models.find((m) => m.id === selectedModel);
   const efforts = activeModel?.reasoningEfforts ?? [];
 
+  const providerLabel = activeProvider?.name ?? 'Provider';
+  const modelLabel = activeModel ? (activeModel.displayName ?? activeModel.name) : 'Model';
+  const effortLabel = selectedReasoningEffort ?? 'Effort';
+
+  const providerOptions: DropdownOption[] = providers.map(p => ({ value: p.id, label: p.name }));
+  const modelOptions: DropdownOption[] = models.map(m => ({ value: m.id, label: m.displayName ?? m.name }));
+  const effortOptions: DropdownOption[] = efforts.map(e => ({ value: e, label: e }));
+
+  const triggerBase = 'flex items-center gap-1.5 text-xs h-8 cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed';
+
   return (
-    <div className="flex items-center h-8 bg-surface-700/40 rounded-full border border-surface-600/30">
-      {selectedProvider && (
-        <div className="pl-2.5 flex items-center">
-          <ProviderIcon providerId={selectedProvider} />
-        </div>
-      )}
-      <SelectField
-        value={selectedProvider ?? ''}
-        onChange={onProviderChange}
-        label="Provider"
-        className={`text-surface-300 font-medium ${selectedProvider ? 'pl-1.5' : 'pl-3.5'} pr-6 hover:text-surface-100 focus-visible:rounded-l-full`}
-      >
-        <option value="" disabled>Provider</option>
-        {providers.map((p) => (
-          <option key={p.id} value={p.id}>{p.name}</option>
-        ))}
-      </SelectField>
+    <div ref={containerRef} className="flex items-center h-8 bg-surface-700/40 rounded-full border border-surface-600/30">
+      {/* Provider */}
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => toggle('provider')}
+          aria-label="Provider"
+          aria-expanded={openMenu === 'provider'}
+          className={`${triggerBase} ${focusRing} text-surface-300 font-medium pl-2.5 pr-2.5 hover:text-surface-100 rounded-l-full`}
+        >
+          {selectedProvider && <ProviderIcon providerId={selectedProvider} />}
+          <span>{providerLabel}</span>
+          <Icon name="chevronDown" size={8} strokeWidth={3} className="text-surface-500 shrink-0" />
+        </button>
+        {openMenu === 'provider' && (
+          <DropdownMenu
+            options={providerOptions}
+            value={selectedProvider ?? ''}
+            onChange={(v) => { onProviderChange(v); close(); }}
+          />
+        )}
+      </div>
+
       <div className="w-px h-3.5 bg-surface-600/40" />
-      <SelectField
-        value={selectedModel ?? ''}
-        onChange={onModelChange}
-        label="Model"
-        disabled={models.length === 0}
-        className={`text-surface-400 pl-3 pr-6 hover:text-surface-200 disabled:opacity-40 disabled:cursor-not-allowed ${efforts.length === 0 ? 'focus-visible:rounded-r-full' : ''}`}
-      >
-        <option value="" disabled>Model</option>
-        {models.map((m) => (
-          <option key={m.id} value={m.id}>{m.displayName ?? m.name}</option>
-        ))}
-      </SelectField>
+
+      {/* Model */}
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => models.length > 0 && toggle('model')}
+          disabled={models.length === 0}
+          aria-label="Model"
+          aria-expanded={openMenu === 'model'}
+          className={`${triggerBase} ${focusRing} text-surface-400 pl-2.5 pr-2.5 hover:text-surface-200 ${efforts.length === 0 ? 'rounded-r-full' : ''}`}
+        >
+          <span>{modelLabel}</span>
+          <Icon name="chevronDown" size={8} strokeWidth={3} className="text-surface-500 shrink-0" />
+        </button>
+        {openMenu === 'model' && (
+          <DropdownMenu
+            options={modelOptions}
+            value={selectedModel ?? ''}
+            onChange={(v) => { onModelChange(v); close(); }}
+          />
+        )}
+      </div>
+
+      {/* Reasoning effort */}
       {efforts.length > 0 && (
         <>
           <div className="w-px h-3.5 bg-surface-600/40" />
-          <SelectField
-            value={selectedReasoningEffort ?? ''}
-            onChange={(v) => onReasoningEffortChange(v as ReasoningEffort)}
-            label="Reasoning effort"
-            className="text-surface-400 pl-3 pr-6 hover:text-surface-200 focus-visible:rounded-r-full"
-          >
-            <option value="" disabled>Effort</option>
-            {efforts.map((e) => (
-              <option key={e} value={e}>{e}</option>
-            ))}
-          </SelectField>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => toggle('effort')}
+              aria-label="Reasoning effort"
+              aria-expanded={openMenu === 'effort'}
+              className={`${triggerBase} ${focusRing} text-surface-400 pl-2.5 pr-2.5 hover:text-surface-200 rounded-r-full`}
+            >
+              <span>{effortLabel}</span>
+              <Icon name="chevronDown" size={8} strokeWidth={3} className="text-surface-500 shrink-0" />
+            </button>
+            {openMenu === 'effort' && (
+              <DropdownMenu
+                options={effortOptions}
+                value={selectedReasoningEffort ?? ''}
+                onChange={(v) => { onReasoningEffortChange(v as ReasoningEffort); close(); }}
+              />
+            )}
+          </div>
         </>
       )}
     </div>

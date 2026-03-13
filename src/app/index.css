@@ -133,3 +133,12 @@ html, body {
 .pane-updated {
   animation: pane-highlight 1.2s ease-out;
 }
+
+/* Processing shimmer animation */
+@keyframes shimmer-slide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+.pane-shimmer {
+  animation: shimmer-slide 1.5s ease-in-out infinite;
+}

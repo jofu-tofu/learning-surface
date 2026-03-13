@@ -14,21 +14,20 @@ import { ActivityStatus } from './components/ActivityStatus.js';
 import { ThemeSelector } from './components/ThemeSelector.js';
 import { Icon } from './components/Icon.js';
 import { useSurface } from './hooks/useSurface.js';
-import { VersionDiffProvider } from './hooks/VersionDiffContext.js';
+import { SurfaceStatusProvider, usePaneFlash } from './hooks/VersionDiffContext.js';
 import { getActiveSection } from '../shared/types.js';
 import { applyTheme, getStoredTheme, type ThemeId } from '../shared/themes.js';
 
-function Pane({ id, title, isProcessing, changedPanes, className, children }: {
+function Pane({ id, title, className, children }: {
   id: string;
   title: string;
-  isProcessing: boolean;
-  changedPanes: Set<string>;
   className?: string;
   children: React.ReactNode;
 }): React.ReactElement {
+  const flash = usePaneFlash(id);
   return (
-    <div data-testid={`pane-${id}`} className={`flex-1 flex flex-col min-w-0 ${changedPanes.has(id) ? 'pane-updated' : ''} ${className ?? ''}`}>
-      <PaneHeader paneId={id} title={title} isProcessing={isProcessing} />
+    <div data-testid={`pane-${id}`} className={`flex-1 flex flex-col min-w-0 ${flash ? 'pane-updated' : ''} ${className ?? ''}`}>
+      <PaneHeader paneId={id} title={title} />
       <div className="flex-1 overflow-auto p-6">{children}</div>
     </div>
   );
@@ -76,7 +75,13 @@ export function App(): React.ReactElement {
   const currentVersionMeta = versions.find((v) => v.version === currentVersion);
 
   return (
-    <VersionDiffProvider changedPanes={versionChangedPanes} changedSectionIds={changedSectionIds}>
+    <SurfaceStatusProvider
+      isProcessing={isProcessing}
+      flashPanes={changedPanes}
+      versionChangedPanes={versionChangedPanes}
+      changedSectionIds={changedSectionIds}
+      activity={activity}
+    >
       <div className="h-dvh flex flex-col bg-surface-900 text-surface-100 overflow-hidden">
         {/* Header */}
         <header className="shrink-0 flex items-center justify-between px-5 py-2.5 bg-surface-800/90 border-b border-surface-700/60 backdrop-blur-sm">
@@ -127,25 +132,22 @@ export function App(): React.ReactElement {
           {/* Center content area */}
           <div className="flex-1 flex flex-col min-w-0">
             {/* Prompt preview */}
-            <PromptPreview
-              prompt={currentVersionMeta?.prompt ?? null}
-            />
+            <PromptPreview prompt={currentVersionMeta?.prompt ?? null} />
 
             {/* Panes */}
             <div className="flex-1 flex min-h-0">
-              <Pane id="canvas" title="Canvas" isProcessing={isProcessing} changedPanes={changedPanes} className="border-r border-surface-700/40">
+              <Pane id="canvas" title="Canvas" className="border-r border-surface-700/40">
                 <div className="flex items-center justify-center w-full h-full">
                   <Canvas content={activeSection?.canvas ?? null} />
                 </div>
               </Pane>
 
-              <Pane id="explanation" title="Explanation" isProcessing={isProcessing} changedPanes={changedPanes}>
+              <Pane id="explanation" title="Explanation">
                 <Explanation
                   explanation={activeSection?.explanation ?? null}
                   checks={activeSection?.checks ?? []}
                   followups={activeSection?.followups ?? []}
                   onFollowupClick={submitPrompt}
-                  isProcessing={isProcessing}
                 />
               </Pane>
             </div>
@@ -179,13 +181,12 @@ export function App(): React.ReactElement {
             )}
 
             {/* Activity status */}
-            <ActivityStatus activity={activity} isProcessing={isProcessing} />
+            <ActivityStatus />
 
             {/* Chat bar */}
             <div data-testid="pane-chatbar" className="shrink-0 border-t border-surface-700/40">
               <ChatBar
                 onSubmit={submitPrompt}
-                isProcessing={isProcessing}
                 providerSelection={{
                   providers,
                   selectedProvider,
@@ -200,6 +201,6 @@ export function App(): React.ReactElement {
           </div>
         </div>
       </div>
-    </VersionDiffProvider>
+    </SurfaceStatusProvider>
   );
 }

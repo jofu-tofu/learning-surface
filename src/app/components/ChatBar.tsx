@@ -1,19 +1,19 @@
 import React, { useState } from 'react';
 import { ProviderSelector, type ProviderSelectorProps } from './ProviderSelector.js';
 import { Icon } from './Icon.js';
+import { useIsProcessing } from '../hooks/VersionDiffContext.js';
 
 interface ChatBarProps {
   onSubmit?: (text: string) => void;
-  isProcessing?: boolean;
   providerSelection?: ProviderSelectorProps;
 }
 
 export function ChatBar({
   onSubmit,
-  isProcessing,
   providerSelection,
 }: ChatBarProps): React.ReactElement {
   const [inputText, setInputText] = useState('');
+  const isProcessing = useIsProcessing();
 
   const handleSubmit = () => {
     if (!inputText.trim() || isProcessing) return;

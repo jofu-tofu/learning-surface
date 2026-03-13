@@ -20,6 +20,7 @@ All application state flows through `useSurface()` hook — document, versions, 
 
 - `useSurface` composes `useWebSocket` and `useProviderSelection` internally
 - Pane change detection extracted to `utils/detectChangedPanes.ts`, 1.2s flash timeout (`changedPanes`)
+- Version-level diff state (`versionChangedPanes`, `changedSectionIds`) computed once on version transitions, exposed via `VersionDiffContext` — components consume with `usePaneChanged(id)` / `useChangedSectionIds()`
 - Processing state with 2.5s settle timeout
 - Version path/forward-path computed from `shared/version-tree.ts`
 
@@ -35,7 +36,7 @@ All application state flows through `useSurface()` hook — document, versions, 
 | `Breadcrumb` | Below main | Version timeline with dot navigation |
 | `ChatBar` | Bottom | Prompt input with provider/model selector |
 | `ProviderSelector` | In ChatBar | Provider and model dropdown |
-| `PaneHeader` | Above each pane | Pane label with processing shimmer |
+| `PaneHeader` | Above each pane | Pane label with processing shimmer and version-change "Updated" badge (via `VersionDiffContext`) |
 | `ActivityStatus` | Top bar | Live tool-call activity during processing |
 | `BranchPopover` | Over breadcrumb | Popover for exploring version branches |
 | `ErrorBanner` | Inline | Error display with icon |

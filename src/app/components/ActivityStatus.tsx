@@ -1,14 +1,12 @@
 import React from 'react';
-import type { ToolActivity } from '../hooks/useSurface.js';
-
-interface ActivityStatusProps {
-  activity: ToolActivity | null;
-  isProcessing: boolean;
-}
+import { useIsProcessing, useActivity } from '../hooks/VersionDiffContext.js';
 
 const isDev = import.meta.env.DEV;
 
-export function ActivityStatus({ activity, isProcessing }: ActivityStatusProps): React.ReactElement | null {
+export function ActivityStatus(): React.ReactElement | null {
+  const isProcessing = useIsProcessing();
+  const activity = useActivity();
+
   if (!isProcessing || !activity) return null;
 
   return (

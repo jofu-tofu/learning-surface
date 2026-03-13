@@ -116,17 +116,6 @@ Second explanation.
 
 // === Test Doubles ===
 
-export function stubVersionStore(): VersionStore {
-  return {
-    async init() {},
-    async createVersion() { return 1; },
-    async getVersion() { return ''; },
-    async getCurrentVersion() { return 0; },
-    async listVersions() { return []; },
-    async getDiff() { return ''; },
-  };
-}
-
 export function spyVersionStore(): VersionStore & { createVersion: ReturnType<typeof vi.fn> } {
   return {
     async init() {},
@@ -135,6 +124,82 @@ export function spyVersionStore(): VersionStore & { createVersion: ReturnType<ty
     async getCurrentVersion() { return 0; },
     async listVersions() { return []; },
     async getDiff() { return ''; },
+  };
+}
+
+// --- FakeFileIO: in-memory filesystem for DocumentService tests ---
+
+import type { FileIO } from '../server/document-service.js';
+import type { ProviderToolCall, ReplProvider, ToolCallResult, ProviderConfig } from '../shared/providers.js';
+import type { ContextCompiler, SurfaceContext } from '../shared/types.js';
+
+/**
+ * In-memory FileIO backed by a Map. No real disk I/O.
+ * Seed initial files via the `files` map.
+ */
+export function fakeFileIO(files: Map<string, string> = new Map()): FileIO & { files: Map<string, string> } {
+  return {
+    files,
+    readFile(path: string) {
+      const content = files.get(path);
+      if (content === undefined) throw new Error(`ENOENT: ${path}`);
+      return content;
+    },
+    writeFile(path: string, data: string) {
+      files.set(path, data);
+    },
+    exists(path: string) {
+      return files.has(path);
+    },
+  };
+}
+
+/**
+ * Fake ReplProvider that simulates AI returning a pre-configured sequence of tool calls.
+ * Each call to `complete()` invokes `onToolCall` for each tool call in the sequence.
+ */
+export function fakeProvider(
+  toolCalls: ProviderToolCall[] = [],
+  configOverrides: Partial<ProviderConfig> = {},
+): ReplProvider {
+  const config: ProviderConfig = {
+    id: 'fake',
+    name: 'Fake',
+    models: [{ id: 'fake-model', name: 'Fake Model' }],
+    type: 'api',
+    ...configOverrides,
+  };
+
+  return {
+    config,
+    async preflight() { return { ok: true }; },
+    async complete(opts) {
+      if (opts.onToolCall) {
+        for (const call of toolCalls) {
+          await opts.onToolCall(call);
+        }
+      }
+    },
+  };
+}
+
+/** Fake ContextCompiler that returns a minimal SurfaceContext. */
+export function fakeContextCompiler(): ContextCompiler {
+  return {
+    async compile(doc) {
+      const active = doc.sections.find(s => s.id === doc.activeSection);
+      return {
+        session: { topic: 'test', version: doc.version, activeSection: doc.activeSection },
+        surface: {
+          canvas: active?.canvas ?? null,
+          explanation: active?.explanation ?? null,
+          checks: active?.checks ?? [],
+          followups: active?.followups ?? [],
+        },
+        sections: doc.sections.map(s => ({ title: s.title })),
+        promptHistory: [],
+      };
+    },
   };
 }
 

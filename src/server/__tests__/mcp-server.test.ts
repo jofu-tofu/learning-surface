@@ -74,4 +74,80 @@ describe('MCP Server', () => {
       expect(store.createVersion).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe('tool call validation boundaries', () => {
+    let sessionDir: string;
+    let store: VersionStore & { createVersion: ReturnType<typeof vi.fn> };
+    let client: Client;
+    let mcpServer: ReturnType<typeof createMcpServer>;
+
+    beforeEach(async () => {
+      sessionDir = await mkdtemp(join(tmpdir(), 'ls-mcp-val-'));
+      await writeFile(join(sessionDir, 'current.md'), MINIMAL_DOC, 'utf-8');
+
+      store = spyVersionStore();
+      const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+
+      mcpServer = createMcpServer({
+        sessionDir,
+        versionStore: store,
+        debounceMs: 50,
+        transport: serverTransport,
+      });
+
+      client = new Client({ name: 'test-client', version: '1.0.0' });
+      await Promise.all([mcpServer.start(), client.connect(clientTransport)]);
+    });
+
+    afterEach(async () => {
+      await mcpServer.flushVersionBatch();
+      await client.close();
+      await rm(sessionDir, { recursive: true, force: true });
+    });
+
+    it('unknown tool name returns isError response', async () => {
+      const result = await client.callTool({ name: 'nonexistent_tool', arguments: {} });
+      expect(result.isError).toBe(true);
+      const text = (result.content as Array<{ text: string }>)[0].text;
+      expect(text).toContain('Unknown tool');
+    });
+
+    it('invalid params rejected by Zod schema (show_visual with bad enum)', async () => {
+      const result = await client.callTool({
+        name: 'show_visual',
+        arguments: { type: 'svg', content: 'test' },
+      });
+      expect(result.isError).toBe(true);
+      const text = (result.content as Array<{ text: string }>)[0].text;
+      expect(text).toContain('Invalid params');
+    });
+
+    it('missing required params rejected by Zod schema', async () => {
+      const result = await client.callTool({
+        name: 'explain',
+        arguments: {},
+      });
+      expect(result.isError).toBe(true);
+      const text = (result.content as Array<{ text: string }>)[0].text;
+      expect(text).toContain('Invalid params');
+    });
+
+    it('challenge with wrong hints type rejected by Zod', async () => {
+      const result = await client.callTool({
+        name: 'challenge',
+        arguments: { question: 'Q?', hints: 'not-an-array' },
+      });
+      expect(result.isError).toBe(true);
+    });
+
+    it('valid tool call with optional params succeeds', async () => {
+      const result = await client.callTool({
+        name: 'show_visual',
+        arguments: { type: 'code', content: 'console.log("hi")', language: 'javascript' },
+      });
+      expect(result.isError).toBeUndefined();
+      const text = (result.content as Array<{ text: string }>)[0].text;
+      expect(text).toContain('Applied show_visual');
+    });
+  });
 });

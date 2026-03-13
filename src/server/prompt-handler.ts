@@ -9,14 +9,14 @@ import type { ContextCompiler, LearningDocument, SurfaceContext, VersionStore } 
 // === Pure constants and functions (functional core) ===
 
 /** Pre-computed provider tool definitions (constant across the server lifetime). */
-export const providerTools: ToolDefinition[] = TOOL_DEFS.map((def) => ({
+const providerTools: ToolDefinition[] = TOOL_DEFS.map((def) => ({
   name: def.name,
   description: def.description,
   parameters: zodToJsonSchema(def.schema),
 }));
 
 /** Pure: build the full system prompt from a context object. */
-export function buildSystemPrompt(context: SurfaceContext): string {
+function buildSystemPrompt(context: SurfaceContext): string {
   return SYSTEM_PROMPT + JSON.stringify(context, null, 2);
 }
 
@@ -49,7 +49,7 @@ export function buildVersionMeta(
 
 // === Imperative shell ===
 
-export interface PromptRequest {
+interface PromptRequest {
   text: string;
   providerId: string;
   modelId: string;
@@ -59,11 +59,11 @@ export interface PromptRequest {
   versionStore: VersionStore;
 }
 
-export interface PromptResult {
+interface PromptResult {
   updatedDocument: LearningDocument;
 }
 
-export interface PromptDeps {
+interface PromptDeps {
   docService: DocumentService;
   contextCompiler: ContextCompiler;
   getProvider: (id: string) => ReplProvider | undefined;

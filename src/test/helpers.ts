@@ -4,7 +4,6 @@ import type {
   Check,
   LearningDocument,
   Section,
-  SurfaceContext,
   VersionMeta,
   VersionStore,
 } from '../shared/types.js';
@@ -60,25 +59,6 @@ export function buildVersionMeta(overrides: Partial<VersionMeta> = {}): VersionM
   };
 }
 
-export function buildSurfaceContext(overrides: Partial<SurfaceContext> = {}): SurfaceContext {
-  return {
-    session: {
-      topic: 'tcp',
-      version: 1,
-      activeSection: 'test-section',
-    },
-    surface: {
-      canvas: null,
-      explanation: null,
-      checks: [],
-      followups: [],
-    },
-    sections: [{ title: 'Test Section' }],
-    promptHistory: [],
-    ...overrides,
-  };
-}
-
 // === Fixture Markdown Strings ===
 
 export const MINIMAL_DOC = `---
@@ -90,40 +70,6 @@ active_section: introduction
 
 ### explanation
 This is the introduction.
-`;
-
-export const FULL_DOC = `---
-version: 3
-active_section: the-three-way-handshake
----
-
-## What is TCP?
-
-### canvas: mermaid
-graph LR
-  A[Application] --> B[TCP] --> C[IP] --> D[Network]
-
-### explanation
-TCP is a connection-oriented protocol that ensures reliable data delivery.
-
-## The Three-Way Handshake
-
-### canvas: mermaid
-sequenceDiagram
-  Client->>Server: SYN
-  Server->>Client: SYN-ACK
-  Client->>Server: ACK
-
-### explanation
-The three-way handshake establishes a reliable connection.
-
-### check: c1
-Why three steps instead of one?
-<!-- status: unanswered -->
-
-### followups
-- What is a SYN packet?
-- TCP vs UDP
 `;
 
 export const NO_FRONTMATTER_DOC = `## Introduction
@@ -166,38 +112,6 @@ First explanation.
 
 ### explanation
 Second explanation.
-`;
-
-export const KATEX_DOC = `---
-version: 1
-active_section: math
----
-
-## Math
-
-### canvas: katex
-E = mc^2
-
-### explanation
-Einstein's famous equation.
-`;
-
-export const CODE_DOC = `---
-version: 1
-active_section: code-example
----
-
-## Code Example
-
-### canvas: code
-\`\`\`typescript
-function hello(): string {
-  return 'world';
-}
-\`\`\`
-
-### explanation
-A simple TypeScript function.
 `;
 
 // === Test Doubles ===

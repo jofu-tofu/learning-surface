@@ -25,7 +25,7 @@ export interface SessionState {
   latestDocument: LearningDocument | null;
 }
 
-export interface HandlerDeps {
+interface HandlerDeps {
   state: SessionState;
   chatStore: ChatStore;
   broadcast: (msg: WsMessage) => void;

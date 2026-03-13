@@ -1,14 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, rm, writeFile } from 'fs/promises';
-import { readFileSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createMcpServer } from '../mcp-server.js';
 import { toolSchemaMap } from '../../shared/schemas.js';
-import { parse, serialize } from '../markdown.js';
-import { MINIMAL_DOC, buildDocument, buildSection, buildCanvasContent, stubVersionStore, spyVersionStore } from '../../test/helpers.js';
+import { MINIMAL_DOC, spyVersionStore } from '../../test/helpers.js';
 import type { VersionStore } from '../../test/helpers.js';
 
 describe('MCP Server', () => {

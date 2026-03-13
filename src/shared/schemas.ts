@@ -50,7 +50,7 @@ export const ClearSchema = z.object({
 
 // === Tool Definitions ===
 
-export interface ToolDef {
+interface ToolDef {
   name: string;
   description: string;
   schema: z.ZodObject<z.ZodRawShape>;

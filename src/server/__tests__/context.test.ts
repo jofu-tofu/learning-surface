@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createContextCompiler } from '../context.js';
-import { buildDocument, buildSection, buildCanvasContent, buildCheck } from '../../test/helpers.js';
+import { buildDocument, buildSection } from '../../test/helpers.js';
 
 describe('ContextCompiler', () => {
   const compiler = createContextCompiler();

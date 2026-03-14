@@ -11,6 +11,7 @@ import {
   getVersions,
   ensureActiveChat,
 } from './utils/ws-helpers.js';
+import { migrateMdToSurface } from './legacy-migrate.js';
 import type { ClientMessage, WsMessage, VersionStore } from '../shared/types.js';
 
 export async function startServer(options: {
@@ -60,6 +61,7 @@ export async function startServer(options: {
       state.activeVersionStore = await initVersionStoreForChat(chatId);
 
       const chatDir = chatStore.getChatDir(chatId);
+      migrateMdToSurface(chatDir);
       state.latestDocument = documentService.read(documentService.filePath(chatDir));
 
       watcher.start(chatDir);

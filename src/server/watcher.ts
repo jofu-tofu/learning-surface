@@ -2,8 +2,8 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { watch, type FSWatcher } from 'chokidar';
 import type { FileWatcherService, LearningDocument } from '../shared/types.js';
-import { parse } from './markdown.js';
-import { CURRENT_MD } from './utils/ws-helpers.js';
+import { parseSurface } from './surface-file.js';
+import { CURRENT_SURFACE } from './document-service.js';
 
 const DEFAULT_DOCUMENT: LearningDocument = {
   version: 1,
@@ -29,7 +29,7 @@ export function createFileWatcher(): FileWatcherService {
 
     let doc: LearningDocument;
     try {
-      doc = parse(raw);
+      doc = parseSurface(raw);
     } catch (err) {
       // Parse error — log but don't crash, don't call callbacks with undefined
       console.error('Parse error:', err);
@@ -47,7 +47,7 @@ export function createFileWatcher(): FileWatcherService {
     },
 
     start(sessionDir) {
-      const targetFile = path.join(sessionDir, CURRENT_MD);
+      const targetFile = path.join(sessionDir, CURRENT_SURFACE);
 
       // Set up chokidar watcher for future changes
       chokidarWatcher = watch(targetFile, {

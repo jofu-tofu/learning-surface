@@ -1,8 +1,9 @@
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { parse, serialize, applyToolCall } from './markdown.js';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { parseSurface, serializeSurface } from './surface-file.js';
+import { applyDesignSurface, type DesignSurfaceResult } from './tool-handlers.js';
 import type { LearningDocument } from '../shared/types.js';
-import { CURRENT_MD } from './utils/ws-helpers.js';
+import type { DesignSurfaceInput } from '../shared/schemas.js';
 
 // ---------------------------------------------------------------------------
 // FileIO – thin abstraction over file-system primitives
@@ -28,10 +29,12 @@ function nodeFileIO(): FileIO {
 // DocumentService
 // ---------------------------------------------------------------------------
 
+/** Canonical filename for the current document within a chat directory. */
+export const CURRENT_SURFACE = 'current.surface';
+
 /**
  * Encapsulates all document I/O: reading, writing, and applying tool calls
- * to the structured markdown file on disk. Used by both the MCP server
- * (stdio transport) and the WebSocket prompt handler (provider integration).
+ * to the .surface JSON file on disk.
  */
 export interface DocumentService {
   /** Read and parse the current document, or null if the file doesn't exist. */
@@ -40,19 +43,23 @@ export interface DocumentService {
   readRaw(filePath: string): string | null;
   /** Serialize and write a document to disk. */
   write(filePath: string, doc: LearningDocument): void;
-  /** Read → parse → applyToolCall → serialize → write. Returns the updated doc.
+  /** Apply a design_surface operation to the document on disk. Returns the updated doc + results.
    *  If `version` is provided, sets it on the document before writing. */
-  applyTool(filePath: string, tool: string, params: Record<string, unknown>, version?: number): LearningDocument;
-  /** Ensure current.md exists with a blank document. Returns the doc. */
+  applyDesignSurface(
+    filePath: string,
+    params: DesignSurfaceInput,
+    version?: number,
+  ): { doc: LearningDocument; results: DesignSurfaceResult };
+  /** Ensure current.surface exists with a blank document. Returns the doc. */
   ensureExists(filePath: string): LearningDocument;
-  /** Get the current.md path for a chat directory. */
+  /** Get the current.surface path for a chat directory. */
   filePath(chatDir: string): string;
 }
 
 export const BLANK_DOC: LearningDocument = {
   version: 0,
   activeSection: 'untitled',
-  sections: [{ id: 'untitled', title: 'Untitled' }],
+  sections: [{ id: 'untitled', title: 'Untitled', canvases: [] }],
 };
 
 export function createDocumentService(io: FileIO = nodeFileIO()): DocumentService {
@@ -62,34 +69,34 @@ export function createDocumentService(io: FileIO = nodeFileIO()): DocumentServic
   }
 
   return {
-    read: (filePath) => safeRead(filePath, parse),
+    read: (filePath) => safeRead(filePath, parseSurface),
 
     readRaw: (filePath) => safeRead(filePath, (rawContent) => rawContent),
 
     write(filePath, doc) {
-      io.writeFile(filePath, serialize(doc), 'utf-8');
+      io.writeFile(filePath, serializeSurface(doc), 'utf-8');
     },
 
-    applyTool(filePath, tool, params, version) {
+    applyDesignSurface(filePath, params, version) {
       const raw = io.readFile(filePath, 'utf-8');
-      const doc = parse(raw);
-      const updated = applyToolCall(doc, tool, params);
-      if (version !== undefined) updated.version = version;
-      io.writeFile(filePath, serialize(updated), 'utf-8');
-      return updated;
+      const doc = parseSurface(raw);
+      const result = applyDesignSurface(doc, params);
+      if (version !== undefined) result.doc.version = version;
+      io.writeFile(filePath, serializeSurface(result.doc), 'utf-8');
+      return result;
     },
 
     ensureExists(filePath) {
       if (!io.exists(filePath)) {
-        const doc = { ...BLANK_DOC, sections: [...BLANK_DOC.sections] };
-        io.writeFile(filePath, serialize(doc), 'utf-8');
+        const doc = structuredClone(BLANK_DOC);
+        io.writeFile(filePath, serializeSurface(doc), 'utf-8');
         return doc;
       }
-      return parse(io.readFile(filePath, 'utf-8'));
+      return parseSurface(io.readFile(filePath, 'utf-8'));
     },
 
     filePath(chatDir) {
-      return join(chatDir, CURRENT_MD);
+      return join(chatDir, CURRENT_SURFACE);
     },
   };
 }

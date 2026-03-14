@@ -4,26 +4,18 @@ Node.js server — WebSocket hub, document I/O, version storage, chat persistenc
 
 ## Architecture
 
-**Functional core / imperative shell.** Pure logic (context compilation, system prompt building, version decisions, tool mutations) is separated from I/O. Every I/O boundary has an injectable interface:
+**Functional core / imperative shell.** Pure logic (context compilation, system prompt building, version decisions, surface transforms) is separated from I/O. Every I/O boundary has an injectable interface:
 - `FileIO` (document-service.ts) — ports & adapters for filesystem
 - `HandlerDeps` (ws-handlers.ts) — all collaborators overridable for testing
 - `PromptDeps` (prompt-handler.ts) — documentService, contextCompiler, getProvider with production defaults
 
 **Composition root:** `index.ts` wires WebSocket server, chat store, version store, file watcher, and document service. Creates mutable `SessionState`, delegates message routing to `routeMessage()`.
 
-## MCP Tool Philosophy
+## Tool Philosophy
 
-Tools map to **teaching actions**, not document-editing primitives. Three criteria for every tool:
+**Single tool: `design_surface`.** The AI calls one declarative tool that describes the desired surface state. The tool handler (`applyDesignSurface`) is a pure function returning `{ doc, results }` — no in-place mutation.
 
-1. **Semantic clarity** — maps to a teaching verb (`show_visual`, `explain`, `challenge`), not a text mechanic
-2. **Token efficiency** — creation tools for new content, append tools for elaboration (AI outputs only the delta)
-3. **Natural legibility** — the AI understands what a tool does from its name alone
-
-No find/replace tools — they're fragile (silent no-op on mismatch). When the AI needs to correct content, it uses creation tools to rewrite.
-
-**12 tools:** `new_section`, `show_diagram`, `show_visual`, `show_timeline`, `derive`, `build_visual`, `explain`, `extend`, `challenge`, `suggest_followups`, `set_active`, `clear`.
-
-**Dynamic tool surface:** `ListTools` returns a context-filtered subset (via `selectTools()` in `tool-selector.ts`), but `CallTool` validates against the full tool universe (`toolSchemaMap`). This ensures stale tool lists don't cause errors. Availability states: `always`, `needs-section` (2+ sections), `needs-canvas` (canvas has content), `needs-explanation` (explanation has content).
+This replaces the previous 12-tool approach. The single tool definition IS the prompt engineering — its schema and description teach the AI what a learning surface can contain.
 
 ## Key Files
 
@@ -34,24 +26,22 @@ No find/replace tools — they're fragile (silent no-op on mismatch). When the A
 | `ws-handlers.ts` | Message routing with `HandlerDeps` DI |
 | `prompt-handler.ts` | AI orchestration — pure functions + `handlePrompt` imperative shell |
 | `system-prompt.ts` | Single source of truth for all AI system prompts and teaching principles |
-| `document-service.ts` | Document I/O with injectable `FileIO` |
-| `markdown.ts` | `parse`/`serialize`/`applyToolCall` — delegates block logic to `blocks/` registry |
-| `blocks/` | Block definition registry — each block type (canvas, explanation, check, followups) is a self-contained `BlockDefinition` with its own `match`/`parse`/`serialize`/`describe` |
-| `tool-handlers.ts` | Pure tool mutations — `applyTool(doc, tool, params)` mutates in-place |
-| `versions.ts` | Version store — v1.md + patches via `diff` library |
+| `document-service.ts` | Document I/O with injectable `FileIO`; uses `CURRENT_SURFACE` constant |
+| `surface-file.ts` | `.surface` JSON parse/serialize — replaces markdown.ts and blocks/ |
+| `tool-handlers.ts` | Pure surface transform — `applyDesignSurface(doc, params)` returns `{ doc, results }` |
+| `legacy-migrate.ts` | Migrates old `.md` structured markdown files to `.surface` JSON format |
+| `versions.ts` | Version store — v1.surface + patches via `diff` library |
 | `chat-store.ts` | Multi-chat CRUD, `chats.json` index, per-chat directories |
 | `context.ts` | `createContextCompiler()` factory — returns a `ContextCompiler` with `.compile()` method |
-| `tool-selector.ts` | Dynamic tool surface — `buildSelectionContext` + `selectTools` filter tools per request |
-| `tool-planner.ts` | Two-stage planning — `buildPlanningSchema`/`buildPlanningPrompt`/`parsePlanResult`, all auto-derived from `TOOL_DEFS` |
-| `mcp-server.ts` | MCP server over stdio — batch versioning with 2s debounce, dynamic tool list via `plan` tool |
-| `watcher.ts` | chokidar watches `current.md`, notifies via callbacks |
+| `mcp-server.ts` | MCP server over stdio — batch versioning with 2s debounce |
+| `watcher.ts` | chokidar watches `current.surface`, notifies via callbacks |
 
 ## Conventions
 
-- `tool-handlers.ts` mutates documents **in-place** — callers must `structuredClone` first (done in `markdown.ts` `applyToolCall`).
+- `tool-handlers.ts` `applyDesignSurface` is a pure function — returns a new `{ doc, results }`, no in-place mutation.
 - `mcp-server.ts` batches rapid tool calls into a single version snapshot (2s debounce). Call `flushVersionBatch()` in tests to force flush.
-- Context compilation sends only the **active section's state** + section list + recent prompt history to the AI — not the full document.
-- **Two-stage planning:** `handlePrompt()` calls `agent.ask()` (planning schema auto-derived from `TOOL_DEFS`) then `agent.run()` (filtered tools). Fail-open: planning failure falls back to all tools. Stage 1 uses `reasoningEffort: 'low'`.
+- Context compilation sends the **active section's state** + section list (enriched with `{ id, title, canvasIds }`) + recent prompt history to the AI — not the full document.
+- System prompt uses a single `design_surface` tool description — no auto-generated block format spec.
 
 ---
 ## Context Maintenance

@@ -7,9 +7,10 @@ export const CANVAS_TYPES = ['mermaid', 'katex', 'code', 'diagram', 'timeline', 
 type CanvasType = (typeof CANVAS_TYPES)[number];
 
 export interface CanvasContent {
+  id: string;          // unique within section, for targeting (e.g. "architecture", "data-flow")
   type: CanvasType;
   content: string;
-  language?: string; // for code type
+  language?: string;   // for code type
 }
 
 export interface Check {
@@ -24,7 +25,7 @@ export interface Check {
 export interface Section {
   id: string; // slug derived from title
   title: string;
-  canvas?: CanvasContent;
+  canvases: CanvasContent[];
   explanation?: string;
   checks?: Check[];
   followups?: string[];
@@ -64,7 +65,7 @@ export interface SurfaceContext {
     activeSection: string;
   };
   surface: Record<string, unknown>;
-  sections: Array<{ title: string }>;
+  sections: Array<{ id: string; title: string; canvasIds: string[] }>;
   promptHistory: string[];
 }
 
@@ -146,7 +147,7 @@ export interface WsPreflightResult {
 
 export interface WsToolProgress {
   type: 'tool-progress';
-  /** Raw tool or phase name (e.g. 'show_visual', 'thinking') */
+  /** Raw tool or phase name (e.g. 'design_surface', 'thinking') */
   toolName: string;
   /** 1-based step counter within the current prompt */
   step?: number;

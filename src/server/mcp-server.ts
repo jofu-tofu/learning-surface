@@ -5,9 +5,7 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
-import { TOOL_DEFS, toolSchemaMap, zodToJsonSchema } from '../shared/schemas.js';
-import { buildSelectionContext, selectTools } from './tool-selector.js';
-import { z } from 'zod';
+import { TOOL_DEFS, DesignSurfaceSchema, zodToJsonSchema } from '../shared/schemas.js';
 import type { VersionStore } from '../shared/types.js';
 import { createDocumentService, type DocumentService } from './document-service.js';
 import { buildVersionMeta } from './prompt-handler.js';
@@ -37,9 +35,6 @@ export function createMcpServer(options: {
   const documentService = options.documentService ?? createDocumentService();
   const filePath = documentService.filePath(sessionDir);
 
-  // --- Planning state ---
-  let plannedTools: string[] | null = null;
-
   // --- Batch versioning state ---
   let batchStartVersion: number | null = null;
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -55,13 +50,7 @@ export function createMcpServer(options: {
     await store.createVersion(content, buildVersionMeta(null, doc.summary ?? null, new Date().toISOString()));
     batchStartVersion = null;
 
-    // Reset planning state after batch completes
-    if (plannedTools) {
-      plannedTools = null;
-      await server.notification({ method: 'notifications/tools/list_changed' });
-    }
-
-    // Re-write current.md to trigger the file watcher so the UI picks up the new version
+    // Re-write current.surface to trigger the file watcher so the UI picks up the new version
     documentService.write(filePath, doc);
   }
 
@@ -70,43 +59,14 @@ export function createMcpServer(options: {
     { capabilities: { tools: {} } },
   );
 
-  // Plan tool schema — accepts an array of tool names
-  const PlanToolSchema = z.object({
-    tools: z.array(z.string()),
-  });
-
-  // Register list-tools handler — returns context-filtered subset (or planned subset)
+  // Register list-tools handler — single tool, always available
   server.setRequestHandler(ListToolsRequestSchema, async () => {
-    if (plannedTools) {
-      // After planning: return only the planned tools
-      const planned = new Set(plannedTools);
-      const defs = TOOL_DEFS.filter(d => planned.has(d.name));
-      return {
-        tools: defs.map((def) => ({
-          name: def.name,
-          description: def.description,
-          inputSchema: zodToJsonSchema(def.schema),
-        })),
-      };
-    }
-
-    // Before planning: return plan tool + context-filtered tools
-    const doc = documentService.read(filePath);
-    const ctx = buildSelectionContext(doc);
-    const selectedDefs = selectTools(ctx);
     return {
-      tools: [
-        {
-          name: 'plan',
-          description: 'Select which tools to use for this response. After calling this, only the selected tools will be available.',
-          inputSchema: zodToJsonSchema(PlanToolSchema),
-        },
-        ...selectedDefs.map((def) => ({
-          name: def.name,
-          description: def.description,
-          inputSchema: zodToJsonSchema(def.schema),
-        })),
-      ],
+      tools: TOOL_DEFS.map((def) => ({
+        name: def.name,
+        description: def.description,
+        inputSchema: zodToJsonSchema(def.schema),
+      })),
     };
   });
 
@@ -114,21 +74,12 @@ export function createMcpServer(options: {
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: toolArguments } = request.params;
 
-    // Handle plan tool — transitions the tool list
-    if (name === 'plan') {
-      const parsed = PlanToolSchema.safeParse(toolArguments);
-      if (!parsed.success) return buildMcpResponse(`Invalid plan params: ${parsed.error.message}`, true);
-      const validNames = new Set<string>(TOOL_DEFS.map(d => d.name));
-      plannedTools = parsed.data.tools.filter(t => validNames.has(t));
-      await server.notification({ method: 'notifications/tools/list_changed' });
-      return buildMcpResponse(`Planned ${plannedTools.length} tools: ${plannedTools.join(', ')}`);
+    if (name !== 'design_surface') {
+      return buildMcpResponse(`Unknown tool: ${name}`, true);
     }
 
-    const schemaDef = toolSchemaMap.get(name);
-    if (!schemaDef) return buildMcpResponse(`Unknown tool: ${name}`, true);
-
     // Validate params
-    const validatedParams = schemaDef.safeParse(toolArguments);
+    const validatedParams = DesignSurfaceSchema.safeParse(toolArguments);
     if (!validatedParams.success) return buildMcpResponse(`Invalid params: ${validatedParams.error.message}`, true);
 
     try {
@@ -138,16 +89,24 @@ export function createMcpServer(options: {
         if (doc) batchStartVersion = doc.version;
       }
 
-      // Apply tool call — all calls in a batch share the same target version
-      const updated = documentService.applyTool(filePath, name, validatedParams.data as Record<string, unknown>, (batchStartVersion ?? 0) + 1);
+      // Apply design_surface — all calls in a batch share the same target version
+      const result = documentService.applyDesignSurface(
+        filePath,
+        validatedParams.data,
+        (batchStartVersion ?? 0) + 1,
+      );
 
       // Reset debounce timer — version is created only after the batch settles
       if (debounceTimer) clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => { flushVersionBatch(); }, debounceMs);
 
-      return buildMcpResponse(`Applied ${name} → version ${updated.version}`);
+      // Return structured result
+      if (result.results.errors.length > 0) {
+        return buildMcpResponse(JSON.stringify(result.results));
+      }
+      return buildMcpResponse(`Applied design_surface → version ${result.doc.version}`);
     } catch (err) {
-      return buildMcpResponse(`Error applying ${name}: ${formatError(err)}`, true);
+      return buildMcpResponse(`Error applying design_surface: ${formatError(err)}`, true);
     }
   });
 

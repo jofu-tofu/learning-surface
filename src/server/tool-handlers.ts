@@ -1,180 +1,315 @@
 import type { LearningDocument, Section, CanvasContent, Check } from '../shared/types.js';
-import type { ToolName } from '../shared/schemas.js';
+import {
+  type DesignSurfaceInput,
+  type SectionUpdateInput,
+  type CanvasInput,
+  DiagramDataSchema,
+  TimelineDataSchema,
+  ProofDataSchema,
+} from '../shared/schemas.js';
 import { slugify } from '../shared/slugify.js';
-import { blockTypes } from './blocks/registry.js';
 
-type ToolHandler = (doc: LearningDocument, params: Record<string, unknown>) => void;
+// === Constants ===
 
-function withActiveSection(
-  doc: LearningDocument,
-  sectionCallback: (section: Section) => void,
-): void {
-  const activeSection = doc.sections.find(section => section.id === doc.activeSection);
-  if (activeSection) sectionCallback(activeSection);
+const MAX_CANVASES = 4;
+
+/** Canvas types that require JSON content — validated via Zod schemas. */
+const STRUCTURED_CANVAS_TYPES = new Set(['diagram', 'timeline', 'proof']);
+
+// === Result Types ===
+
+interface CanvasResult {
+  success: boolean;
+  error?: string;
 }
 
-const handlers: Record<ToolName, ToolHandler> = {
-  new_section(doc, params) {
-    const title = params.title as string;
-    const newSection: Section = {
-      id: slugify(title),
-      title,
-    };
+interface SectionResult {
+  id: string;
+  results: {
+    title?: boolean;
+    canvases?: Record<string, CanvasResult>;
+    explanation?: boolean;
+    checks?: Record<string, boolean>;
+    followups?: boolean;
+    clear?: boolean;
+    active?: boolean;
+  };
+}
 
-    // Auto-remove the empty "Untitled" placeholder when a real section is created
+export interface DesignSurfaceResult {
+  version: number;
+  sections: SectionResult[];
+  errors: string[];
+}
+
+// === Canvas Content Validation ===
+
+function validateCanvasContent(canvas: CanvasInput): string | null {
+  if (!STRUCTURED_CANVAS_TYPES.has(canvas.type)) return null;
+
+  let data: unknown;
+  try {
+    data = JSON.parse(canvas.content);
+  } catch {
+    return `Invalid ${canvas.type} content: not valid JSON`;
+  }
+
+  switch (canvas.type) {
+    case 'diagram': {
+      const validation = DiagramDataSchema.safeParse(data);
+      if (!validation.success) return `Invalid diagram: ${validation.error.issues[0]?.message ?? 'validation failed'}`;
+      return null;
+    }
+    case 'timeline': {
+      const validation = TimelineDataSchema.safeParse(data);
+      if (!validation.success) return `Invalid timeline: ${validation.error.issues[0]?.message ?? 'validation failed'}`;
+      return null;
+    }
+    case 'proof': {
+      const validation = ProofDataSchema.safeParse(data);
+      if (!validation.success) return `Invalid proof: ${validation.error.issues[0]?.message ?? 'validation failed'}`;
+      return null;
+    }
+    default:
+      return null;
+  }
+}
+
+// === Section Helpers ===
+
+function findSectionById(doc: LearningDocument, id: string): Section | undefined {
+  return doc.sections.find(section => section.id === id);
+}
+
+function createSection(title: string): Section {
+  return {
+    id: slugify(title),
+    title,
+    canvases: [],
+  };
+}
+
+// === Core Merge Logic ===
+
+function applySectionUpdate(
+  doc: LearningDocument,
+  update: SectionUpdateInput,
+  errors: string[],
+): SectionResult {
+  // Resolve or create section
+  let section: Section | undefined;
+  let isNew = false;
+
+  if (update.id) {
+    section = findSectionById(doc, update.id);
+    if (!section) {
+      const availableIds = doc.sections.map(section => section.id).join(', ');
+      errors.push(`Section '${update.id}' not found. Available: [${availableIds}]`);
+      return { id: update.id, results: {} };
+    }
+  } else if (update.title) {
+    section = createSection(update.title);
+    isNew = true;
+
+    // Auto-remove empty "Untitled" placeholder
     const untitledIndex = doc.sections.findIndex(section => section.id === 'untitled');
     if (untitledIndex !== -1) {
-      const untitledSection = doc.sections[untitledIndex];
-      const isEmpty = !untitledSection.canvas && !untitledSection.explanation && !untitledSection.checks?.length && !untitledSection.followups?.length;
+      const untitled = doc.sections[untitledIndex];
+      const isEmpty = untitled.canvases.length === 0 &&
+        !untitled.explanation &&
+        !untitled.checks?.length &&
+        !untitled.followups?.length;
       if (isEmpty) {
         doc.sections.splice(untitledIndex, 1);
         if (doc.activeSection === 'untitled') {
-          doc.activeSection = newSection.id;
+          doc.activeSection = section.id;
         }
       }
     }
 
-    doc.sections.push(newSection);
-  },
+    doc.sections.push(section);
+  } else {
+    errors.push("Section requires either 'id' (existing) or 'title' (new)");
+    return { id: '', results: {} };
+  }
 
-  show_visual(doc, params) {
-    withActiveSection(doc, (activeSection) => {
-      activeSection.canvas = {
-        type: params.type as CanvasContent['type'],
-        content: params.content as string,
-      };
-      if (params.language) {
-        activeSection.canvas.language = params.language as string;
+  const result: SectionResult = { id: section.id, results: {} };
+
+  // Update title if specified on existing section
+  if (update.title && !isNew) {
+    section.title = update.title;
+    result.results.title = true;
+  }
+
+  // Apply clear BEFORE other changes
+  if (update.clear && update.clear.length > 0) {
+    for (const target of update.clear) {
+      switch (target) {
+        case 'canvases':
+          section.canvases = [];
+          break;
+        case 'explanation':
+          delete section.explanation;
+          break;
+        case 'checks':
+          delete section.checks;
+          break;
+        case 'followups':
+          delete section.followups;
+          break;
       }
-    });
-  },
+    }
+    result.results.clear = true;
+  }
 
-  show_diagram(doc, params) {
-    withActiveSection(doc, (activeSection) => {
-      const { nodes, edges, direction } = params as {
-        nodes: unknown[]; edges: unknown[]; direction?: string;
+  // Canvases: upsert by ID
+  if (update.canvases) {
+    const canvasResults: Record<string, CanvasResult> = {};
+
+    for (const canvasInput of update.canvases) {
+      // Validate structured content
+      const validationError = validateCanvasContent(canvasInput);
+      if (validationError) {
+        canvasResults[canvasInput.id] = { success: false, error: validationError };
+        errors.push(`Section '${section.id}' canvas '${canvasInput.id}': ${validationError}`);
+        continue;
+      }
+
+      const existingIndex = section.canvases.findIndex(canvas => canvas.id === canvasInput.id);
+      const canvas: CanvasContent = {
+        id: canvasInput.id,
+        type: canvasInput.type,
+        content: canvasInput.content,
+        ...(canvasInput.language ? { language: canvasInput.language } : {}),
       };
-      const payload: Record<string, unknown> = { nodes, edges };
-      if (direction) payload.direction = direction;
-      activeSection.canvas = { type: 'diagram', content: JSON.stringify(payload) };
-    });
-  },
 
-  show_timeline(doc, params) {
-    withActiveSection(doc, (activeSection) => {
-      const { events, direction } = params as { events: unknown[]; direction?: string };
-      const payload: Record<string, unknown> = { events };
-      if (direction) payload.direction = direction;
-      activeSection.canvas = { type: 'timeline', content: JSON.stringify(payload) };
-    });
-  },
+      if (existingIndex >= 0) {
+        // Replace existing
+        section.canvases[existingIndex] = canvas;
+        canvasResults[canvasInput.id] = { success: true };
+      } else if (section.canvases.length < MAX_CANVASES) {
+        // Append new
+        section.canvases.push(canvas);
+        canvasResults[canvasInput.id] = { success: true };
+      } else {
+        // Cap exceeded
+        const existingIds = section.canvases.map(canvas => canvas.id).join(', ');
+        const capError = `Maximum ${MAX_CANVASES} canvases. Cannot add '${canvasInput.id}'. Existing: [${existingIds}]`;
+        canvasResults[canvasInput.id] = { success: false, error: capError };
+        errors.push(`Section '${section.id}': ${capError}`);
+      }
+    }
 
-  derive(doc, params) {
-    withActiveSection(doc, (activeSection) => {
-      const { title, premises, steps } = params as { title?: string; premises?: string[]; steps: unknown[] };
-      const payload: Record<string, unknown> = { steps };
-      if (title) payload.title = title;
-      if (premises) payload.premises = premises;
-      activeSection.canvas = { type: 'proof', content: JSON.stringify(payload) };
-    });
-  },
+    result.results.canvases = canvasResults;
+  }
 
-  explain(doc, params) {
-    withActiveSection(doc, (activeSection) => {
-      activeSection.explanation = params.content as string;
-    });
-  },
+  // Explanation: replace
+  if (update.explanation !== undefined) {
+    section.explanation = update.explanation;
+    result.results.explanation = true;
+  }
 
-  extend(doc, params) {
-    withActiveSection(doc, (activeSection) => {
-      activeSection.explanation = (activeSection.explanation ?? '') + (params.content as string);
-    });
-  },
+  // Checks: append
+  if (update.checks) {
+    if (!section.checks) section.checks = [];
+    const checkResults: Record<string, boolean> = {};
 
-  challenge(doc, params) {
-    withActiveSection(doc, (activeSection) => {
-      if (!activeSection.checks) activeSection.checks = [];
+    for (const checkInput of update.checks) {
+      const id = `c${section.checks.length + 1}`;
       const check: Check = {
-        id: `c${activeSection.checks.length + 1}`,
-        question: params.question as string,
+        id,
+        question: checkInput.question,
         status: 'unanswered',
+        ...(checkInput.hints ? { hints: checkInput.hints } : {}),
+        ...(checkInput.answer ? { answer: checkInput.answer } : {}),
+        ...(checkInput.answerExplanation ? { answerExplanation: checkInput.answerExplanation } : {}),
       };
-      if (params.hints) {
-        check.hints = params.hints as string[];
-      }
-      if (params.answer) {
-        check.answer = params.answer as string;
-      }
-      if (params.answerExplanation) {
-        check.answerExplanation = params.answerExplanation as string;
-      }
-      activeSection.checks.push(check);
-    });
-  },
-
-  suggest_followups(doc, params) {
-    withActiveSection(doc, (activeSection) => {
-      activeSection.followups = params.questions as string[];
-    });
-  },
-
-  set_active(doc, params) {
-    doc.activeSection = params.section as string;
-  },
-
-  build_visual(doc, params) {
-    withActiveSection(doc, (activeSection) => {
-      if (activeSection.canvas) {
-        activeSection.canvas.content = activeSection.canvas.content + '\n' + (params.additions as string);
-      }
-    });
-  },
-
-  clear(doc, params) {
-    const target = params.target as string;
-
-    if (target === 'all') {
-      doc.sections.length = 0;
-      doc.sections.push({
-        id: 'start',
-        title: 'Start',
-      });
-      doc.activeSection = 'start';
-      delete doc.summary;
-      return;
+      section.checks.push(check);
+      checkResults[id] = true;
     }
 
-    if (target === 'section') {
-      if (doc.sections.length <= 1) return; // guard: keep at least one section
-      const sectionId = params.section as string | undefined;
-      const id = sectionId ?? doc.activeSection;
-      const sectionIndex = doc.sections.findIndex(section => section.id === id);
-      if (sectionIndex === -1) return;
-      doc.sections.splice(sectionIndex, 1);
-      // If we removed the active section, fall back to the last remaining section
-      if (doc.activeSection === id && doc.sections.length > 0) {
-        doc.activeSection = doc.sections[doc.sections.length - 1].id;
-      }
-      return;
-    }
+    result.results.checks = checkResults;
+  }
 
-    const sectionId = params.section as string | undefined;
-    const section = sectionId
-      ? doc.sections.find(section => section.id === sectionId)
-      : doc.sections.find(section => section.id === doc.activeSection);
-    if (!section) return;
+  // Followups: replace
+  if (update.followups !== undefined) {
+    section.followups = update.followups;
+    result.results.followups = true;
+  }
 
-    if (blockTypes().includes(target)) {
-      delete (section as unknown as Record<string, unknown>)[target];
-    }
-  },
-};
+  // Active: set active section
+  if (update.active) {
+    doc.activeSection = section.id;
+    result.results.active = true;
+  }
 
-export function applyTool(
+  return result;
+}
+
+// === Public API ===
+
+/**
+ * Pure function: apply a design_surface operation to a document.
+ * No I/O, no side effects — data in, data out.
+ *
+ * Partial success: invalid fields return errors, valid fields still apply.
+ */
+export function applyDesignSurface(
   doc: LearningDocument,
-  tool: string,
-  params: Record<string, unknown>,
-): void {
-  if (!(tool in handlers)) throw new Error(`Unknown tool: ${tool}`);
-  handlers[tool as ToolName](doc, params);
+  params: DesignSurfaceInput,
+): { doc: LearningDocument; results: DesignSurfaceResult } {
+  const cloned = structuredClone(doc);
+  const errors: string[] = [];
+  const sectionResults: SectionResult[] = [];
+
+  // clearAll — reset entire document
+  if (params.clearAll) {
+    cloned.sections = [{
+      id: 'start',
+      title: 'Start',
+      canvases: [],
+    }];
+    cloned.activeSection = 'start';
+    delete cloned.summary;
+    return {
+      doc: cloned,
+      results: { version: cloned.version, sections: [], errors: [] },
+    };
+  }
+
+  // removeSection — delete a section by ID
+  if (params.removeSection) {
+    const sectionIdToRemove = params.removeSection;
+    if (cloned.sections.length <= 1) {
+      errors.push(`Cannot remove last section '${sectionIdToRemove}'. Use clearAll instead.`);
+    } else {
+      const removeIndex = cloned.sections.findIndex(section => section.id === sectionIdToRemove);
+      if (removeIndex === -1) {
+        const availableIds = cloned.sections.map(section => section.id).join(', ');
+        errors.push(`removeSection: '${sectionIdToRemove}' not found. Available: [${availableIds}]`);
+      } else {
+        cloned.sections.splice(removeIndex, 1);
+        if (cloned.activeSection === sectionIdToRemove && cloned.sections.length > 0) {
+          cloned.activeSection = cloned.sections[cloned.sections.length - 1].id;
+        }
+      }
+    }
+  }
+
+  // Apply section updates
+  if (params.sections) {
+    for (const update of params.sections) {
+      const result = applySectionUpdate(cloned, update, errors);
+      sectionResults.push(result);
+    }
+  }
+
+  return {
+    doc: cloned,
+    results: {
+      version: cloned.version,
+      sections: sectionResults,
+      errors,
+    },
+  };
 }

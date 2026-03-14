@@ -1,7 +1,7 @@
 import type { WebSocket } from 'ws';
 import { createDocumentService, type DocumentService } from './document-service.js';
 import { handlePrompt } from './prompt-handler.js';
-import { parse } from './markdown.js';
+import { parseSurface } from './surface-file.js';
 import { getProvider as getProviderFromRegistry, listProviders } from './providers/registry.js';
 import type {
   ClientMessage,
@@ -116,7 +116,7 @@ export async function routeMessage(
       if (!state.activeVersionStore) return;
 
       const versionContent = await state.activeVersionStore.getVersion(msg.version);
-      const doc = parse(versionContent);
+      const doc = parseSurface(versionContent);
       const versionList = await state.activeVersionStore.listVersions();
 
       sendMessage(ws, {
@@ -134,7 +134,9 @@ export async function routeMessage(
       const doc = documentService.read(filePath);
       if (!doc) return;
 
-      documentService.applyTool(filePath, 'set_active', { section: msg.sectionId });
+      // Set active section directly and write
+      doc.activeSection = msg.sectionId;
+      documentService.write(filePath, doc);
       return;
     }
 

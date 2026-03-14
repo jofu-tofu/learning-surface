@@ -20,4 +20,8 @@ describe('getToolLabel', () => {
       expect(TOOL_LABELS[def.name]).toBe(def.label);
     }
   });
+
+  it('no longer has planning phase label', () => {
+    expect(getToolLabel('planning')).toBe('planning');
+  });
 });

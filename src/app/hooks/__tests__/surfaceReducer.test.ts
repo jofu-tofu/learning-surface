@@ -248,12 +248,12 @@ describe('reduceSurfaceMessage', () => {
 
   describe('tool-progress', () => {
     it('sets activity with resolved label', () => {
-      const msg: WsMessage = { type: 'tool-progress', toolName: 'show_visual', step: 2 };
+      const msg: WsMessage = { type: 'tool-progress', toolName: 'design_surface', step: 2 };
       const result = reduceSurfaceMessage(state(), msg, null);
 
       expect(result.state.activity).toEqual({
-        label: 'Building visual',
-        toolName: 'show_visual',
+        label: 'Designing surface',
+        toolName: 'design_surface',
         step: 2,
       });
     });

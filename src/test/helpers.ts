@@ -9,12 +9,13 @@ import type {
 } from '../shared/types.js';
 export type { VersionStore };
 import { slugify } from '../shared/slugify.js';
-import { serialize } from '../server/markdown.js';
+import { serializeSurface } from '../server/surface-file.js';
 
 // === Builders ===
 
 export function buildCanvasContent(overrides: Partial<CanvasContent> = {}): CanvasContent {
   return {
+    id: overrides.id ?? 'default-canvas',
     type: 'mermaid',
     content: 'graph LR\n  A --> B',
     ...overrides,
@@ -35,6 +36,7 @@ export function buildSection(overrides: Partial<Section> = {}): Section {
   return {
     id: slugify(title),
     title,
+    canvases: [],
     ...overrides,
   };
 }
@@ -60,56 +62,19 @@ export function buildVersionMeta(overrides: Partial<VersionMeta> = {}): VersionM
   };
 }
 
-// === Fixture Markdown Strings ===
+// === Fixture .surface Strings ===
 
 // Generated from builders — stays in sync with format changes automatically.
-export const MINIMAL_DOC = serialize(buildDocument({
+export const MINIMAL_DOC = serializeSurface(buildDocument({
   sections: [buildSection({ title: 'Introduction', explanation: 'This is the introduction.' })],
   activeSection: 'introduction',
 }));
 
-// Deliberately malformed — no frontmatter. Must stay as raw string.
-export const NO_FRONTMATTER_DOC = `## Introduction
-
-### explanation
-Missing frontmatter.
-`;
-
 // Generated from builders — empty section with no blocks.
-export const EMPTY_SECTION_DOC = serialize(buildDocument({
+export const EMPTY_SECTION_DOC = serializeSurface(buildDocument({
   sections: [buildSection({ title: 'Empty' })],
   activeSection: 'empty',
 }));
-
-// Deliberate edge case — unknown block type. Must stay as raw string.
-export const UNKNOWN_BLOCK_DOC = `---
-version: 1
-active_section: test
----
-
-## Test
-
-### unknown_block
-Some content here.
-
-### explanation
-Known block.
-`;
-
-// Deliberate edge case — duplicate blocks. Must stay as raw string.
-export const DUPLICATE_BLOCK_DOC = `---
-version: 1
-active_section: test
----
-
-## Test
-
-### explanation
-First explanation.
-
-### explanation
-Second explanation.
-`;
 
 // === Test Doubles ===
 
@@ -182,12 +147,10 @@ export function fakeAgent(
   };
 }
 
-/** @deprecated Use fakeAgent() instead. Alias for backwards compatibility. */
-export const fakeProvider = fakeAgent;
 
 /** Fake ContextCompiler that returns a minimal SurfaceContext. */
 export function fakeContextCompiler(): ContextCompiler {
-  const META_KEYS = new Set(['id', 'title', '_unknownBlocks']);
+  const META_KEYS = new Set(['id', 'title']);
   return {
     async compile(doc) {
       const active = doc.sections.find(section => section.id === doc.activeSection);
@@ -201,11 +164,9 @@ export function fakeContextCompiler(): ContextCompiler {
       return {
         session: { topic: 'test', version: doc.version, activeSection: doc.activeSection },
         surface,
-        sections: doc.sections.map(section => ({ title: section.title })),
+        sections: doc.sections.map(section => ({ id: section.id, title: section.title, canvasIds: section.canvases.map(canvas => canvas.id) })),
         promptHistory: [],
       };
     },
   };
 }
-
-

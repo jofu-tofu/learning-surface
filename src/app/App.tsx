@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Canvas } from './components/Canvas.js';
+import { CanvasGrid } from './components/CanvasGrid.js';
 import { Explanation } from './components/Explanation.js';
 import type { Section } from '../shared/types.js';
 import { Sidebar } from './components/Sidebar.js';
@@ -47,7 +47,7 @@ const PANE_CONFIGS: PaneConfig[] = [
     id: 'canvas',
     title: 'Canvas',
     centerContent: true,
-    render: ({ section }) => <Canvas content={section?.canvas ?? null} />,
+    render: ({ section }) => <CanvasGrid canvases={section?.canvases ?? []} />,
   },
   {
     id: 'explanation',

@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
 import {
-  ShowVisualSchema, BuildVisualSchema, ExplainSchema, ExtendSchema,
-  ChallengeSchema, SuggestFollowupsSchema,
-  NewSectionSchema, SetActiveSchema, ClearSchema,
-  ShowTimelineSchema, DeriveSchema,
+  DesignSurfaceSchema,
+  DiagramDataSchema,
+  TimelineDataSchema,
+  ProofDataSchema,
   zodToJsonSchema,
 } from '../../shared/schemas.js';
 
@@ -12,7 +12,6 @@ import {
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Table-driven rejection tests */
 function rejectsAll(schema: z.ZodTypeAny, cases: [string, unknown][]) {
   it.each(cases)('rejects %s', (_, input) => {
     expect(schema.safeParse(input).success).toBe(false);
@@ -20,54 +19,45 @@ function rejectsAll(schema: z.ZodTypeAny, cases: [string, unknown][]) {
 }
 
 // ---------------------------------------------------------------------------
-// MCP Tool Parameter Schemas
+// DesignSurfaceSchema
 // ---------------------------------------------------------------------------
 
-describe('ShowVisualSchema', () => {
-  rejectsAll(ShowVisualSchema, [
-    ['empty object', {}],
-    ['missing content', { type: 'mermaid' }],
-    ['missing type', { content: 'x' }],
-    ['invalid type enum', { type: 'html', content: 'x' }],
-    ['wrong type for content', { type: 'mermaid', content: 42 }],
-    ['wrong type for language', { type: 'code', content: 'x', language: 123 }],
-  ]);
-});
-
-describe('simple tool param schemas', () => {
-  it.each([
-    ['BuildVisualSchema', BuildVisualSchema, { additions: 42 }],
-    ['ExplainSchema', ExplainSchema, { content: 42 }],
-    ['ExtendSchema', ExtendSchema, { content: true }],
-    ['NewSectionSchema', NewSectionSchema, { title: 42 }],
-    ['SetActiveSchema', SetActiveSchema, { section: false }],
-  ] as [string, z.ZodTypeAny, unknown][])('%s: rejects empty / rejects wrong type', (_, schema, wrongType) => {
-    expect(schema.safeParse({}).success).toBe(false);
-    expect(schema.safeParse(wrongType).success).toBe(false);
+describe('DesignSurfaceSchema', () => {
+  it('accepts empty object (all fields optional)', () => {
+    expect(DesignSurfaceSchema.safeParse({}).success).toBe(true);
   });
-});
 
-describe('ChallengeSchema', () => {
-  rejectsAll(ChallengeSchema, [
-    ['empty object', {}],
-    ['wrong type for hints', { question: 'Q?', hints: 'not-array' }],
-    ['wrong type for answer', { question: 'Q?', answer: 42 }],
-    ['wrong type for answerExplanation', { question: 'Q?', answerExplanation: true }],
+  it('accepts sections array with section updates', () => {
+    const result = DesignSurfaceSchema.safeParse({
+      sections: [{ title: 'Test', explanation: 'Hello' }],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  rejectsAll(DesignSurfaceSchema, [
+    ['sections not an array', { sections: 'not-array' }],
+    ['clearAll not boolean', { clearAll: 'yes' }],
+    ['removeSection not string', { removeSection: 42 }],
   ]);
 });
 
-describe('SuggestFollowupsSchema', () => {
-  rejectsAll(SuggestFollowupsSchema, [
+// ---------------------------------------------------------------------------
+// Internal Validators
+// ---------------------------------------------------------------------------
+
+describe('DiagramDataSchema', () => {
+  rejectsAll(DiagramDataSchema, [
     ['empty object', {}],
-    ['wrong type', { questions: 'not-array' }],
-    ['non-string elements', { questions: [1, 2] }],
+    ['nodes not array', { nodes: 'x', edges: [] }],
+    ['node missing label', { nodes: [{ id: 'a' }], edges: [] }],
+    ['invalid direction', { nodes: [], edges: [], direction: 'diagonal' }],
   ]);
 });
 
-describe('ShowTimelineSchema', () => {
-  rejectsAll(ShowTimelineSchema, [
+describe('TimelineDataSchema', () => {
+  rejectsAll(TimelineDataSchema, [
     ['empty object', {}],
-    ['events not an array', { events: 'not-array' }],
+    ['events not array', { events: 'x' }],
     ['event missing id', { events: [{ date: '2024', label: 'X' }] }],
     ['event missing date', { events: [{ id: '1', label: 'X' }] }],
     ['event missing label', { events: [{ id: '1', date: '2024' }] }],
@@ -75,21 +65,13 @@ describe('ShowTimelineSchema', () => {
   ]);
 });
 
-describe('DeriveSchema', () => {
-  rejectsAll(DeriveSchema, [
+describe('ProofDataSchema', () => {
+  rejectsAll(ProofDataSchema, [
     ['empty object', {}],
-    ['steps not an array', { steps: 'not-array' }],
+    ['steps not array', { steps: 'x' }],
     ['step missing expression', { steps: [{ justification: 'by def' }] }],
     ['step missing justification', { steps: [{ expression: 'x=1' }] }],
     ['wrong type for isGoal', { steps: [{ expression: 'x', justification: 'y', isGoal: 'yes' }] }],
-  ]);
-});
-
-describe('ClearSchema', () => {
-  rejectsAll(ClearSchema, [
-    ['empty object', {}],
-    ['invalid target', { target: 'everything' }],
-    ['wrong type for section', { target: 'canvas', section: 42 }],
   ]);
 });
 

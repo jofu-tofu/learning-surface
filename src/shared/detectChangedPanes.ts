@@ -1,11 +1,11 @@
 import type { LearningDocument, Section } from './types.js';
 
-/** Section keys that are metadata or parser internals, not renderable content. */
-const META_KEYS = new Set(['id', 'title', '_unknownBlocks']);
+/** Section keys that are metadata, not renderable content. */
+const META_KEYS = new Set(['id', 'title']);
 
 /** Map Section content keys → pane IDs. Unmapped keys default to their own name. */
 export const CONTENT_KEY_TO_PANE: Record<string, string> = {
-  canvas: 'canvas',
+  canvases: 'canvas',
   explanation: 'explanation',
   checks: 'explanation',      // grouped: checks render inside explanation pane
   followups: 'explanation',   // grouped: followups render inside explanation pane

@@ -7,7 +7,7 @@ import type { ClientMessage, WsMessage, WsProviderError } from '../../shared/typ
 import {
   MINIMAL_DOC,
   fakeFileIO,
-  fakeProvider,
+  fakeAgent,
   fakeContextCompiler,
   spyVersionStore,
   buildVersionMeta,
@@ -52,11 +52,11 @@ function setup(opts: {
   initialDoc?: string;
 } = {}) {
   const io = fakeFileIO(new Map([
-    ['/chat/current.md', opts.initialDoc ?? MINIMAL_DOC],
+    ['/chat/current.surface', opts.initialDoc ?? MINIMAL_DOC],
   ]));
   const documentService = createDocumentService(io);
   const store = spyVersionStore();
-  const provider = fakeProvider(opts.toolCalls ?? [], {
+  const provider = fakeAgent(opts.toolCalls ?? [], {
     type: opts.providerType ?? 'api',
   });
 
@@ -96,7 +96,7 @@ function setup(opts: {
 describe('ws-handlers prompt flow', () => {
   it('sends prompt-complete after successful prompt', async () => {
     const { ws, send } = setup({
-      toolCalls: [{ toolName: 'explain', params: { content: 'Hello' } }],
+      toolCalls: [{ toolName: 'design_surface', params: { sections: [{ id: 'introduction', explanation: 'Hello' }] } }],
     });
 
     await send({
@@ -148,7 +148,7 @@ describe('ws-handlers prompt flow', () => {
 
   it('multi-turn: second prompt gets prompt-complete after first', async () => {
     const { ws, send, promptDeps } = setup({
-      toolCalls: [{ toolName: 'explain', params: { content: 'TCP is a transport protocol.' } }],
+      toolCalls: [{ toolName: 'design_surface', params: { sections: [{ id: 'introduction', explanation: 'TCP is a transport protocol.' }] } }],
     });
 
     // First prompt: AI adds an explanation
@@ -164,7 +164,7 @@ describe('ws-handlers prompt flow', () => {
     // Second prompt: swap provider to one that replaces explanation
     promptDeps.getProvider = (id: string) =>
       id === 'fake'
-        ? fakeProvider([{ toolName: 'explain', params: { content: 'TCP uses a three-way handshake.' } }])
+        ? fakeAgent([{ toolName: 'design_surface', params: { sections: [{ id: 'introduction', explanation: 'TCP uses a three-way handshake.' }] } }])
         : undefined;
 
     await send({
@@ -208,8 +208,8 @@ describe('ws-handlers prompt flow', () => {
   it('broadcasts tool-progress for each tool call during prompt', async () => {
     const { broadcast, send } = setup({
       toolCalls: [
-        { toolName: 'show_visual', params: { type: 'mermaid', content: 'graph LR\n  A-->B' } },
-        { toolName: 'explain', params: { content: 'Hello' } },
+        { toolName: 'design_surface', params: { sections: [{ id: 'introduction', canvases: [{ id: 'v', type: 'mermaid', content: 'graph LR' }] }] } },
+        { toolName: 'design_surface', params: { sections: [{ id: 'introduction', explanation: 'Hello' }] } },
       ],
     });
 
@@ -224,12 +224,11 @@ describe('ws-handlers prompt flow', () => {
       .map(([m]) => m as WsMessage)
       .filter(m => m.type === 'tool-progress');
 
-    // planning + thinking + 2 tool calls = 4 progress messages
-    expect(progressCalls).toHaveLength(4);
-    expect(progressCalls[0]).toMatchObject({ type: 'tool-progress', toolName: 'planning', step: 0 });
-    expect(progressCalls[1]).toMatchObject({ type: 'tool-progress', toolName: 'thinking', step: 0 });
-    expect(progressCalls[2]).toMatchObject({ type: 'tool-progress', toolName: 'show_visual', step: 1 });
-    expect(progressCalls[3]).toMatchObject({ type: 'tool-progress', toolName: 'explain', step: 2 });
+    // thinking + 2 tool calls = 3 progress messages (no planning stage)
+    expect(progressCalls).toHaveLength(3);
+    expect(progressCalls[0]).toMatchObject({ type: 'tool-progress', toolName: 'thinking', step: 0 });
+    expect(progressCalls[1]).toMatchObject({ type: 'tool-progress', toolName: 'design_surface', step: 1 });
+    expect(progressCalls[2]).toMatchObject({ type: 'tool-progress', toolName: 'design_surface', step: 2 });
   });
 
   it('broadcasts tool-progress thinking even with zero tool calls', async () => {
@@ -246,9 +245,9 @@ describe('ws-handlers prompt flow', () => {
       .map(([m]) => m as WsMessage)
       .filter(m => m.type === 'tool-progress');
 
-    expect(progressCalls).toHaveLength(2);
-    expect(progressCalls[0]).toMatchObject({ toolName: 'planning', step: 0 });
-    expect(progressCalls[1]).toMatchObject({ toolName: 'thinking', step: 0 });
+    // Only thinking (no planning stage)
+    expect(progressCalls).toHaveLength(1);
+    expect(progressCalls[0]).toMatchObject({ toolName: 'thinking', step: 0 });
   });
 });
 
@@ -385,7 +384,7 @@ describe('ws-handlers other routes', () => {
 
   it('preflight error sends ok:false with error message', async () => {
     const { ws, deps } = setup();
-    const badProvider = fakeProvider();
+    const badProvider = fakeAgent();
     badProvider.preflight = async () => { throw new Error('Connection refused'); };
 
     await routeMessage(ws as unknown as import('ws').WebSocket,

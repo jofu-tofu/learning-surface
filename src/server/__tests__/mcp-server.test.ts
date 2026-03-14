@@ -12,9 +12,16 @@ import type { VersionStore } from '../../test/helpers.js';
 
 describe('MCP Server', () => {
   describe('tool schema validation', () => {
-    it('show_visual schema rejects invalid type', () => {
-      const schema = toolSchemaMap.get('show_visual')!;
-      const result = schema.safeParse({ type: 'invalid', content: 'x' });
+    it('design_surface schema rejects completely empty input', () => {
+      const schema = toolSchemaMap.get('design_surface')!;
+      // Empty object is valid for design_surface (all fields optional)
+      const result = schema.safeParse({});
+      expect(result.success).toBe(true);
+    });
+
+    it('design_surface schema rejects invalid section structure', () => {
+      const schema = toolSchemaMap.get('design_surface')!;
+      const result = schema.safeParse({ sections: 'not-array' });
       expect(result.success).toBe(false);
     });
   });
@@ -27,7 +34,7 @@ describe('MCP Server', () => {
 
     beforeEach(async () => {
       sessionDir = await mkdtemp(join(tmpdir(), 'ls-mcp-test-'));
-      await writeFile(join(sessionDir, 'current.md'), MINIMAL_DOC, 'utf-8');
+      await writeFile(join(sessionDir, 'current.surface'), MINIMAL_DOC, 'utf-8');
 
       store = spyVersionStore();
       const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
@@ -44,7 +51,6 @@ describe('MCP Server', () => {
     });
 
     afterEach(async () => {
-      // Cancel any pending debounce timers before deleting the temp directory
       await mcpServer.flushVersionBatch();
       await client.close();
       await rm(sessionDir, { recursive: true, force: true });
@@ -56,7 +62,10 @@ describe('MCP Server', () => {
     });
 
     it('stop() flushes any pending batch', async () => {
-      await client.callTool({ name: 'explain', arguments: { content: 'Stopping soon.' } });
+      await client.callTool({
+        name: 'design_surface',
+        arguments: { sections: [{ id: 'introduction', explanation: 'Stopping soon.' }] },
+      });
       expect(store.createVersion).not.toHaveBeenCalled();
 
       await mcpServer.stop();
@@ -72,7 +81,7 @@ describe('MCP Server', () => {
 
     beforeEach(async () => {
       sessionDir = await mkdtemp(join(tmpdir(), 'ls-mcp-val-'));
-      await writeFile(join(sessionDir, 'current.md'), MINIMAL_DOC, 'utf-8');
+      await writeFile(join(sessionDir, 'current.surface'), MINIMAL_DOC, 'utf-8');
 
       store = spyVersionStore();
       const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
@@ -101,42 +110,24 @@ describe('MCP Server', () => {
       expect(text).toContain('Unknown tool');
     });
 
-    it('invalid params rejected by Zod schema (show_visual with bad enum)', async () => {
+    it('invalid params rejected by Zod schema', async () => {
       const result = await client.callTool({
-        name: 'show_visual',
-        arguments: { type: 'svg', content: 'test' },
+        name: 'design_surface',
+        arguments: { sections: 'not-an-array' },
       });
       expect(result.isError).toBe(true);
       const text = (result.content as Array<{ text: string }>)[0].text;
       expect(text).toContain('Invalid params');
     });
 
-    it('missing required params rejected by Zod schema', async () => {
+    it('valid design_surface call succeeds', async () => {
       const result = await client.callTool({
-        name: 'explain',
-        arguments: {},
-      });
-      expect(result.isError).toBe(true);
-      const text = (result.content as Array<{ text: string }>)[0].text;
-      expect(text).toContain('Invalid params');
-    });
-
-    it('challenge with wrong hints type rejected by Zod', async () => {
-      const result = await client.callTool({
-        name: 'challenge',
-        arguments: { question: 'Q?', hints: 'not-an-array' },
-      });
-      expect(result.isError).toBe(true);
-    });
-
-    it('valid tool call with optional params succeeds', async () => {
-      const result = await client.callTool({
-        name: 'show_visual',
-        arguments: { type: 'code', content: 'console.log("hi")', language: 'javascript' },
+        name: 'design_surface',
+        arguments: { sections: [{ id: 'introduction', explanation: 'Updated text.' }] },
       });
       expect(result.isError).toBeUndefined();
       const text = (result.content as Array<{ text: string }>)[0].text;
-      expect(text).toContain('Applied show_visual');
+      expect(text).toContain('Applied design_surface');
     });
   });
 });

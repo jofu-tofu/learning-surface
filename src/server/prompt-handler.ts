@@ -4,8 +4,7 @@ import { getProvider as getProviderFromRegistry } from './providers/registry.js'
 import { zodToJsonSchema } from '../shared/schemas.js';
 import { SYSTEM_PROMPT } from './system-prompt.js';
 import type { Agent, ToolDefinition, ReasoningEffort } from '../shared/providers.js';
-import { buildPlanningSchema, buildPlanningPrompt, parsePlanResult } from './tool-planner.js';
-import { buildSelectionContext, selectTools } from './tool-selector.js';
+import { selectTools } from './tool-selector.js';
 import type { ContextCompiler, LearningDocument, SurfaceContext, VersionStore } from '../shared/types.js';
 import { detectChangedPanes, detectChangedSections } from '../shared/detectChangedPanes.js';
 
@@ -94,36 +93,15 @@ export async function handlePrompt(
   }
 
   const filePath = documentService.filePath(chatDir);
-  // Always ensure the file exists on disk (latestDocument may be in-memory only)
   const currentDoc = documentService.ensureExists(filePath);
 
   // Build context-aware system prompt
   const context = await contextCompiler.compile(currentDoc, chatDir);
   const systemPrompt = buildSystemPrompt(context);
 
-  // Compute per-request tool set based on current document state
-  const selectionCtx = buildSelectionContext(currentDoc);
-  const selectedDefs = selectTools(selectionCtx);
-
-  // Stage 1: Planning via agent.ask() — select which tools to use
-  let executionDefs = selectedDefs;
-  request.onProgress?.('planning', 0);
-  try {
-    const plan = await provider.ask({
-      prompt: text,
-      systemPrompt: buildPlanningPrompt(selectionCtx, selectedDefs),
-      model: modelId,
-      responseSchema: buildPlanningSchema(selectedDefs),
-      schemaName: 'tool_plan',
-      reasoningEffort: 'low',
-    });
-    executionDefs = parsePlanResult(plan, selectedDefs);
-  } catch {
-    // Planning failure → fall back to all available tools
-  }
-
-  // Stage 2: Execution via agent.run() with only selected tools
-  const providerTools: ToolDefinition[] = executionDefs.map((def) => ({
+  // Single tool set — no planning stage
+  const toolDefs = selectTools();
+  const providerTools: ToolDefinition[] = toolDefs.map((def) => ({
     name: def.name,
     description: def.description,
     parameters: zodToJsonSchema(def.schema),
@@ -149,16 +127,17 @@ export async function handlePrompt(
         toolStep++;
         request.onProgress?.(call.toolName, toolStep);
 
-        const applied = documentService.applyTool(
+        const result = documentService.applyDesignSurface(
           filePath,
-          call.toolName,
-          call.params,
+          call.params as import('../shared/schemas.js').DesignSurfaceInput,
           startVersion + 1,
         );
 
         return {
-          success: true,
-          message: `Applied ${call.toolName} → version ${applied.version}`,
+          success: result.results.errors.length === 0,
+          message: result.results.errors.length > 0
+            ? JSON.stringify(result.results)
+            : `Applied ${call.toolName} → version ${result.doc.version}`,
         };
       },
     });

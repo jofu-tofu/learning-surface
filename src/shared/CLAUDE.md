@@ -4,51 +4,38 @@ Data contracts and shared abstractions consumed by both server and app.
 
 ## Conventions
 
-- `schemas.ts` defines Zod schemas for MCP tool parameters. `types.ts` defines data model interfaces (`LearningDocument`, `Section`, `Check`, etc.) and behavioral interfaces (`VersionStore`, `ContextCompiler`, `FileWatcherService`) independently — they are not derived from Zod via `z.infer<>`.
-- `schemas.ts` contains `TOOL_DEFS` (all 12 MCP tool definitions with name/label/description/Zod schema/targets/availability/category, typed `as const satisfies readonly ToolDefinitionEntry[]` so `ToolName` is a literal union), `toolSchemaMap` (lookup by tool name), and `zodToJsonSchema()` for MCP SDK integration.
+- `schemas.ts` defines the Zod schema for the `design_surface` tool parameters. `types.ts` defines data model interfaces (`LearningDocument`, `Section`, `CanvasContent`, `Check`, etc.) and behavioral interfaces (`VersionStore`, `ContextCompiler`, `FileWatcherService`) independently — they are not derived from Zod via `z.infer<>`.
+- `schemas.ts` contains the `design_surface` tool definition with Zod schema and `zodToJsonSchema()` for MCP SDK integration.
 - `providers.ts` defines Zod schemas for provider data contracts (`ProviderConfigSchema`, `ModelConfigSchema`, `PreflightResultSchema`, `ProviderToolCallSchema`, `ToolCallResultSchema`, `ToolDefinitionSchema`, `ProviderInfoSchema`) with types derived via `z.infer<>`. The `Agent` interface (strategy pattern, has methods) stays as a plain TypeScript interface.
 - `detectChangedPanes.ts` uses `CONTENT_KEY_TO_PANE` map to group Section keys into pane IDs. Unmapped keys default to their own name — this is intentional so new content types are automatically detected without editing the map. Only add explicit mappings when multiple keys should trigger the same pane flash.
 - `SurfaceContext.surface` is `Record<string, unknown>` (not typed) because the only consumer is the AI via JSON serialization — TypeScript narrowing adds no value.
 
-## Structured Markdown Format
+## `.surface` JSON Format
 
-The data contract between all modules. Documents use YAML frontmatter + `##` sections + `###` blocks.
+The data contract between all modules. Documents are stored as `.surface` JSON files.
 
-**Frontmatter:** `version` (integer), `active_section` (slug), `summary` (optional string).
+**Top-level fields:** `version` (integer), `active_section` (slug), `summary` (optional string), `sections` (array).
 
-**Sections:** Start with `## Title`. ID = slugified title. No section-level status (sections are just containers).
+**Sections:** Each has `id`, `title`, `canvases` (`CanvasContent[]` with IDs), `explanation`, `checks`, `followups`.
 
-**Blocks within a section:**
-
-| Block | Header | Max | Notes |
-|-------|--------|-----|-------|
-| Canvas | `### canvas: TYPE` (diagram/mermaid/katex/code/timeline/proof) | 1 | Raw content until next heading; diagram/timeline/proof use JSON |
-| Explanation | `### explanation` | 1 | Markdown text |
-| Check | `### check: ID` | unlimited | Question + `<!-- status: unanswered|attempted|revealed -->` |
-| Followups | `### followups` | 1 | Unordered list |
-
-**Round-trip invariant:** `serialize(parse(raw))` must produce semantically equivalent output. Unknown `###` blocks are preserved for extensibility.
+**Multi-canvas:** Each section supports multiple canvases via `canvases: CanvasContent[]`. Each canvas has a unique `id` and a `type` (diagram/mermaid/katex/code/timeline/proof).
 
 ## Key Files
 
 | File | Role |
 |------|------|
-| `schemas.ts` | Zod schemas, tool definitions (`TOOL_DEFS`, `toolSchemaMap`), JSON schema conversion |
-| `types.ts` | Data model interfaces, behavioral interface contracts, and utility functions (`sortChatsByRecent`, `getActiveSection`) |
+| `schemas.ts` | Zod schema for `design_surface` tool, JSON schema conversion |
+| `types.ts` | Data model interfaces (`LearningDocument`, `Section`, `CanvasContent`), behavioral interface contracts, utility functions (`sortChatsByRecent`, `getActiveSection`) |
 | `providers.ts` | Zod schemas + `z.infer<>` types for provider data contracts; `Agent` interface |
-| `tool-labels.ts` | Derives tool labels from `TOOL_DEFS`; only phase labels are defined locally |
 | `version-tree.ts` | Pure tree traversal for version history (parent chain, children, forward path) |
 | `slugify.ts` | Title -> URL-safe slug |
 | `themes.ts` | Theme definitions (`THEMES`, `ThemeId`), OKLCH surface scale generator, `applyTheme()`/`getStoredTheme()` runtime helpers |
 
 ## Gotchas
 
-- **`_unknownBlocks` is a runtime-only property** added by the markdown parser (`server/markdown.ts`) via type intersection — it's not on the `Section` interface but appears in `Object.keys()`. Excluded from pane comparison and AI context via `META_KEYS` in both `detectChangedPanes.ts` and `server/context.ts`.
 - **Schema changes require integration test verification.** When adding or modifying Zod schemas in `providers.ts` or `schemas.ts`, run `INTEGRATION_TEST=1 npm test` (add `OPENAI_API_KEY` for API round-trip) to validate schemas against real provider responses. The integration tests in `server/__tests__/provider-integration.test.ts` catch schema drift — fields that don't match what the actual APIs return, hallucinated enum values, or missing required properties.
-- Changes to `schemas.ts` tool definitions must stay in sync with `server/tool-handlers.ts` (the handler registry) and `server/blocks/` (the block definitions).
-- The CLI system prompt format section in `server/system-prompt.ts` is auto-generated from the block registry — adding a new block type in `server/blocks/` automatically updates the prompt.
-- `CANVAS_TYPES` in `types.ts` is the canonical source for canvas type values. `schemas.ts` `ShowVisualSchema` intentionally covers only `['mermaid', 'katex', 'code']` — canvas types with structured JSON input (`diagram`, `timeline`, `proof`) get their own dedicated tools (`show_diagram`, `show_timeline`, `derive`) instead.
-- **`shared/ → server/` dependency boundary:** `ClearSchema` must not derive its enum from the server block registry. Drift is controlled by a sync test in `blocks.test.ts`. Reason: `schemas.ts` is consumed by frontend; importing from `server/blocks/` would break the dependency direction.
+- `CANVAS_TYPES` in `types.ts` is the canonical source for canvas type values.
+- `SurfaceContext.surface` sections are enriched with `{ id, title, canvasIds }` for AI context.
 
 ---
 ## Context Maintenance

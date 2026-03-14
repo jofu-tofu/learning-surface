@@ -15,7 +15,7 @@ function setup(opts: {
   initialDoc?: string;
 } = {}) {
   const io = fakeFileIO(new Map([
-    ['/chat/current.md', opts.initialDoc ?? MINIMAL_DOC],
+    ['/chat/current.surface', opts.initialDoc ?? MINIMAL_DOC],
   ]));
   const documentService = createDocumentService(io);
   const store = spyVersionStore();
@@ -32,12 +32,6 @@ function setup(opts: {
   return { io, documentService, store, provider, deps };
 }
 
-/**
- * Integration tests for handlePrompt — the orchestration layer that wires
- * provider tool calls → DocumentService → version store. All side effects
- * (filesystem, AI provider, context compilation) are replaced with in-memory
- * fakes so we test the pipeline without CLI/API invocations.
- */
 describe('handlePrompt integration', () => {
   it('unknown provider id throws', async () => {
     const { deps, store } = setup();
@@ -53,9 +47,12 @@ describe('handlePrompt integration', () => {
     ).rejects.toThrow('Unknown provider');
   });
 
-  it('API mode: single tool call mutates document', async () => {
+  it('API mode: design_surface tool call mutates document', async () => {
     const { deps, store } = setup({
-      toolCalls: [{ toolName: 'explain', params: { content: 'TCP is a transport protocol.' } }],
+      toolCalls: [{
+        toolName: 'design_surface',
+        params: { sections: [{ id: 'introduction', explanation: 'TCP is a transport protocol.' }] },
+      }],
     });
 
     const result = await handlePrompt({
@@ -68,34 +65,6 @@ describe('handlePrompt integration', () => {
     }, deps);
 
     expect(result.updatedDocument.sections[0].explanation).toBe('TCP is a transport protocol.');
-  });
-
-  it('API mode: multi-tool sequence composes correctly', async () => {
-    const { deps, store } = setup({
-      toolCalls: [
-        { toolName: 'new_section', params: { title: 'TCP Basics' } },
-        { toolName: 'set_active', params: { section: 'tcp-basics' } },
-        { toolName: 'show_visual', params: { type: 'mermaid', content: 'graph TD\n  SYN-->ACK' } },
-        { toolName: 'explain', params: { content: 'TCP uses a three-way handshake.' } },
-        { toolName: 'challenge', params: { question: 'What are the three steps?' } },
-      ],
-    });
-
-    const result = await handlePrompt({
-      text: 'Teach me TCP',
-      providerId: 'fake',
-      modelId: 'fake-model',
-      chatDir: '/chat',
-      latestDocument: null,
-      versionStore: store,
-    }, deps);
-
-    const doc = result.updatedDocument;
-    const tcp = doc.sections.find(s => s.id === 'tcp-basics');
-    expect(tcp).toBeDefined();
-    expect(tcp!.canvas?.type).toBe('mermaid');
-    expect(tcp!.explanation).toContain('three-way handshake');
-    expect(tcp!.checks).toHaveLength(1);
   });
 
   it('API mode: no tool calls → no version created', async () => {
@@ -115,7 +84,10 @@ describe('handlePrompt integration', () => {
 
   it('API mode: tool calls bump version → version store receives snapshot', async () => {
     const { deps, store } = setup({
-      toolCalls: [{ toolName: 'explain', params: { content: 'New content' } }],
+      toolCalls: [{
+        toolName: 'design_surface',
+        params: { sections: [{ id: 'introduction', explanation: 'New content' }] },
+      }],
     });
 
     await handlePrompt({
@@ -135,23 +107,19 @@ describe('handlePrompt integration', () => {
   });
 
   it('CLI mode: content change triggers version creation', async () => {
-    // CLI provider mutates the file directly. We simulate this by having
-    // the fake provider write different content during complete().
     const io = fakeFileIO(new Map([
-      ['/chat/current.md', MINIMAL_DOC],
+      ['/chat/current.surface', MINIMAL_DOC],
     ]));
     const documentService = createDocumentService(io);
     const store = spyVersionStore();
 
-    // Fake CLI provider that writes new content to the file during complete()
     const cliProvider = fakeAgent([], { type: 'cli', id: 'cli-fake' });
     cliProvider.run = async () => {
-      // Simulate CLI editing the file directly (as codex exec / claude --print would)
       const updatedContent = MINIMAL_DOC.replace(
         'This is the introduction.',
         'CLI wrote this new explanation.',
       );
-      io.files.set('/chat/current.md', updatedContent);
+      io.files.set('/chat/current.surface', updatedContent);
     };
 
     const deps = {
@@ -174,12 +142,11 @@ describe('handlePrompt integration', () => {
 
   it('CLI mode: identical content → no version created', async () => {
     const io = fakeFileIO(new Map([
-      ['/chat/current.md', MINIMAL_DOC],
+      ['/chat/current.surface', MINIMAL_DOC],
     ]));
     const documentService = createDocumentService(io);
     const store = spyVersionStore();
 
-    // CLI provider that does nothing (content unchanged)
     const cliProvider = fakeAgent([], { type: 'cli', id: 'cli-noop' });
     cliProvider.run = async () => {};
 
@@ -207,9 +174,8 @@ describe('handlePrompt onProgress', () => {
     const onProgress = vi.fn();
     const { deps, store } = setup({
       toolCalls: [
-        { toolName: 'show_visual', params: { type: 'mermaid', content: 'graph LR\n  A-->B' } },
-        { toolName: 'explain', params: { content: 'An explanation.' } },
-        { toolName: 'challenge', params: { question: 'Why?' } },
+        { toolName: 'design_surface', params: { sections: [{ id: 'introduction', canvases: [{ id: 'v', type: 'mermaid', content: 'graph LR\n  A-->B' }] }] } },
+        { toolName: 'design_surface', params: { sections: [{ id: 'introduction', explanation: 'An explanation.' }] } },
       ],
     });
 
@@ -223,15 +189,13 @@ describe('handlePrompt onProgress', () => {
       onProgress,
     }, deps);
 
-    expect(onProgress).toHaveBeenCalledTimes(5); // planning + thinking + 3 tools
-    expect(onProgress.mock.calls[0]).toEqual(['planning', 0]);
-    expect(onProgress.mock.calls[1]).toEqual(['thinking', 0]);
-    expect(onProgress.mock.calls[2]).toEqual(['show_visual', 1]);
-    expect(onProgress.mock.calls[3]).toEqual(['explain', 2]);
-    expect(onProgress.mock.calls[4]).toEqual(['challenge', 3]);
+    expect(onProgress).toHaveBeenCalledTimes(3); // thinking + 2 tools
+    expect(onProgress.mock.calls[0]).toEqual(['thinking', 0]);
+    expect(onProgress.mock.calls[1]).toEqual(['design_surface', 1]);
+    expect(onProgress.mock.calls[2]).toEqual(['design_surface', 2]);
   });
 
-  it('API mode: zero tool calls emits planning + thinking', async () => {
+  it('API mode: zero tool calls emits only thinking', async () => {
     const onProgress = vi.fn();
     const { deps, store } = setup({ toolCalls: [] });
 
@@ -245,15 +209,14 @@ describe('handlePrompt onProgress', () => {
       onProgress,
     }, deps);
 
-    expect(onProgress).toHaveBeenCalledTimes(2);
-    expect(onProgress.mock.calls[0]).toEqual(['planning', 0]);
-    expect(onProgress.mock.calls[1]).toEqual(['thinking', 0]);
+    expect(onProgress).toHaveBeenCalledTimes(1);
+    expect(onProgress.mock.calls[0]).toEqual(['thinking', 0]);
   });
 
-  it('CLI mode: emits planning + thinking (no per-tool progress)', async () => {
+  it('CLI mode: emits thinking (no per-tool progress)', async () => {
     const onProgress = vi.fn();
     const io = fakeFileIO(new Map([
-      ['/chat/current.md', MINIMAL_DOC],
+      ['/chat/current.surface', MINIMAL_DOC],
     ]));
     const documentService = createDocumentService(io);
     const store = spyVersionStore();
@@ -276,17 +239,18 @@ describe('handlePrompt onProgress', () => {
       onProgress,
     }, deps);
 
-    expect(onProgress).toHaveBeenCalledTimes(2);
-    expect(onProgress.mock.calls[0]).toEqual(['planning', 0]);
-    expect(onProgress.mock.calls[1]).toEqual(['thinking', 0]);
+    expect(onProgress).toHaveBeenCalledTimes(1);
+    expect(onProgress.mock.calls[0]).toEqual(['thinking', 0]);
   });
 
   it('onProgress is optional — works without it', async () => {
     const { deps, store } = setup({
-      toolCalls: [{ toolName: 'explain', params: { content: 'works' } }],
+      toolCalls: [{
+        toolName: 'design_surface',
+        params: { sections: [{ id: 'introduction', explanation: 'works' }] },
+      }],
     });
 
-    // Should not throw when onProgress is omitted
     await expect(handlePrompt({
       text: 'no callback',
       providerId: 'fake',

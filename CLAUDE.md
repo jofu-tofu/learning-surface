@@ -29,38 +29,36 @@ Three rules govern all tests in this project:
 src/
   shared/              # Data contracts, Zod schemas, shared types and utilities
   server/              # Node.js server — WebSocket hub, document I/O, versioning, AI orchestration
-    blocks/            # Block definition registry — self-contained parse/serialize/describe per block type
     providers/         # AI provider abstraction (CLI via codex exec, API via OpenAI SDK)
     utils/             # WebSocket helpers, version meta reader
   app/                 # React frontend — multi-pane tutoring surface
-    components/        # Canvas, Explanation, Sidebar, SidebarPanel, ChatList, Breadcrumb, ChatBar, ProviderSelector, PromptPreview, ActivityStatus, BranchPopover, PaneHeader, ErrorBanner, EmptyState, Icon, VersionDot, ThemeSelector
+    components/        # CanvasGrid, Canvas, Explanation, Sidebar, SidebarPanel, ChatList, Breadcrumb, ChatBar, ProviderSelector, PromptPreview, ActivityStatus, BranchPopover, PaneHeader, ErrorBanner, EmptyState, Icon, VersionDot, ThemeSelector
       renderers/       # Registry-based visual renderers (Mermaid, KaTeX, Code, Diagram, Timeline, Proof) + pure layout modules (diagram-layout, timeline-layout, proof-layout)
       content-slots/   # Registry-based content slots for Explanation pane (ExplanationSlot, ChecksSlot, FollowupsSlot)
     hooks/             # useSurface (central state), surfaceReducer (pure state machine), SurfaceStatusContext, useWebSocket, useMarkdown, useAsyncRender, useProviderSelection, useClickOutside, useContainerSize
     utils/             # versionLabel, styles, formatTime, detectChangedPanes
-  test/                # Test data builders, mock factories, markdown fixtures
+  test/                # Test data builders, mock factories, test fixtures
 ```
 
-**Content pipeline:** User prompt -> AI provider -> semantic MCP tools -> structured markdown file -> file watcher -> WebSocket -> rendered surface
+**Content pipeline:** User prompt -> AI provider -> `design_surface` tool -> `.surface` JSON file -> file watcher -> WebSocket -> rendered surface
 
-**Data model:** `chats.json` index -> per-chat directories -> `v1.md` + patches + `meta.json` -> version reconstruction
+**Data model:** `chats.json` index -> per-chat directories -> `v1.surface` + patches + `meta.json` -> version reconstruction
 
 ## Constraints
 
 - Single window — no tab-switching, no separate apps
 - Must work with existing REPL subscriptions — CLI provider uses codex CLI auth (default, no API key); API provider uses `OPENAI_API_KEY` env var
-- Use existing libraries (markdown-it, Mermaid, KaTeX, chokidar) where they fit — custom renderers (e.g., DiagramRenderer) are appropriate when structured data needs bespoke SVG layout
+- Use existing libraries (Mermaid, KaTeX, chokidar) where they fit — custom renderers (e.g., DiagramRenderer) are appropriate when structured data needs bespoke SVG layout
 - Desktop-first (VS Code / browser)
 
 ## Design Principles
 
 These shape every implementation decision — violating them means the code is wrong:
 
-- **Semantic tools, not document-editing primitives.** The AI calls teaching verbs (`show_visual`, `explain`, `challenge`), not text-manipulation mechanics. Tool definitions ARE the prompt engineering.
+- **Single tool, declarative intent.** The AI calls one `design_surface` tool with a declarative description of what the surface should become. The tool definition IS the prompt engineering.
 - **Stateless AI agent.** No conversation history carried between interactions. The app compiles a structured JSON context from the current surface state.
-- **Filesystem as source of truth.** Structured markdown files on disk, diffs as patches, file watcher pushes changes to frontend.
-- **Multi-pane, not single-document.** Diagram stays visible during explanation. Spatial contiguity (Mayer) enforced by layout, not scroll proximity.
-- **Create vs. append.** New topics use creation tools (full write). Follow-ups use append tools (incremental, token-efficient). No find/replace tools — too fragile.
+- **Filesystem as source of truth.** `.surface` JSON files on disk, diffs as patches, file watcher pushes changes to frontend.
+- **Multi-pane, not single-document.** Canvases stay visible during explanation. Spatial contiguity (Mayer) enforced by layout, not scroll proximity. Sections support multiple canvases via `canvases: CanvasContent[]`.
 
 ## Roadmap (not yet built)
 
@@ -69,7 +67,7 @@ Cross-session concept linking, PDF side-by-side viewer, spaced repetition schedu
 ## Context Tree
 
 Read the relevant CLAUDE.md before working in that directory:
-- `src/shared/CLAUDE.md` — data contracts, structured markdown format, Zod conventions
+- `src/shared/CLAUDE.md` — data contracts, `.surface` JSON format, Zod conventions
 - `src/server/CLAUDE.md` — server architecture, MCP tool philosophy, DI patterns
 - `src/server/providers/CLAUDE.md` — provider abstraction, CLI vs API mode
 - `src/app/CLAUDE.md` — frontend architecture, multi-pane layout, component roles

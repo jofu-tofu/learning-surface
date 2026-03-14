@@ -5,7 +5,7 @@ React frontend — multi-pane tutoring surface. Vite build, Tailwind CSS v4, jsd
 ## Layout
 
 ```
-Sidebar (ChatList + Sections) | Canvas          | (stacked vertically)
+Sidebar (ChatList + Sections) | CanvasGrid      | (stacked vertically)
                               | Explanation     |
                               | PromptPreview   |
                               | Breadcrumb      |
@@ -29,7 +29,8 @@ All application state flows through `useSurface()` hook — document, versions, 
 
 | Component | Pane | Role |
 |-----------|------|------|
-| `Canvas` | Upper main | Dispatches to type-specific renderer via registry |
+| `CanvasGrid` | Upper main | Renders multiple canvases per section from `canvases: CanvasContent[]` |
+| `Canvas` | Within CanvasGrid | Dispatches to type-specific renderer via registry |
 | `Explanation` | Lower main | Orchestrator — renders registered content slots from `content-slots/registry.ts`. Takes `section: Section \| undefined` |
 | `PromptPreview` | Below explanation | Shows compiled prompt preview |
 | `Sidebar` | Left (bottom) | Section TOC with status indicators |

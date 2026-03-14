@@ -7,7 +7,7 @@ export function createContextCompiler(): ContextCompiler {
     async compile(doc: LearningDocument, sessionDir: string): Promise<SurfaceContext> {
       const activeSection = doc.sections.find(section => section.id === doc.activeSection);
 
-      const META_KEYS = new Set(['id', 'title', '_unknownBlocks']);
+      const META_KEYS = new Set(['id', 'title']);
       const surface: Record<string, unknown> = {};
       if (activeSection) {
         for (const [key, value] of Object.entries(activeSection)) {
@@ -17,7 +17,9 @@ export function createContextCompiler(): ContextCompiler {
       }
 
       const sections = doc.sections.map(section => ({
+        id: section.id,
         title: section.title,
+        canvasIds: section.canvases.map(canvas => canvas.id),
       }));
 
       const metas = await readAllVersionMetas(sessionDir).catch(() => []);

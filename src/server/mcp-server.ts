@@ -6,7 +6,8 @@ import {
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import { TOOL_DEFS, DesignSurfaceSchema, zodToJsonSchema } from '../shared/schemas.js';
-import type { VersionStore } from '../shared/types.js';
+import type { LearningDocument, VersionStore } from '../shared/types.js';
+import { detectChangedPanes, detectChangedSections } from '../shared/detectChangedPanes.js';
 import { createDocumentService, type DocumentService } from './document-service.js';
 import { buildVersionMeta } from './prompt-handler.js';
 import { formatError } from './utils/ws-helpers.js';
@@ -37,6 +38,7 @@ export function createMcpServer(options: {
 
   // --- Batch versioning state ---
   let batchStartVersion: number | null = null;
+  let batchStartDoc: LearningDocument | null = null;
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
   async function flushVersionBatch(): Promise<void> {
@@ -47,8 +49,22 @@ export function createMcpServer(options: {
     const doc = documentService.read(filePath);
     if (!content || !doc) return;
 
-    await store.createVersion(content, buildVersionMeta(null, doc.summary ?? null, new Date().toISOString()));
+    // Compute which panes/sections changed for persistent metadata
+    const paneChanges = batchStartDoc ? detectChangedPanes(batchStartDoc, doc) : new Set<string>();
+    const sectionChanges = batchStartDoc ? detectChangedSections(batchStartDoc, doc) : new Set<string>();
+
+    await store.createVersion(
+      content,
+      buildVersionMeta(
+        null,
+        doc.summary ?? null,
+        new Date().toISOString(),
+        [...paneChanges],
+        [...sectionChanges],
+      ),
+    );
     batchStartVersion = null;
+    batchStartDoc = null;
 
     // Re-write current.surface to trigger the file watcher so the UI picks up the new version
     documentService.write(filePath, doc);
@@ -86,7 +102,10 @@ export function createMcpServer(options: {
       // Start a new batch if not already in one
       if (batchStartVersion === null) {
         const doc = documentService.read(filePath);
-        if (doc) batchStartVersion = doc.version;
+        if (doc) {
+          batchStartVersion = doc.version;
+          batchStartDoc = structuredClone(doc);
+        }
       }
 
       // Apply design_surface — all calls in a batch share the same target version

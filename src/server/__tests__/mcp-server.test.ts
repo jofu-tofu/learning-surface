@@ -71,6 +71,20 @@ describe('MCP Server', () => {
       await mcpServer.stop();
       expect(store.createVersion).toHaveBeenCalledTimes(1);
     });
+
+    it('persists changedPanes and changedSectionIds in version metadata', async () => {
+      await client.callTool({
+        name: 'design_surface',
+        arguments: { sections: [{ id: 'introduction', explanation: 'Changed explanation.' }] },
+      });
+
+      await mcpServer.flushVersionBatch();
+      expect(store.createVersion).toHaveBeenCalledTimes(1);
+
+      const meta = store.createVersion.mock.calls[0][1];
+      expect(meta.changedPanes).toContain('explanation');
+      expect(meta.changedSectionIds).toContain('introduction');
+    });
   });
 
   describe('tool call validation boundaries', () => {

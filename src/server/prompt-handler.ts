@@ -1,20 +1,15 @@
 import { createContextCompiler } from './context.js';
 import { createDocumentService, type DocumentService } from './document-service.js';
 import { getProvider as getProviderFromRegistry } from './providers/registry.js';
-import { TOOL_DEFS, zodToJsonSchema } from '../shared/schemas.js';
+import { zodToJsonSchema } from '../shared/schemas.js';
 import { SYSTEM_PROMPT } from './system-prompt.js';
-import type { ReplProvider, ToolDefinition, ReasoningEffort } from '../shared/providers.js';
+import type { Agent, ToolDefinition, ReasoningEffort } from '../shared/providers.js';
+import { buildPlanningSchema, buildPlanningPrompt, parsePlanResult } from './tool-planner.js';
+import { buildSelectionContext, selectTools } from './tool-selector.js';
 import type { ContextCompiler, LearningDocument, SurfaceContext, VersionStore } from '../shared/types.js';
 import { detectChangedPanes, detectChangedSections } from '../shared/detectChangedPanes.js';
 
 // === Pure constants and functions (functional core) ===
-
-/** Pre-computed provider tool definitions (constant across the server lifetime). */
-const providerTools: ToolDefinition[] = TOOL_DEFS.map((def) => ({
-  name: def.name,
-  description: def.description,
-  parameters: zodToJsonSchema(def.schema),
-}));
 
 /** Pure: build the full system prompt from a context object. */
 function buildSystemPrompt(context: SurfaceContext): string {
@@ -73,7 +68,7 @@ interface PromptResult {
 interface PromptDeps {
   documentService: DocumentService;
   contextCompiler: ContextCompiler;
-  getProvider: (id: string) => ReplProvider | undefined;
+  getProvider: (id: string) => Agent | undefined;
 }
 
 const defaultDeps: PromptDeps = {
@@ -106,6 +101,34 @@ export async function handlePrompt(
   const context = await contextCompiler.compile(currentDoc, chatDir);
   const systemPrompt = buildSystemPrompt(context);
 
+  // Compute per-request tool set based on current document state
+  const selectionCtx = buildSelectionContext(currentDoc);
+  const selectedDefs = selectTools(selectionCtx);
+
+  // Stage 1: Planning via agent.ask() — select which tools to use
+  let executionDefs = selectedDefs;
+  request.onProgress?.('planning', 0);
+  try {
+    const plan = await provider.ask({
+      prompt: text,
+      systemPrompt: buildPlanningPrompt(selectionCtx, selectedDefs),
+      model: modelId,
+      responseSchema: buildPlanningSchema(selectedDefs),
+      schemaName: 'tool_plan',
+      reasoningEffort: 'low',
+    });
+    executionDefs = parsePlanResult(plan, selectedDefs);
+  } catch {
+    // Planning failure → fall back to all available tools
+  }
+
+  // Stage 2: Execution via agent.run() with only selected tools
+  const providerTools: ToolDefinition[] = executionDefs.map((def) => ({
+    name: def.name,
+    description: def.description,
+    parameters: zodToJsonSchema(def.schema),
+  }));
+
   const startVersion = currentDoc.version;
   const startContent = documentService.readRaw(filePath) ?? '';
 
@@ -115,7 +138,7 @@ export async function handlePrompt(
   if (provider.config.type === 'api') {
     // API mode: pass tool definitions and onToolCall callback
     let toolStep = 0;
-    await provider.complete({
+    await provider.run({
       prompt: text,
       systemPrompt,
       tools: providerTools,
@@ -141,7 +164,7 @@ export async function handlePrompt(
     });
   } else {
     // CLI mode: provider edits the file directly
-    await provider.complete({
+    await provider.run({
       prompt: text,
       systemPrompt,
       model: modelId,

@@ -33,7 +33,7 @@ interface HandlerDeps {
   switchToChat: (chatId: string) => Promise<void>;
   documentService?: DocumentService;
   getProviders?: () => import('../shared/providers.js').ProviderInfo[];
-  getProvider?: (id: string) => import('../shared/providers.js').ReplProvider | undefined;
+  getProvider?: (id: string) => import('../shared/providers.js').Agent | undefined;
   onPrompt?: typeof handlePrompt;
 }
 

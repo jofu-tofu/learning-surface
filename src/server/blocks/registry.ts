@@ -24,6 +24,11 @@ export function allBlocks(): readonly BlockDefinition[] {
   return blocks;
 }
 
+/** All registered block type names. */
+export function blockTypes(): string[] {
+  return blocks.map(b => b.type);
+}
+
 /**
  * Generate the block rules table for the CLI system prompt.
  * Auto-derived from registered block definitions — stays in sync automatically.
@@ -45,17 +50,10 @@ export function generateBlockRulesTable(): string {
  * Auto-derived from registered block definitions.
  */
 export function generatePanesSummary(): string {
-  const descriptions: Record<string, string> = {
-    canvas: 'Visuals — diagrams (`diagram`), Mermaid (`mermaid`), KaTeX math (`katex`), or code blocks (`code`). For diagram, content is JSON (see format below).',
-    explanation: 'Text explanations in markdown',
-    checks: 'Comprehension check questions',
-    followups: 'Suggested follow-up questions as a bullet list',
-  };
-
   return blocks.map(block => {
-    const blockFormat = block.describe();
-    const paneDesc = descriptions[block.type] ?? blockFormat.contentFormat;
-    return `- **${block.type.charAt(0).toUpperCase() + block.type.slice(1)}** (${blockFormat.header}): ${paneDesc}`;
+    const fmt = block.describe();
+    const desc = fmt.paneDescription ?? fmt.contentFormat;
+    return `- **${block.type.charAt(0).toUpperCase() + block.type.slice(1)}** (${fmt.header}): ${desc}`;
   }).join('\n');
 }
 

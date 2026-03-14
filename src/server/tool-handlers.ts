@@ -1,6 +1,7 @@
 import type { LearningDocument, Section, CanvasContent, Check } from '../shared/types.js';
 import type { ToolName } from '../shared/schemas.js';
 import { slugify } from '../shared/slugify.js';
+import { blockTypes } from './blocks/registry.js';
 
 type ToolHandler = (doc: LearningDocument, params: Record<string, unknown>) => void;
 
@@ -56,6 +57,25 @@ const handlers: Record<ToolName, ToolHandler> = {
       const payload: Record<string, unknown> = { nodes, edges };
       if (direction) payload.direction = direction;
       activeSection.canvas = { type: 'diagram', content: JSON.stringify(payload) };
+    });
+  },
+
+  show_timeline(doc, params) {
+    withActiveSection(doc, (activeSection) => {
+      const { events, direction } = params as { events: unknown[]; direction?: string };
+      const payload: Record<string, unknown> = { events };
+      if (direction) payload.direction = direction;
+      activeSection.canvas = { type: 'timeline', content: JSON.stringify(payload) };
+    });
+  },
+
+  derive(doc, params) {
+    withActiveSection(doc, (activeSection) => {
+      const { title, premises, steps } = params as { title?: string; premises?: string[]; steps: unknown[] };
+      const payload: Record<string, unknown> = { steps };
+      if (title) payload.title = title;
+      if (premises) payload.premises = premises;
+      activeSection.canvas = { type: 'proof', content: JSON.stringify(payload) };
     });
   },
 
@@ -144,10 +164,9 @@ const handlers: Record<ToolName, ToolHandler> = {
       : doc.sections.find(section => section.id === doc.activeSection);
     if (!section) return;
 
-    if (target === 'canvas') delete section.canvas;
-    else if (target === 'explanation') delete section.explanation;
-    else if (target === 'checks') delete section.checks;
-    else if (target === 'followups') delete section.followups;
+    if (blockTypes().includes(target)) {
+      delete (section as unknown as Record<string, unknown>)[target];
+    }
   },
 };
 

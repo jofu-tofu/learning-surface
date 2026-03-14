@@ -22,8 +22,3 @@ export function registerContentSlot(name: string, entry: ContentSlotEntry): void
 export function getContentSlots(): ContentSlotEntry[] {
   return [...registry.values()].sort((slotA, slotB) => slotA.order - slotB.order);
 }
-
-// Register built-in slots
-import './ExplanationSlot.js';
-import './ChecksSlot.js';
-import './FollowupsSlot.js';

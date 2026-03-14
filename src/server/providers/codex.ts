@@ -1,6 +1,6 @@
 import OpenAI from 'openai';
 import type {
-  ReplProvider,
+  Agent,
   ProviderConfig,
   ProviderToolCall,
   ToolCallResult,
@@ -26,7 +26,7 @@ function toOpenAIEffort(effort: ReasoningEffort): OpenAIReasoningEffort | undefi
   return map[effort];
 }
 
-export function createCodexProvider(): ReplProvider {
+export function createCodexProvider(): Agent {
   const config: ProviderConfig = {
     id: 'codex-api',
     name: 'Codex (API)',
@@ -59,7 +59,27 @@ export function createCodexProvider(): ReplProvider {
       }
     },
 
-    async complete({ prompt, systemPrompt, tools, model, reasoningEffort, onToolCall }) {
+    async ask({ prompt, systemPrompt, model, responseSchema, schemaName, reasoningEffort }) {
+      const messages: OpenAI.ChatCompletionMessageParam[] = [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: prompt },
+      ];
+      const apiEffort = reasoningEffort ? toOpenAIEffort(reasoningEffort) : undefined;
+      const response = await client.chat.completions.create({
+        model,
+        messages,
+        response_format: {
+          type: 'json_schema',
+          json_schema: { name: schemaName, strict: true, schema: responseSchema },
+        },
+        ...(apiEffort ? { reasoning_effort: apiEffort } : {}),
+      });
+      const content = response.choices[0]?.message.content;
+      if (!content) throw new Error('Empty response from model');
+      return JSON.parse(content) as Record<string, unknown>;
+    },
+
+    async run({ prompt, systemPrompt, tools, model, reasoningEffort, onToolCall }) {
       const openaiTools: OpenAI.ChatCompletionTool[] = (tools ?? []).map((tool) => ({
         type: 'function' as const,
         function: {

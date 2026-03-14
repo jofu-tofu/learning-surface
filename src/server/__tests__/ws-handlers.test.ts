@@ -224,11 +224,12 @@ describe('ws-handlers prompt flow', () => {
       .map(([m]) => m as WsMessage)
       .filter(m => m.type === 'tool-progress');
 
-    // thinking + 2 tool calls = 3 progress messages
-    expect(progressCalls).toHaveLength(3);
-    expect(progressCalls[0]).toMatchObject({ type: 'tool-progress', toolName: 'thinking', step: 0 });
-    expect(progressCalls[1]).toMatchObject({ type: 'tool-progress', toolName: 'show_visual', step: 1 });
-    expect(progressCalls[2]).toMatchObject({ type: 'tool-progress', toolName: 'explain', step: 2 });
+    // planning + thinking + 2 tool calls = 4 progress messages
+    expect(progressCalls).toHaveLength(4);
+    expect(progressCalls[0]).toMatchObject({ type: 'tool-progress', toolName: 'planning', step: 0 });
+    expect(progressCalls[1]).toMatchObject({ type: 'tool-progress', toolName: 'thinking', step: 0 });
+    expect(progressCalls[2]).toMatchObject({ type: 'tool-progress', toolName: 'show_visual', step: 1 });
+    expect(progressCalls[3]).toMatchObject({ type: 'tool-progress', toolName: 'explain', step: 2 });
   });
 
   it('broadcasts tool-progress thinking even with zero tool calls', async () => {
@@ -245,8 +246,9 @@ describe('ws-handlers prompt flow', () => {
       .map(([m]) => m as WsMessage)
       .filter(m => m.type === 'tool-progress');
 
-    expect(progressCalls).toHaveLength(1);
-    expect(progressCalls[0]).toMatchObject({ toolName: 'thinking', step: 0 });
+    expect(progressCalls).toHaveLength(2);
+    expect(progressCalls[0]).toMatchObject({ toolName: 'planning', step: 0 });
+    expect(progressCalls[1]).toMatchObject({ toolName: 'thinking', step: 0 });
   });
 });
 

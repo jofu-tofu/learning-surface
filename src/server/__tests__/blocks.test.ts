@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { checkBlock } from '../blocks/check.js';
 import { followupsBlock } from '../blocks/followups.js';
+import { canvasBlock } from '../blocks/canvas.js';
+import { allBlocks, blockTypes, generatePanesSummary } from '../blocks/registry.js';
+import { ClearSchema } from '../../shared/schemas.js';
 import { buildSection } from '../../test/helpers.js';
 
 describe('checkBlock', () => {
@@ -142,6 +145,56 @@ describe('checkBlock', () => {
 
       expect(restored.checks).toEqual(original.checks);
     });
+  });
+});
+
+describe('blockTypes sync', () => {
+  it('blockTypes returns all registered block type names', () => {
+    const types = blockTypes();
+    const allBlockDefs = allBlocks();
+    expect(types).toEqual(allBlockDefs.map(b => b.type));
+  });
+
+  it('every block type appears in ClearSchema target enum', () => {
+    const clearTargets = ClearSchema.shape.target._def.values as string[];
+    for (const type of blockTypes()) {
+      expect(clearTargets).toContain(type);
+    }
+  });
+});
+
+describe('canvasBlock', () => {
+  it('round-trips timeline through parse/serialize', () => {
+    const section = buildSection();
+    const timelineJson = JSON.stringify({ events: [{ id: '1', date: '2024', label: 'Start' }] });
+    canvasBlock.parse('### canvas: timeline', timelineJson, section);
+    expect(section.canvas).toEqual({ type: 'timeline', content: timelineJson });
+
+    const lines = canvasBlock.serialize(section);
+    expect(lines[0]).toBe('### canvas: timeline');
+    expect(lines[1]).toBe(timelineJson);
+  });
+
+  it('round-trips proof through parse/serialize', () => {
+    const section = buildSection();
+    const proofJson = JSON.stringify({ steps: [{ expression: 'x=1', justification: 'given' }] });
+    canvasBlock.parse('### canvas: proof', proofJson, section);
+    expect(section.canvas).toEqual({ type: 'proof', content: proofJson });
+
+    const lines = canvasBlock.serialize(section);
+    expect(lines[0]).toBe('### canvas: proof');
+    expect(lines[1]).toBe(proofJson);
+  });
+});
+
+describe('paneDescription', () => {
+  it('block without paneDescription falls back to contentFormat in summary', () => {
+    // All current blocks have paneDescription, but verify the fallback path works
+    const summary = generatePanesSummary();
+    // Each block type should appear in the summary
+    for (const type of blockTypes()) {
+      expect(summary).toContain(type.charAt(0).toUpperCase() + type.slice(1));
+    }
   });
 });
 

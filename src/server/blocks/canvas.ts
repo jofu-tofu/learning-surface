@@ -36,6 +36,7 @@ export const canvasBlock: BlockDefinition = {
       maxPerSection: '1',
       contentFormat: 'Raw content until next heading',
       notes: 'For diagram, content is JSON. Prefer diagram over mermaid — the rendering is cleaner.',
+      paneDescription: 'Visuals — diagrams (`diagram`), timelines (`timeline`), proofs (`proof`), Mermaid (`mermaid`), KaTeX math (`katex`), or code blocks (`code`). For diagram/timeline/proof, content is JSON (see format below).',
     };
   },
 };

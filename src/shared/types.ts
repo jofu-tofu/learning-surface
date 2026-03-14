@@ -3,7 +3,7 @@ import type { ProviderInfo, ReasoningEffort } from './providers.js';
 // === Core Data Types ===
 
 /** Canonical list of canvas types — single source of truth for types.ts, schemas.ts, and block definitions. */
-export const CANVAS_TYPES = ['mermaid', 'katex', 'code', 'diagram'] as const;
+export const CANVAS_TYPES = ['mermaid', 'katex', 'code', 'diagram', 'timeline', 'proof'] as const;
 type CanvasType = (typeof CANVAS_TYPES)[number];
 
 export interface CanvasContent {

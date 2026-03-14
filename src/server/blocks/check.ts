@@ -81,6 +81,7 @@ export const checkBlock: BlockDefinition = {
       header: '`### check: ID`',
       maxPerSection: 'Unlimited',
       contentFormat: 'Question text, then `<!-- status: unanswered|attempted|revealed -->`',
+      paneDescription: 'Comprehension check questions',
     };
   },
 };

@@ -39,6 +39,30 @@ export function spawnCli(command: string, args: string[], label: string, spawnOp
   });
 }
 
+/** Spawn a CLI subprocess, capture stdout and return it as a string. Rejects on non-zero exit. */
+export function spawnCliCapture(
+  command: string,
+  args: string[],
+  label: string,
+  spawnOptions?: SpawnOptions,
+): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    const child = spawn(command, args, { stdio: ['pipe', 'pipe', 'pipe'], ...spawnOptions });
+    let stdout = '';
+    let stderrOutput = '';
+    child.stdout?.on('data', (chunk: Buffer) => { stdout += chunk.toString(); });
+    child.stderr?.on('data', (chunk: Buffer) => {
+      const text = chunk.toString().trim();
+      if (text) stderrOutput += text + '\n';
+    });
+    child.on('error', (err) => reject(new Error(`Failed to spawn ${command}: ${err.message}`)));
+    child.on('close', (code) => {
+      if (code === 0) resolve(stdout.trim());
+      else reject(new Error(`${command} exited with code ${code}${stderrOutput ? `: ${stderrOutput.trim()}` : ''}`));
+    });
+  });
+}
+
 /** Check if a CLI binary is available on PATH. */
 export function checkCliAvailable(command: string): Promise<PreflightResult> {
   return new Promise((resolve) => {

@@ -127,7 +127,7 @@ export function spyVersionStore(): VersionStore & { createVersion: ReturnType<ty
 // --- FakeFileIO: in-memory filesystem for DocumentService tests ---
 
 import type { FileIO } from '../server/document-service.js';
-import type { ProviderToolCall, ReplProvider, ProviderConfig } from '../shared/providers.js';
+import type { ProviderToolCall, Agent, ProviderConfig } from '../shared/providers.js';
 import type { ContextCompiler } from '../shared/types.js';
 
 /**
@@ -152,13 +152,14 @@ export function fakeFileIO(files: Map<string, string> = new Map()): FileIO & { f
 }
 
 /**
- * Fake ReplProvider that simulates AI returning a pre-configured sequence of tool calls.
- * Each call to `complete()` invokes `onToolCall` for each tool call in the sequence.
+ * Fake Agent that simulates AI returning a pre-configured sequence of tool calls.
+ * `ask()` returns a configurable response (defaults to empty object).
+ * `run()` invokes `onToolCall` for each tool call in the sequence.
  */
-export function fakeProvider(
+export function fakeAgent(
   toolCalls: ProviderToolCall[] = [],
   configOverrides: Partial<ProviderConfig> = {},
-): ReplProvider {
+): Agent {
   const config: ProviderConfig = {
     id: 'fake',
     name: 'Fake',
@@ -170,15 +171,19 @@ export function fakeProvider(
   return {
     config,
     async preflight() { return { ok: true }; },
-    async complete(completionRequest) {
-      if (completionRequest.onToolCall) {
+    async ask() { return {}; },
+    async run(runRequest) {
+      if (runRequest.onToolCall) {
         for (const toolCall of toolCalls) {
-          await completionRequest.onToolCall(toolCall);
+          await runRequest.onToolCall(toolCall);
         }
       }
     },
   };
 }
+
+/** @deprecated Use fakeAgent() instead. Alias for backwards compatibility. */
+export const fakeProvider = fakeAgent;
 
 /** Fake ContextCompiler that returns a minimal SurfaceContext. */
 export function fakeContextCompiler(): ContextCompiler {

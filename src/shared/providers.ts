@@ -1,4 +1,4 @@
-// === REPL Provider Abstraction ===
+// === Agent Abstraction ===
 
 import { z } from 'zod';
 
@@ -52,21 +52,30 @@ export const PreflightResultSchema = z.object({
 export type PreflightResult = z.infer<typeof PreflightResultSchema>;
 
 /**
- * A REPL provider sends user prompts to an AI model and receives tool calls back.
- * The tool calls are executed against the learning surface document.
+ * Unified AI agent interface. All providers implement both methods:
+ * - `ask()` — single-shot structured output (e.g., tool planning)
+ * - `run()` — multi-round tool chain execution
+ *
+ * Callers never know or care whether the underlying provider is CLI or API.
  */
-export interface ReplProvider {
+export interface Agent {
   readonly config: ProviderConfig;
 
   /** Check if the provider is reachable and ready to accept prompts. */
   preflight(model: string): Promise<PreflightResult>;
 
-  /**
-   * Send a prompt to the AI model and process tool calls in a loop.
-   * The provider should call onToolCall for each tool the AI wants to invoke,
-   * then feed the result back to the AI until it's done.
-   */
-  complete(opts: {
+  /** Single-shot: send prompt, get structured JSON matching responseSchema. */
+  ask(opts: {
+    prompt: string;
+    systemPrompt: string;
+    model: string;
+    responseSchema: Record<string, unknown>;
+    schemaName: string;
+    reasoningEffort?: ReasoningEffort;
+  }): Promise<Record<string, unknown>>;
+
+  /** Multi-round: send prompt with tools, process tool calls in a loop via onToolCall. */
+  run(opts: {
     prompt: string;
     systemPrompt: string;
     tools?: ToolDefinition[];

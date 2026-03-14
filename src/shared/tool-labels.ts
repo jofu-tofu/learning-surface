@@ -14,6 +14,7 @@ export const TOOL_LABELS: Record<string, string> = Object.fromEntries(
 /** Pseudo-tool names for non-tool-call processing phases. */
 const PHASE_LABELS: Record<string, string> = {
   thinking: 'Thinking',
+  planning: 'Planning response',
 };
 
 /** Get the display label for a tool or phase name. Falls back to the raw name. */

@@ -1,10 +1,10 @@
-import type { ReplProvider, ProviderInfo } from '../../shared/providers.js';
+import type { Agent, ProviderInfo } from '../../shared/providers.js';
 import { createCliProvider } from './cli.js';
 import { createClaudeCodeProvider } from './claude-code.js';
 
-const providers = new Map<string, ReplProvider>();
+const providers = new Map<string, Agent>();
 
-function register(provider: ReplProvider): void {
+function register(provider: Agent): void {
   providers.set(provider.config.id, provider);
 }
 
@@ -22,7 +22,7 @@ try {
   console.warn('Codex API provider unavailable (missing OPENAI_API_KEY)');
 }
 
-export function getProvider(id: string): ReplProvider | undefined {
+export function getProvider(id: string): Agent | undefined {
   return providers.get(id);
 }
 

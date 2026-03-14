@@ -51,4 +51,6 @@ export interface BlockFormatDescription {
   contentFormat: string;
   /** Additional notes for the AI */
   notes?: string;
+  /** Human-readable pane description for system prompt generation. Falls back to contentFormat if omitted. */
+  paneDescription?: string;
 }

@@ -3,6 +3,8 @@ import { MermaidRenderer } from './MermaidRenderer.js';
 import { KatexRenderer } from './KatexRenderer.js';
 import { CodeRenderer } from './CodeRenderer.js';
 import { DiagramRenderer } from './DiagramRenderer.js';
+import { TimelineRenderer } from './TimelineRenderer.js';
+import { ProofRenderer } from './ProofRenderer.js';
 
 /** Common props accepted by all canvas renderers. */
 export interface RendererProps {
@@ -30,3 +32,5 @@ registerRenderer('mermaid', MermaidRenderer);
 registerRenderer('katex', KatexRenderer);
 registerRenderer('code', CodeRenderer);
 registerRenderer('diagram', DiagramRenderer);
+registerRenderer('timeline', TimelineRenderer);
+registerRenderer('proof', ProofRenderer);

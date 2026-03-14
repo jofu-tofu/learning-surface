@@ -1,6 +1,12 @@
 import React from 'react';
 import type { Section } from '../../shared/types.js';
 import { getContentSlots } from './content-slots/registry.js';
+// Side-effect imports: register built-in content slots before getContentSlots() is called.
+// These live here (the consumer) rather than in registry.ts to avoid a circular dependency
+// (registry.ts → SlotFile → registerContentSlot → registry Map still in TDZ).
+import './content-slots/ExplanationSlot.js';
+import './content-slots/ChecksSlot.js';
+import './content-slots/FollowupsSlot.js';
 import { EmptyState } from './EmptyState.js';
 import { Icon } from './Icon.js';
 

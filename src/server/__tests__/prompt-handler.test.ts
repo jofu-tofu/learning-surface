@@ -4,7 +4,7 @@ import { createDocumentService } from '../document-service.js';
 import {
   MINIMAL_DOC,
   fakeFileIO,
-  fakeProvider,
+  fakeAgent,
   fakeContextCompiler,
   spyVersionStore,
 } from '../../test/helpers.js';
@@ -19,7 +19,7 @@ function setup(opts: {
   ]));
   const documentService = createDocumentService(io);
   const store = spyVersionStore();
-  const provider = fakeProvider(opts.toolCalls ?? [], {
+  const provider = fakeAgent(opts.toolCalls ?? [], {
     type: opts.providerType ?? 'api',
   });
 
@@ -144,8 +144,8 @@ describe('handlePrompt integration', () => {
     const store = spyVersionStore();
 
     // Fake CLI provider that writes new content to the file during complete()
-    const cliProvider = fakeProvider([], { type: 'cli', id: 'cli-fake' });
-    cliProvider.complete = async () => {
+    const cliProvider = fakeAgent([], { type: 'cli', id: 'cli-fake' });
+    cliProvider.run = async () => {
       // Simulate CLI editing the file directly (as codex exec / claude --print would)
       const updatedContent = MINIMAL_DOC.replace(
         'This is the introduction.',
@@ -180,8 +180,8 @@ describe('handlePrompt integration', () => {
     const store = spyVersionStore();
 
     // CLI provider that does nothing (content unchanged)
-    const cliProvider = fakeProvider([], { type: 'cli', id: 'cli-noop' });
-    cliProvider.complete = async () => {};
+    const cliProvider = fakeAgent([], { type: 'cli', id: 'cli-noop' });
+    cliProvider.run = async () => {};
 
     const deps = {
       documentService,
@@ -223,14 +223,15 @@ describe('handlePrompt onProgress', () => {
       onProgress,
     }, deps);
 
-    expect(onProgress).toHaveBeenCalledTimes(4); // thinking + 3 tools
-    expect(onProgress.mock.calls[0]).toEqual(['thinking', 0]);
-    expect(onProgress.mock.calls[1]).toEqual(['show_visual', 1]);
-    expect(onProgress.mock.calls[2]).toEqual(['explain', 2]);
-    expect(onProgress.mock.calls[3]).toEqual(['challenge', 3]);
+    expect(onProgress).toHaveBeenCalledTimes(5); // planning + thinking + 3 tools
+    expect(onProgress.mock.calls[0]).toEqual(['planning', 0]);
+    expect(onProgress.mock.calls[1]).toEqual(['thinking', 0]);
+    expect(onProgress.mock.calls[2]).toEqual(['show_visual', 1]);
+    expect(onProgress.mock.calls[3]).toEqual(['explain', 2]);
+    expect(onProgress.mock.calls[4]).toEqual(['challenge', 3]);
   });
 
-  it('API mode: zero tool calls emits only thinking', async () => {
+  it('API mode: zero tool calls emits planning + thinking', async () => {
     const onProgress = vi.fn();
     const { deps, store } = setup({ toolCalls: [] });
 
@@ -244,19 +245,20 @@ describe('handlePrompt onProgress', () => {
       onProgress,
     }, deps);
 
-    expect(onProgress).toHaveBeenCalledTimes(1);
-    expect(onProgress).toHaveBeenCalledWith('thinking', 0);
+    expect(onProgress).toHaveBeenCalledTimes(2);
+    expect(onProgress.mock.calls[0]).toEqual(['planning', 0]);
+    expect(onProgress.mock.calls[1]).toEqual(['thinking', 0]);
   });
 
-  it('CLI mode: emits thinking only (no per-tool progress)', async () => {
+  it('CLI mode: emits planning + thinking (no per-tool progress)', async () => {
     const onProgress = vi.fn();
     const io = fakeFileIO(new Map([
       ['/chat/current.md', MINIMAL_DOC],
     ]));
     const documentService = createDocumentService(io);
     const store = spyVersionStore();
-    const cliProvider = fakeProvider([], { type: 'cli', id: 'fake' });
-    cliProvider.complete = async () => {};
+    const cliProvider = fakeAgent([], { type: 'cli', id: 'fake' });
+    cliProvider.run = async () => {};
 
     const deps = {
       documentService,
@@ -274,8 +276,9 @@ describe('handlePrompt onProgress', () => {
       onProgress,
     }, deps);
 
-    expect(onProgress).toHaveBeenCalledTimes(1);
-    expect(onProgress).toHaveBeenCalledWith('thinking', 0);
+    expect(onProgress).toHaveBeenCalledTimes(2);
+    expect(onProgress.mock.calls[0]).toEqual(['planning', 0]);
+    expect(onProgress.mock.calls[1]).toEqual(['thinking', 0]);
   });
 
   it('onProgress is optional — works without it', async () => {

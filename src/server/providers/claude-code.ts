@@ -1,7 +1,7 @@
-import type { ReplProvider, ProviderConfig, PreflightResult } from '../../shared/providers.js';
-import { buildCliPrompt, spawnCli, checkCliAvailable } from './spawn-cli.js';
+import type { Agent, ProviderConfig, PreflightResult } from '../../shared/providers.js';
+import { buildCliPrompt, spawnCli, spawnCliCapture, checkCliAvailable } from './spawn-cli.js';
 
-export function createClaudeCodeProvider(): ReplProvider {
+export function createClaudeCodeProvider(): Agent {
   const config: ProviderConfig = {
     id: 'claude-code',
     name: 'Claude Code',
@@ -32,7 +32,22 @@ export function createClaudeCodeProvider(): ReplProvider {
       return checkCliAvailable('claude');
     },
 
-    async complete({ prompt, systemPrompt, model, sessionDir, reasoningEffort }) {
+    async ask({ prompt, systemPrompt, model, responseSchema, reasoningEffort }) {
+      const schemaJson = JSON.stringify(responseSchema);
+      const args = [
+        '--print', '--model', model,
+        '--json-schema', schemaJson,
+        '--no-session-persistence',
+      ];
+      if (reasoningEffort) args.push('--effort', reasoningEffort);
+      args.push(buildCliPrompt(systemPrompt, prompt));
+      const stdout = await spawnCliCapture('claude', args, 'claude-ask');
+      // Claude Code may wrap output in markdown fences
+      const cleaned = stdout.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+      return JSON.parse(cleaned) as Record<string, unknown>;
+    },
+
+    async run({ prompt, systemPrompt, model, sessionDir, reasoningEffort }) {
       const cliArguments = [
         '--print', '--dangerously-skip-permissions',
         '--model', model,

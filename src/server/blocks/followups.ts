@@ -32,6 +32,7 @@ export const followupsBlock: BlockDefinition = {
       header: '`### followups`',
       maxPerSection: '1',
       contentFormat: 'Markdown unordered list',
+      paneDescription: 'Suggested follow-up questions as a bullet list',
     };
   },
 };

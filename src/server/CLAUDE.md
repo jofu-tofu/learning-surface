@@ -21,7 +21,9 @@ Tools map to **teaching actions**, not document-editing primitives. Three criter
 
 No find/replace tools — they're fragile (silent no-op on mismatch). When the AI needs to correct content, it uses creation tools to rewrite.
 
-**10 tools:** `new_section`, `show_diagram`, `show_visual`, `build_visual`, `explain`, `extend`, `challenge`, `suggest_followups`, `set_active`, `clear`.
+**12 tools:** `new_section`, `show_diagram`, `show_visual`, `show_timeline`, `derive`, `build_visual`, `explain`, `extend`, `challenge`, `suggest_followups`, `set_active`, `clear`.
+
+**Dynamic tool surface:** `ListTools` returns a context-filtered subset (via `selectTools()` in `tool-selector.ts`), but `CallTool` validates against the full tool universe (`toolSchemaMap`). This ensures stale tool lists don't cause errors. Availability states: `always`, `needs-section` (2+ sections), `needs-canvas` (canvas has content), `needs-explanation` (explanation has content).
 
 ## Key Files
 
@@ -39,7 +41,9 @@ No find/replace tools — they're fragile (silent no-op on mismatch). When the A
 | `versions.ts` | Version store — v1.md + patches via `diff` library |
 | `chat-store.ts` | Multi-chat CRUD, `chats.json` index, per-chat directories |
 | `context.ts` | `createContextCompiler()` factory — returns a `ContextCompiler` with `.compile()` method |
-| `mcp-server.ts` | MCP server over stdio — batch versioning with 2s debounce |
+| `tool-selector.ts` | Dynamic tool surface — `buildSelectionContext` + `selectTools` filter tools per request |
+| `tool-planner.ts` | Two-stage planning — `buildPlanningSchema`/`buildPlanningPrompt`/`parsePlanResult`, all auto-derived from `TOOL_DEFS` |
+| `mcp-server.ts` | MCP server over stdio — batch versioning with 2s debounce, dynamic tool list via `plan` tool |
 | `watcher.ts` | chokidar watches `current.md`, notifies via callbacks |
 
 ## Conventions
@@ -47,6 +51,7 @@ No find/replace tools — they're fragile (silent no-op on mismatch). When the A
 - `tool-handlers.ts` mutates documents **in-place** — callers must `structuredClone` first (done in `markdown.ts` `applyToolCall`).
 - `mcp-server.ts` batches rapid tool calls into a single version snapshot (2s debounce). Call `flushVersionBatch()` in tests to force flush.
 - Context compilation sends only the **active section's state** + section list + recent prompt history to the AI — not the full document.
+- **Two-stage planning:** `handlePrompt()` calls `agent.ask()` (planning schema auto-derived from `TOOL_DEFS`) then `agent.run()` (filtered tools). Fail-open: planning failure falls back to all tools. Stage 1 uses `reasoningEffort: 'low'`.
 
 ---
 ## Context Maintenance

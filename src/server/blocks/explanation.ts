@@ -28,6 +28,7 @@ export const explanationBlock: BlockDefinition = {
       header: '`### explanation`',
       maxPerSection: '1',
       contentFormat: 'Markdown text',
+      paneDescription: 'Text explanations in markdown',
     };
   },
 };

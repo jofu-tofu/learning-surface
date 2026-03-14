@@ -129,7 +129,7 @@ describe.skipIf(SKIP_INTEGRATION)('Provider integration', () => {
       const provider = createCodexProvider();
       const toolCalls: ProviderToolCall[] = [];
 
-      await provider.complete({
+      await provider.run({
         prompt: 'Explain what a variable is in programming. Keep it to one sentence.',
         systemPrompt:
           'You are a teaching assistant. Use the provided tools to teach. ' +
@@ -179,7 +179,7 @@ describe.skipIf(SKIP_INTEGRATION)('Provider integration', () => {
       const toolCalls: ProviderToolCall[] = [];
 
       // Verify that passing a reasoning effort doesn't cause an API error
-      await provider.complete({
+      await provider.run({
         prompt: 'Say "hello" using the explain tool.',
         systemPrompt: 'You are a teaching assistant. Call the explain tool with a one-word response.',
         tools: providerTools,

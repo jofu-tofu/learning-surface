@@ -4,6 +4,7 @@ import {
   ShowVisualSchema, BuildVisualSchema, ExplainSchema, ExtendSchema,
   ChallengeSchema, SuggestFollowupsSchema,
   NewSectionSchema, SetActiveSchema, ClearSchema,
+  ShowTimelineSchema, DeriveSchema,
   zodToJsonSchema,
 } from '../../shared/schemas.js';
 
@@ -60,6 +61,27 @@ describe('SuggestFollowupsSchema', () => {
     ['empty object', {}],
     ['wrong type', { questions: 'not-array' }],
     ['non-string elements', { questions: [1, 2] }],
+  ]);
+});
+
+describe('ShowTimelineSchema', () => {
+  rejectsAll(ShowTimelineSchema, [
+    ['empty object', {}],
+    ['events not an array', { events: 'not-array' }],
+    ['event missing id', { events: [{ date: '2024', label: 'X' }] }],
+    ['event missing date', { events: [{ id: '1', label: 'X' }] }],
+    ['event missing label', { events: [{ id: '1', date: '2024' }] }],
+    ['invalid direction', { events: [], direction: 'diagonal' }],
+  ]);
+});
+
+describe('DeriveSchema', () => {
+  rejectsAll(DeriveSchema, [
+    ['empty object', {}],
+    ['steps not an array', { steps: 'not-array' }],
+    ['step missing expression', { steps: [{ justification: 'by def' }] }],
+    ['step missing justification', { steps: [{ expression: 'x=1' }] }],
+    ['wrong type for isGoal', { steps: [{ expression: 'x', justification: 'y', isGoal: 'yes' }] }],
   ]);
 });
 

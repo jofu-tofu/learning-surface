@@ -56,7 +56,7 @@ const CanvasInputSchema = z.object({
 const CheckInputSchema = z.object({
   question: z.string(),
   hints: z.array(z.string()).optional(),
-  answer: z.string().optional(),
+  answer: z.string(),
   answerExplanation: z.string().optional(),
 });
 

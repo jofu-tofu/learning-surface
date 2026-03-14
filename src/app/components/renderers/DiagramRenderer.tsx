@@ -1,4 +1,4 @@
-import React, { useId, useMemo, useState, useEffect, useRef } from 'react';
+import React, { useId, useMemo, useState } from 'react';
 import type { RendererProps } from './registry.js';
 import { ErrorBanner } from '../ErrorBanner.js';
 import {
@@ -42,9 +42,13 @@ import {
   nodeOpacity,
   nodeLabelX,
   LEADER_LINE_THRESHOLD,
+  nodeLabelAvailableWidth,
+  wrapLabel,
+  NODE_LABEL_LINE_HEIGHT,
   type PositionedNode,
 } from './diagram-layout.js';
 import { edgeLabelRect } from './overlap-resolution.js';
+import { useMountAnimation } from '../../hooks/useMountAnimation.js';
 
 
 
@@ -152,6 +156,11 @@ function DiagramNodeElement({ node, index, mounted, isHovered, onHover }: Diagra
   const emphasis = node.emphasis ?? 'normal';
   const isHighlighted = emphasis === 'highlighted';
   const shape = node.shape ?? 'rounded';
+  const labelX = nodeLabelX(NODE_WIDTH, !!node.category);
+  const labelLines = wrapLabel(
+    node.label,
+    nodeLabelAvailableWidth(!!node.category, !!node.description),
+  );
 
   return (
     <g
@@ -222,7 +231,7 @@ function DiagramNodeElement({ node, index, mounted, isHovered, onHover }: Diagra
       )}
 
       <text
-        x={nodeLabelX(NODE_WIDTH, !!node.category)}
+        x={labelX}
         y={NODE_HEIGHT / 2}
         textAnchor="middle"
         dominantBaseline="central"
@@ -231,7 +240,18 @@ function DiagramNodeElement({ node, index, mounted, isHovered, onHover }: Diagra
         fontFamily="var(--font-sans)"
         fontWeight={500}
       >
-        {node.label}
+        {labelLines.length === 1 ? labelLines[0] : labelLines.map((line, i) => (
+          <tspan
+            key={i}
+            x={labelX}
+            dy={i === 0
+              ? -((labelLines.length - 1) * NODE_LABEL_LINE_HEIGHT) / 2
+              : NODE_LABEL_LINE_HEIGHT
+            }
+          >
+            {line}
+          </tspan>
+        ))}
       </text>
 
       {/* Description indicator icon */}
@@ -271,19 +291,7 @@ export function DiagramRenderer({ content, containerWidth, containerHeight }: Re
   const reactId = useId();
   const markerId = reactId.replace(/:/g, '');
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false);
-  const prevContentRef = useRef(content);
-
-  // Trigger entry animation on mount and content change
-  useEffect(() => {
-    if (content !== prevContentRef.current) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: reset animation state on content change
-      setMounted(false);
-      prevContentRef.current = content;
-    }
-    const timer = requestAnimationFrame(() => setMounted(true));
-    return () => cancelAnimationFrame(timer);
-  }, [content]);
+  const mounted = useMountAnimation(content);
 
   const diagramData = useMemo(() => parseDiagramData(content), [content]);
   const layout = useMemo(() => diagramData ? computeDiagramLayout(diagramData) : null, [diagramData]);

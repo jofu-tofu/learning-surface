@@ -100,6 +100,7 @@ function parseLegacySection(title: string, body: string): Section {
         id: checkId,
         question,
         status: 'unanswered',
+        answer: '',
       });
     } else if (header === 'followups') {
       section.followups = blockContent

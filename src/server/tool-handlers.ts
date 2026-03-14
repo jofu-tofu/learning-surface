@@ -7,14 +7,19 @@ import {
   TimelineDataSchema,
   ProofDataSchema,
 } from '../shared/schemas.js';
+import type { ZodType } from 'zod';
 import { slugify } from '../shared/slugify.js';
 
 // === Constants ===
 
 const MAX_CANVASES = 4;
 
-/** Canvas types that require JSON content — validated via Zod schemas. */
-const STRUCTURED_CANVAS_TYPES = new Set(['diagram', 'timeline', 'proof']);
+/** Maps structured canvas types to their Zod validation schemas. */
+const STRUCTURED_SCHEMAS: Record<string, ZodType> = {
+  diagram: DiagramDataSchema,
+  timeline: TimelineDataSchema,
+  proof: ProofDataSchema,
+};
 
 // === Result Types ===
 
@@ -45,7 +50,8 @@ export interface DesignSurfaceResult {
 // === Canvas Content Validation ===
 
 function validateCanvasContent(canvas: CanvasInput): string | null {
-  if (!STRUCTURED_CANVAS_TYPES.has(canvas.type)) return null;
+  const schema = STRUCTURED_SCHEMAS[canvas.type];
+  if (!schema) return null;
 
   let data: unknown;
   try {
@@ -54,25 +60,9 @@ function validateCanvasContent(canvas: CanvasInput): string | null {
     return `Invalid ${canvas.type} content: not valid JSON`;
   }
 
-  switch (canvas.type) {
-    case 'diagram': {
-      const validation = DiagramDataSchema.safeParse(data);
-      if (!validation.success) return `Invalid diagram: ${validation.error.issues[0]?.message ?? 'validation failed'}`;
-      return null;
-    }
-    case 'timeline': {
-      const validation = TimelineDataSchema.safeParse(data);
-      if (!validation.success) return `Invalid timeline: ${validation.error.issues[0]?.message ?? 'validation failed'}`;
-      return null;
-    }
-    case 'proof': {
-      const validation = ProofDataSchema.safeParse(data);
-      if (!validation.success) return `Invalid proof: ${validation.error.issues[0]?.message ?? 'validation failed'}`;
-      return null;
-    }
-    default:
-      return null;
-  }
+  const validation = schema.safeParse(data);
+  if (!validation.success) return `Invalid ${canvas.type}: ${validation.error.issues[0]?.message ?? 'validation failed'}`;
+  return null;
 }
 
 // === Section Helpers ===
@@ -221,7 +211,7 @@ function applySectionUpdate(
         question: checkInput.question,
         status: 'unanswered',
         ...(checkInput.hints ? { hints: checkInput.hints } : {}),
-        ...(checkInput.answer ? { answer: checkInput.answer } : {}),
+        answer: checkInput.answer,
         ...(checkInput.answerExplanation ? { answerExplanation: checkInput.answerExplanation } : {}),
       };
       section.checks.push(check);

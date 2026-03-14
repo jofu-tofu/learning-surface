@@ -11,12 +11,11 @@ import {
   EDGE_LABEL_PADDING,
   EDGE_LABEL_HEIGHT,
   EDGE_LABEL_TEXT_OFFSET_Y,
-  BEZIER_CONTROL_FACTOR,
-  BEZIER_CONTROL_MIN,
   REROUTE_LABEL_WEIGHT_ENDPOINT,
   REROUTE_LABEL_WEIGHT_ROUTE,
   FLOW_DIRECTION_BIAS,
   LABEL_SPREAD_FACTOR,
+  controlPointOffset,
 } from './diagram-constants.js';
 
 export { NODE_WIDTH, NODE_HEIGHT, EDGE_LABEL_TEXT_OFFSET_Y } from './diagram-constants.js';
@@ -75,6 +74,15 @@ export const NODE_LABEL_FONT_SIZE = 13;
 export const INFO_ICON_MARGIN = 12;
 export const INFO_ICON_RADIUS = 5;
 export const INFO_ICON_FONT_SIZE = 8;
+
+// --- Node Label Wrapping ---
+
+const NODE_LABEL_CHAR_WIDTH = 7;
+const NODE_LABEL_H_PAD = 10;
+const CATEGORY_LEFT_INSET = 20;
+const INFO_RIGHT_INSET = 22;
+export const NODE_LABEL_LINE_HEIGHT = 16;
+const NODE_LABEL_MAX_LINES = 2;
 
 // --- Arrow Marker Constants ---
 
@@ -213,10 +221,57 @@ export function nodeLabelX(nodeWidth: number, hasCategory: boolean): number {
   return nodeWidth / 2 + (hasCategory ? CATEGORY_TEXT_OFFSET : 0);
 }
 
-/** Compute Bezier control point offset from distance between endpoints. */
-export function controlPointOffset(distance: number): number {
-  return Math.max(Math.abs(distance) * BEZIER_CONTROL_FACTOR, BEZIER_CONTROL_MIN);
+/** Available pixel width for node label text, accounting for category dot and info icon. */
+export function nodeLabelAvailableWidth(hasCategory: boolean, hasDescription: boolean): number {
+  const left = hasCategory ? CATEGORY_LEFT_INSET : NODE_LABEL_H_PAD;
+  const right = hasDescription ? INFO_RIGHT_INSET : NODE_LABEL_H_PAD;
+  return NODE_WIDTH - left - right;
 }
+
+/** Wrap a label into lines that fit within maxWidthPx at an estimated char width. */
+export function wrapLabel(
+  label: string, maxWidthPx: number,
+  charWidth = NODE_LABEL_CHAR_WIDTH, maxLines = NODE_LABEL_MAX_LINES,
+): string[] {
+  const maxChars = Math.max(1, Math.floor(maxWidthPx / charWidth));
+  if (label.length <= maxChars) return [label];
+
+  const words = label.split(/\s+/).filter(w => w.length > 0);
+  if (words.length === 0) return [label];
+
+  const lines: string[] = [];
+  let current = words[0];
+  let wordIdx = 1;
+
+  while (wordIdx < words.length) {
+    const test = current + ' ' + words[wordIdx];
+    if (test.length <= maxChars) {
+      current = test;
+      wordIdx++;
+    } else {
+      lines.push(current);
+      if (lines.length === maxLines) break;
+      current = words[wordIdx];
+      wordIdx++;
+    }
+  }
+
+  const overflow = wordIdx < words.length;
+
+  if (lines.length < maxLines) {
+    lines.push(current);
+  }
+
+  const lastIdx = lines.length - 1;
+  if (lastIdx >= 0 && (lines[lastIdx].length > maxChars || overflow)) {
+    const text = lines[lastIdx];
+    lines[lastIdx] = text.slice(0, Math.max(1, maxChars - 1)) + '\u2026';
+  }
+
+  return lines;
+}
+
+export { controlPointOffset } from './diagram-constants.js';
 
 // --- Port Selection ---
 

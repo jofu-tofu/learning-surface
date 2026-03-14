@@ -1,0 +1,113 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`zodToJsonSchema snapshot > DesignSurfaceSchema produces stable JSON Schema 1`] = `
+{
+  "properties": {
+    "clearAll": {
+      "type": "boolean",
+    },
+    "removeSection": {
+      "type": "string",
+    },
+    "sections": {
+      "items": {
+        "properties": {
+          "active": {
+            "type": "boolean",
+          },
+          "canvases": {
+            "items": {
+              "properties": {
+                "content": {
+                  "type": "string",
+                },
+                "id": {
+                  "type": "string",
+                },
+                "language": {
+                  "type": "string",
+                },
+                "type": {
+                  "enum": [
+                    "mermaid",
+                    "katex",
+                    "code",
+                    "diagram",
+                    "timeline",
+                    "proof",
+                  ],
+                  "type": "string",
+                },
+              },
+              "required": [
+                "id",
+                "type",
+                "content",
+              ],
+              "type": "object",
+            },
+            "type": "array",
+          },
+          "checks": {
+            "items": {
+              "properties": {
+                "answer": {
+                  "type": "string",
+                },
+                "answerExplanation": {
+                  "type": "string",
+                },
+                "hints": {
+                  "items": {
+                    "type": "string",
+                  },
+                  "type": "array",
+                },
+                "question": {
+                  "type": "string",
+                },
+              },
+              "required": [
+                "question",
+                "answer",
+              ],
+              "type": "object",
+            },
+            "type": "array",
+          },
+          "clear": {
+            "items": {
+              "enum": [
+                "canvases",
+                "explanation",
+                "checks",
+                "followups",
+              ],
+              "type": "string",
+            },
+            "type": "array",
+          },
+          "explanation": {
+            "type": "string",
+          },
+          "followups": {
+            "items": {
+              "type": "string",
+            },
+            "type": "array",
+          },
+          "id": {
+            "type": "string",
+          },
+          "title": {
+            "type": "string",
+          },
+        },
+        "type": "object",
+      },
+      "type": "array",
+    },
+  },
+  "type": "object",
+}
+`;

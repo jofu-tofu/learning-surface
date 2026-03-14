@@ -80,7 +80,7 @@ describe('checks: append', () => {
   it('appends new checks without removing existing', () => {
     const doc = makeDoc();
     const { doc: result } = applyDesignSurface(doc, {
-      sections: [{ id: 'test-section', checks: [{ question: 'Q2' }] }],
+      sections: [{ id: 'test-section', checks: [{ question: 'Q2', answer: 'A2' }] }],
     });
     expect(result.sections[0].checks).toHaveLength(2);
     expect(result.sections[0].checks![0].id).toBe('c1');

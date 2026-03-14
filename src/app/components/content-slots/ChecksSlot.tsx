@@ -18,14 +18,12 @@ function ChecksSlot({ section }: ContentSlotProps): React.ReactElement {
           className="rounded-xl border border-surface-700/60 bg-surface-800/40 p-4"
         >
           <p className="text-sm text-surface-200 mb-3 leading-relaxed">{check.question}</p>
-          {check.answer && (
-            <div className="mt-2 pt-3 border-t border-surface-700/50">
-              <p className="text-sm text-emerald-400">{check.answer}</p>
-              {check.answerExplanation && (
-                <p className="text-sm text-surface-400 mt-1.5 leading-relaxed">{check.answerExplanation}</p>
-              )}
-            </div>
-          )}
+          <div className="mt-2 pt-3 border-t border-surface-700/50">
+            <p className="text-sm text-emerald-400">{check.answer}</p>
+            {check.answerExplanation && (
+              <p className="text-sm text-surface-400 mt-1.5 leading-relaxed">{check.answerExplanation}</p>
+            )}
+          </div>
         </div>
       ))}
     </div>

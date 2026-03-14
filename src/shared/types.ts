@@ -18,7 +18,7 @@ export interface Check {
   question: string;
   status: 'unanswered' | 'attempted' | 'revealed';
   hints?: string[];
-  answer?: string;
+  answer: string;
   answerExplanation?: string;
 }
 

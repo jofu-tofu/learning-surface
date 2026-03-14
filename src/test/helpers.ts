@@ -1,15 +1,17 @@
 import { vi } from 'vitest';
-import type {
-  CanvasContent,
-  Check,
-  LearningDocument,
-  Section,
-  VersionMeta,
-  VersionStore,
+import {
+  getActiveSection,
+  type CanvasContent,
+  type Check,
+  type LearningDocument,
+  type Section,
+  type VersionMeta,
+  type VersionStore,
 } from '../shared/types.js';
 export type { VersionStore };
 import { slugify } from '../shared/slugify.js';
 import { serializeSurface } from '../server/surface-file.js';
+import { META_KEYS } from '../shared/detectChangedPanes.js';
 
 // === Builders ===
 
@@ -27,6 +29,7 @@ export function buildCheck(overrides: Partial<Check> = {}): Check {
     id: 'c1',
     question: 'Why does this work?',
     status: 'unanswered',
+    answer: 'Because of X.',
     ...overrides,
   };
 }
@@ -150,10 +153,9 @@ export function fakeAgent(
 
 /** Fake ContextCompiler that returns a minimal SurfaceContext. */
 export function fakeContextCompiler(): ContextCompiler {
-  const META_KEYS = new Set(['id', 'title']);
   return {
     async compile(doc) {
-      const active = doc.sections.find(section => section.id === doc.activeSection);
+      const active = getActiveSection(doc);
       const surface: Record<string, unknown> = {};
       if (active) {
         for (const [key, value] of Object.entries(active)) {

@@ -16,7 +16,7 @@ const CheckSchema = z.object({
   question: z.string(),
   status: z.enum(['unanswered', 'attempted', 'revealed']),
   hints: z.array(z.string()).optional(),
-  answer: z.string().optional(),
+  answer: z.string(),
   answerExplanation: z.string().optional(),
 });
 
@@ -42,7 +42,7 @@ const SurfaceFileSchema = z.object({
  * Sanitize JSON that may contain literal control characters inside string values.
  * CLI providers sometimes write unescaped newlines/tabs in JSON strings.
  */
-function sanitizeJsonControlChars(raw: string): string {
+export function sanitizeJsonControlChars(raw: string): string {
   let result = '';
   let inString = false;
   let escaped = false;

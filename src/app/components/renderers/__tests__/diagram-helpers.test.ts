@@ -18,6 +18,8 @@ import {
   computeLayerGaps,
   countCrossings,
   minimizeCrossings,
+  nodeLabelAvailableWidth,
+  wrapLabel,
   NODE_WIDTH,
   NODE_HEIGHT,
 } from '../diagram-layout.js';
@@ -576,5 +578,96 @@ describe('minimizeCrossings', () => {
     const layers = [['a', 'b'], ['c', 'd']];
     const result = minimizeCrossings(layers, []);
     expect(result).toEqual([['a', 'b'], ['c', 'd']]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// nodeLabelAvailableWidth — text area within node box
+// ---------------------------------------------------------------------------
+
+describe('nodeLabelAvailableWidth', () => {
+  it('returns narrower width when category is present', () => {
+    const plain = nodeLabelAvailableWidth(false, false);
+    const withCat = nodeLabelAvailableWidth(true, false);
+    expect(withCat).toBeLessThan(plain);
+  });
+
+  it('returns narrower width when description is present', () => {
+    const plain = nodeLabelAvailableWidth(false, false);
+    const withDesc = nodeLabelAvailableWidth(false, true);
+    expect(withDesc).toBeLessThan(plain);
+  });
+
+  it('returns narrowest when both category and description are present', () => {
+    const both = nodeLabelAvailableWidth(true, true);
+    const catOnly = nodeLabelAvailableWidth(true, false);
+    const descOnly = nodeLabelAvailableWidth(false, true);
+    expect(both).toBeLessThan(catOnly);
+    expect(both).toBeLessThan(descOnly);
+  });
+
+  it('never exceeds NODE_WIDTH', () => {
+    expect(nodeLabelAvailableWidth(false, false)).toBeLessThan(NODE_WIDTH);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// wrapLabel — text wrapping with ellipsis truncation
+// ---------------------------------------------------------------------------
+
+describe('wrapLabel', () => {
+  it('returns single-element array for short labels that fit', () => {
+    expect(wrapLabel('Hello', 100, 7)).toEqual(['Hello']);
+  });
+
+  it('returns empty-string label as-is', () => {
+    expect(wrapLabel('', 100, 7)).toEqual(['']);
+  });
+
+  it('wraps long text into multiple lines at word boundaries', () => {
+    // maxChars = floor(70/7) = 10
+    const lines = wrapLabel('Hello World Foo', 70, 7, 3);
+    expect(lines.length).toBeGreaterThan(1);
+    // Every line should be within bounds
+    for (const line of lines) {
+      expect(line.length).toBeLessThanOrEqual(10);
+    }
+  });
+
+  it('truncates with ellipsis when text exceeds maxLines', () => {
+    // maxChars = 10, maxLines = 1
+    const lines = wrapLabel('Hello World Foo Bar', 70, 7, 1);
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toContain('\u2026');
+  });
+
+  it('truncates a single long word with ellipsis', () => {
+    // maxChars = floor(50/7) = 7, word "Superlongword" = 13 chars
+    const lines = wrapLabel('Superlongword', 50, 7, 2);
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toContain('\u2026');
+    expect(lines[0].length).toBeLessThanOrEqual(7);
+  });
+
+  it('handles whitespace-only input', () => {
+    const lines = wrapLabel('   ', 100, 7);
+    expect(lines).toHaveLength(1);
+  });
+
+  it('never returns lines longer than maxChars', () => {
+    const label = 'The quick brown fox jumps over the lazy dog';
+    const lines = wrapLabel(label, 70, 7, 2);
+    const maxChars = Math.floor(70 / 7);
+    for (const line of lines) {
+      expect(line.length).toBeLessThanOrEqual(maxChars);
+    }
+  });
+
+  it('handles maxWidthPx smaller than one character', () => {
+    // maxChars = max(1, floor(3/7)) = 1
+    const lines = wrapLabel('AB', 3, 7);
+    expect(lines.length).toBeGreaterThanOrEqual(1);
+    // Should truncate with ellipsis since even a single char + ellipsis won't fit
+    expect(lines[0]).toContain('\u2026');
   });
 });

@@ -34,7 +34,7 @@ Ask comprehension questions that test understanding: "why does this happen?" and
 export const SYSTEM_PROMPT = `${TEACHING_SYSTEM_PROMPT}
 ## How to modify the surface
 
-Call \`design_surface\` with a \`sections\` array. Each section entry targets by \`id\` (existing) or creates by \`title\` (new). Within a section:
+Call \`design_surface\`. Always include a \`summary\` — a 3-8 word label describing what this version covers (e.g. "TCP three-way handshake", "Adding error handling"). The first summary becomes the chat title; subsequent summaries label each step in the timeline. Provide a \`sections\` array to update content. Each section entry targets by \`id\` (existing) or creates by \`title\` (new). Within a section:
 
 - **canvases**: upsert by id (max 4 per section). Provide only canvases you're changing. Canvas IDs should be short, descriptive (e.g., "architecture", "data-flow", "proof-1").
 - **explanation**: replaces if provided. Omit to leave unchanged.

@@ -1,5 +1,6 @@
 import type { Agent, ProviderConfig, PreflightResult } from '../../shared/providers.js';
 import { buildCliPrompt, spawnCli, spawnCliCapture, checkCliAvailable, writeMcpConfig, cleanupMcpConfig } from './spawn-cli.js';
+import { createChatLogger } from '../logger.js';
 
 export function createClaudeCodeProvider(): Agent {
   const config: ProviderConfig = {
@@ -61,7 +62,7 @@ export function createClaudeCodeProvider(): Agent {
         if (reasoningEffort) cliArguments.push('--effort', reasoningEffort);
         cliArguments.push(buildCliPrompt(systemPrompt, prompt));
 
-        return await spawnCli('claude', cliArguments, 'claude-code');
+        return await spawnCli('claude', cliArguments, 'claude-code', undefined, createChatLogger(sessionDir));
       } finally {
         await cleanupMcpConfig(mcpConfigPath);
       }

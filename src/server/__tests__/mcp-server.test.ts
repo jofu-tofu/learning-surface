@@ -14,9 +14,9 @@ describe('MCP Server', () => {
   describe('tool schema validation', () => {
     it('design_surface schema rejects completely empty input', () => {
       const schema = toolSchemaMap.get('design_surface')!;
-      // Empty object is valid for design_surface (all fields optional)
+      // Empty object is now invalid — summary is required
       const result = schema.safeParse({});
-      expect(result.success).toBe(true);
+      expect(result.success).toBe(false);
     });
 
     it('design_surface schema rejects invalid section structure', () => {
@@ -64,7 +64,7 @@ describe('MCP Server', () => {
     it('stop() flushes any pending batch', async () => {
       await client.callTool({
         name: 'design_surface',
-        arguments: { sections: [{ id: 'introduction', explanation: 'Stopping soon.' }] },
+        arguments: { summary: 'Stopping soon', sections: [{ id: 'introduction', explanation: 'Stopping soon.' }] },
       });
       expect(store.createVersion).not.toHaveBeenCalled();
 
@@ -75,7 +75,7 @@ describe('MCP Server', () => {
     it('persists changedPanes and changedSectionIds in version metadata', async () => {
       await client.callTool({
         name: 'design_surface',
-        arguments: { sections: [{ id: 'introduction', explanation: 'Changed explanation.' }] },
+        arguments: { summary: 'Changed explanation', sections: [{ id: 'introduction', explanation: 'Changed explanation.' }] },
       });
 
       await mcpServer.flushVersionBatch();
@@ -137,7 +137,7 @@ describe('MCP Server', () => {
     it('valid design_surface call succeeds', async () => {
       const result = await client.callTool({
         name: 'design_surface',
-        arguments: { sections: [{ id: 'introduction', explanation: 'Updated text.' }] },
+        arguments: { summary: 'Updated text', sections: [{ id: 'introduction', explanation: 'Updated text.' }] },
       });
       expect(result.isError).toBeUndefined();
       const text = (result.content as Array<{ text: string }>)[0].text;

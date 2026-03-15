@@ -7,6 +7,7 @@ import type { Agent, ToolDefinition, ReasoningEffort } from '../shared/providers
 import { selectTools } from './tool-selector.js';
 import type { ContextCompiler, LearningDocument, SurfaceContext, VersionStore } from '../shared/types.js';
 import { detectChangedPanes, detectChangedSections } from '../shared/detectChangedPanes.js';
+import { createChatLogger } from './logger.js';
 
 // === Pure constants and functions (functional core) ===
 
@@ -92,6 +93,9 @@ export async function handlePrompt(
     throw new Error(`Unknown provider: ${providerId}`);
   }
 
+  const log = createChatLogger(chatDir);
+  log.info('Prompt received', { text, providerId, modelId, reasoningEffort, providerType: provider.config.type });
+
   const filePath = documentService.filePath(chatDir);
   const currentDoc = documentService.ensureExists(filePath);
 
@@ -125,6 +129,8 @@ export async function handlePrompt(
       reasoningEffort,
       async onToolCall(call) {
         toolStep++;
+        const t0 = Date.now();
+        log.toolCall(call.toolName, call.params);
         request.onProgress?.(call.toolName, toolStep);
 
         const result = documentService.applyDesignSurface(
@@ -133,16 +139,19 @@ export async function handlePrompt(
           startVersion + 1,
         );
 
-        return {
+        const response = {
           success: result.results.errors.length === 0,
           message: result.results.errors.length > 0
             ? JSON.stringify(result.results)
             : `Applied ${call.toolName} → version ${result.doc.version}`,
         };
+        log.toolResult(call.toolName, { ...response, applied: result.results }, Date.now() - t0);
+        return response;
       },
     });
   } else {
     // CLI mode: provider edits the file directly
+    log.info('CLI mode — tool calls handled via MCP subprocess');
     await provider.run({
       prompt: text,
       systemPrompt,

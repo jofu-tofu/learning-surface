@@ -98,6 +98,7 @@ export type ClientMessage =
   | { type: 'new-chat' }
   | { type: 'switch-chat'; chatId: string }
   | { type: 'delete-chat'; chatId: string }
+  | { type: 'rename-chat'; chatId: string; title: string }
   | { type: 'select-version'; version: number }
   | { type: 'select-section'; sectionId: string }
   | { type: 'prompt'; text: string; provider?: string; model?: string; reasoningEffort?: ReasoningEffort; fromVersion?: number }

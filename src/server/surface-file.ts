@@ -20,11 +20,17 @@ const CheckSchema = z.object({
   answerExplanation: z.string().optional(),
 });
 
+const DeeperPatternSchema = z.object({
+  pattern: z.string(),
+  connection: z.string(),
+});
+
 const SectionSchema = z.object({
   id: z.string(),
   title: z.string(),
   canvases: z.array(CanvasContentSchema),
   explanation: z.string().optional(),
+  deeperPatterns: z.array(DeeperPatternSchema).default([]),
   checks: z.array(CheckSchema).optional(),
   followups: z.array(z.string()).optional(),
 });

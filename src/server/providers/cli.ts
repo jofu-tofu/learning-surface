@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Agent, ProviderConfig, PreflightResult } from '../../shared/providers.js';
 import { buildCliPrompt, spawnCli, spawnCliCapture, checkCliAvailable, codexMcpConfigArgs } from './spawn-cli.js';
+import { createChatLogger } from '../logger.js';
 
 export function createCliProvider(): Agent {
   const config: ProviderConfig = {
@@ -56,7 +57,7 @@ export function createCliProvider(): Agent {
       if (reasoningEffort) cliArguments.push('-c', `model_reasoning_effort="${reasoningEffort}"`);
       cliArguments.push(buildCliPrompt(systemPrompt, prompt));
 
-      return spawnCli('codex', cliArguments, 'codex-cli');
+      return spawnCli('codex', cliArguments, 'codex-cli', undefined, createChatLogger(sessionDir));
     },
   };
 }

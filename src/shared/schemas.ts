@@ -101,6 +101,9 @@ const SectionUpdateSchema = z.object({
 });
 
 export const DesignSurfaceSchema = z.object({
+  summary: z.string().describe(
+    'Short label for this version of the surface (3-8 words). Summarizes what changed or what the learner is exploring. Used as the breadcrumb label in the timeline and as the chat title for the first version.',
+  ),
   sections: z.array(SectionUpdateSchema).optional(),
   removeSection: z.string().optional(),
   clearAll: z.boolean().optional(),

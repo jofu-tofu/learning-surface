@@ -1,10 +1,9 @@
 import React, { useEffect, useRef } from 'react';
-import { slugify } from '../../shared/slugify.js';
 import { listContainer, listItemBase, listItemActive, listItemInactive } from '../utils/styles.js';
 import { useChangedSectionIds, useFlashSectionIds } from '../hooks/SurfaceStatusContext.js';
 
 interface SidebarProps {
-  sections: Array<{ title: string }>;
+  sections: Array<{ id: string; title: string }>;
   activeSection: string;
   onSectionClick?: (sectionId: string) => void;
 }
@@ -44,7 +43,7 @@ export function Sidebar({ sections, activeSection, onSectionClick }: SidebarProp
   return (
     <nav className={listContainer}>
       {sections.map((section, index) => {
-        const sectionId = slugify(section.title);
+        const sectionId = section.id;
         const isActive = sectionId === activeSection;
         const isChanged = changedSectionIds.has(sectionId);
         const isFlashing = flashSectionIds.has(sectionId);

@@ -18,20 +18,41 @@ import { useSurface } from './hooks/useSurface.js';
 import { SurfaceStatusProvider, usePaneFlash } from './hooks/SurfaceStatusContext.js';
 import { getActiveSection } from '../shared/types.js';
 import { applyTheme, getStoredTheme, type ThemeId } from '../shared/themes.js';
+import { useResizablePane } from './hooks/useResizablePane.js';
 
-function Pane({ id, title, className, scrollRef, children }: {
+function Pane({ id, title, className, scrollRef, children, style, actions }: {
   id: string;
   title: string;
   className?: string;
   scrollRef?: React.RefObject<HTMLDivElement | null>;
   children: React.ReactNode;
+  style?: React.CSSProperties;
+  actions?: React.ReactNode;
 }): React.ReactElement {
   const flash = usePaneFlash(id);
   return (
-    <div data-testid={`pane-${id}`} className={`flex-1 flex flex-col min-w-0 ${flash ? 'pane-updated' : ''} ${className ?? ''}`}>
-      <PaneHeader paneId={id} title={title} />
+    <div data-testid={`pane-${id}`} style={style} className={`flex flex-col min-w-0 ${flash ? 'pane-updated' : ''} ${className ?? ''}`}>
+      <PaneHeader paneId={id} title={title} actions={actions} />
       <div ref={scrollRef} className="flex-1 overflow-auto p-6">{children}</div>
     </div>
+  );
+}
+
+/** Small icon button used in pane headers and the sidebar toggle. */
+function IconButton({ icon, title, onClick, className = '' }: {
+  icon: string;
+  title: string;
+  onClick: () => void;
+  className?: string;
+}): React.ReactElement {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      className={`p-1 rounded-md text-surface-400 hover:text-surface-200 hover:bg-surface-700/50 transition-colors ${className}`}
+    >
+      <Icon name={icon} size={14} strokeWidth={2} />
+    </button>
   );
 }
 
@@ -73,6 +94,7 @@ export function App(): React.ReactElement {
     newChat,
     switchChat,
     deleteChat,
+    renameChat,
     isProcessing,
     changedPanes,
     versionChangedPanes,
@@ -92,6 +114,10 @@ export function App(): React.ReactElement {
 
   const [branchPopoverParentVersion, setBranchPopoverParentVersion] = useState<number | null>(null);
   const [currentTheme, setCurrentTheme] = useState<ThemeId>(getStoredTheme);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [canvasFullscreen, setCanvasFullscreen] = useState(false);
+  const { splitPercent, isDragging, containerRef, startDrag } = useResizablePane({ initialSplit: 50, minPercent: 20 });
+
   const paneScrollRefs = useMemo(() => {
     const refs: Record<string, React.RefObject<HTMLDivElement | null>> = {};
     for (const config of PANE_CONFIGS) {
@@ -102,6 +128,16 @@ export function App(): React.ReactElement {
 
   useEffect(() => { applyTheme(currentTheme); }, [currentTheme]);
 
+  // Escape key exits canvas fullscreen
+  useEffect(() => {
+    if (!canvasFullscreen) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setCanvasFullscreen(false);
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [canvasFullscreen]);
+
   const handlePromptSubmit = useCallback((text: string) => {
     for (const ref of Object.values(paneScrollRefs)) {
       ref.current?.scrollTo({ top: 0 });
@@ -110,8 +146,11 @@ export function App(): React.ReactElement {
   }, [submitPrompt, paneScrollRefs]);
 
   const activeSection = doc ? getActiveSection(doc) : undefined;
-  const sectionList = doc?.sections.map((section) => ({ title: section.title })) ?? [];
+  const sectionList = doc?.sections.map((section) => ({ id: section.id, title: section.title })) ?? [];
   const currentVersionMeta = versions.find((v) => v.version === currentVersion);
+
+  const canvasConfig = PANE_CONFIGS[0];
+  const explanationConfig = PANE_CONFIGS[1];
 
   return (
     <SurfaceStatusProvider
@@ -126,6 +165,12 @@ export function App(): React.ReactElement {
         {/* Header */}
         <header className="shrink-0 flex items-center justify-between px-5 py-2.5 bg-surface-800/90 border-b border-surface-700/60 backdrop-blur-sm">
           <div className="flex items-center gap-3">
+            {/* Sidebar toggle button */}
+            <IconButton
+              icon={sidebarCollapsed ? 'panelLeft' : 'panelLeftClose'}
+              title={sidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            />
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-accent-500 to-accent-700 flex items-center justify-center shadow-sm shadow-accent-500/20">
               <Icon name="book" size={15} strokeWidth={2.5} className="text-inverse-text" />
             </div>
@@ -141,7 +186,11 @@ export function App(): React.ReactElement {
         {/* Main content */}
         <div className="flex flex-1 min-h-0">
           {/* Sidebar — split into Chats (top) and Sections (bottom) */}
-          <aside data-testid="pane-sidebar" className="w-60 shrink-0 bg-surface-800/40 border-r border-surface-700/50 flex flex-col">
+          <aside
+            data-testid="pane-sidebar"
+            className={`sidebar-collapsible shrink-0 bg-surface-800/40 border-r border-surface-700/50 flex flex-col ${sidebarCollapsed ? 'collapsed' : ''}`}
+            style={sidebarCollapsed ? undefined : { width: '15rem' }}
+          >
             {/* Chats panel */}
             <SidebarPanel title="Chats">
               <ChatList
@@ -150,6 +199,7 @@ export function App(): React.ReactElement {
                 onChatSelect={switchChat}
                 onNewChat={newChat}
                 onDeleteChat={deleteChat}
+                onRenameChat={renameChat}
               />
             </SidebarPanel>
 
@@ -174,25 +224,44 @@ export function App(): React.ReactElement {
             {/* Prompt preview */}
             <PromptPreview prompt={currentVersionMeta?.prompt ?? null} />
 
-            {/* Panes */}
-            <div className="flex-1 flex min-h-0">
-              {PANE_CONFIGS.map((config, index) => (
-                <Pane
-                  key={config.id}
-                  id={config.id}
-                  title={config.title}
-                  className={index < PANE_CONFIGS.length - 1 ? 'border-r border-surface-700/40' : undefined}
-                  scrollRef={paneScrollRefs[config.id]}
-                >
-                  {config.centerContent ? (
-                    <div className="flex items-center justify-center w-full h-full">
-                      {config.render({ section: activeSection, onFollowupClick: handlePromptSubmit })}
-                    </div>
-                  ) : (
-                    config.render({ section: activeSection, onFollowupClick: handlePromptSubmit })
-                  )}
-                </Pane>
-              ))}
+            {/* Panes — resizable split */}
+            <div ref={containerRef} className="flex-1 flex min-h-0">
+              {/* Canvas pane */}
+              <Pane
+                id={canvasConfig.id}
+                title={canvasConfig.title}
+                style={{ width: `${splitPercent}%`, flexShrink: 0, flexGrow: 0 }}
+                scrollRef={paneScrollRefs[canvasConfig.id]}
+                actions={
+                  <IconButton
+                    icon="maximize"
+                    title="Expand canvas to fullscreen"
+                    onClick={() => setCanvasFullscreen(true)}
+                  />
+                }
+              >
+                <div className="flex items-center justify-center w-full h-full">
+                  {canvasConfig.render({ section: activeSection, onFollowupClick: handlePromptSubmit })}
+                </div>
+              </Pane>
+
+              {/* Resize handle */}
+              <div
+                className={`resize-handle ${isDragging ? 'dragging' : ''}`}
+                onPointerDown={startDrag}
+              >
+                <Icon name="gripVertical" size={12} strokeWidth={0} className="resize-grip" />
+              </div>
+
+              {/* Explanation pane */}
+              <Pane
+                id={explanationConfig.id}
+                title={explanationConfig.title}
+                className="flex-1"
+                scrollRef={paneScrollRefs[explanationConfig.id]}
+              >
+                {explanationConfig.render({ section: activeSection, onFollowupClick: handlePromptSubmit })}
+              </Pane>
             </div>
 
             {/* Breadcrumb path */}
@@ -244,6 +313,32 @@ export function App(): React.ReactElement {
           </div>
         </div>
       </div>
+
+      {/* Canvas fullscreen overlay */}
+      {canvasFullscreen && (
+        <div className="canvas-fullscreen">
+          <div className="canvas-fullscreen-header">
+            <h2 className="text-sm font-semibold text-surface-50">Canvas</h2>
+            <div className="flex items-center gap-2">
+              <IconButton
+                icon="minimize"
+                title="Exit fullscreen (Esc)"
+                onClick={() => setCanvasFullscreen(false)}
+              />
+              <button
+                onClick={() => setCanvasFullscreen(false)}
+                title="Close"
+                className="p-1.5 rounded-lg text-surface-400 hover:text-surface-100 hover:bg-surface-600/60 transition-colors"
+              >
+                <Icon name="close" size={18} strokeWidth={2} />
+              </button>
+            </div>
+          </div>
+          <div className="canvas-fullscreen-body">
+            <CanvasGrid canvases={activeSection?.canvases ?? []} />
+          </div>
+        </div>
+      )}
     </SurfaceStatusProvider>
   );
 }

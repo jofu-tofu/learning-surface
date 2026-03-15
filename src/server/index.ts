@@ -16,6 +16,7 @@ import {
 } from './utils/ws-helpers.js';
 import { migrateMdToSurface } from './legacy-migrate.js';
 import type { ClientMessage, WsMessage, VersionStore } from '../shared/types.js';
+import { createChatLogger } from './logger.js';
 
 const MIME_TYPES: Record<string, string> = {
   '.html': 'text/html',
@@ -115,6 +116,9 @@ export async function startServer(options: {
       migrateMdToSurface(chatDir);
       state.latestDocument = documentService.read(documentService.filePath(chatDir));
 
+      const log = createChatLogger(chatDir);
+      log.info('Chat activated', { chatId });
+
       watcher.start(chatDir);
     });
     switchLock = op.catch(() => {});
@@ -124,7 +128,7 @@ export async function startServer(options: {
   watcher.onDocumentChange(async (doc) => {
     state.latestDocument = doc;
 
-    // Update chat title from first version's summary
+    // Set chat title from the first version's summary (root ancestor names the chat)
     if (state.activeChatId && doc.summary) {
       const chat = chatStore.getChat(state.activeChatId);
       if (chat && chat.title === 'New Chat') {
@@ -162,7 +166,9 @@ export async function startServer(options: {
         const clientMessage = JSON.parse(String(rawMessage)) as ClientMessage;
         await routeMessage(ws, clientMessage, { state, chatStore, broadcast, switchToChat });
       } catch (err) {
-        console.error('Error handling client message:', err);
+        const chatDir = state.activeChatId ? chatStore.getChatDir(state.activeChatId) : null;
+        const log = chatDir ? createChatLogger(chatDir) : null;
+        log?.error('Error handling client message', { error: String(err) });
       }
     });
   });

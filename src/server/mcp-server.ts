@@ -11,6 +11,7 @@ import { detectChangedPanes, detectChangedSections } from '../shared/detectChang
 import { createDocumentService, type DocumentService } from './document-service.js';
 import { buildVersionMeta } from './prompt-handler.js';
 import { formatError } from './utils/ws-helpers.js';
+import { createChatLogger } from './logger.js';
 
 const DEFAULT_DEBOUNCE_MS = 2000;
 
@@ -34,6 +35,7 @@ export function createMcpServer(options: {
 
   const documentService = options.documentService ?? createDocumentService();
   const filePath = documentService.filePath(sessionDir);
+  const log = createChatLogger(sessionDir);
 
   // --- Batch versioning state ---
   let batchStartVersion: number | null = null;
@@ -91,12 +93,19 @@ export function createMcpServer(options: {
     const { name, arguments: toolArguments } = request.params;
 
     if (name !== 'design_surface') {
+      log.warn('Unknown MCP tool called', { name });
       return buildMcpResponse(`Unknown tool: ${name}`, true);
     }
 
     // Validate params
     const validatedParams = DesignSurfaceSchema.safeParse(toolArguments);
-    if (!validatedParams.success) return buildMcpResponse(`Invalid params: ${validatedParams.error.message}`, true);
+    if (!validatedParams.success) {
+      log.error('MCP tool validation failed', { tool: name, error: validatedParams.error.message, rawParams: toolArguments });
+      return buildMcpResponse(`Invalid params: ${validatedParams.error.message}`, true);
+    }
+
+    const t0 = Date.now();
+    log.toolCall(name, validatedParams.data);
 
     try {
       // Start a new batch if not already in one
@@ -123,10 +132,13 @@ export function createMcpServer(options: {
 
       // Return structured result
       if (result.results.errors.length > 0) {
+        log.toolResult(name, { success: false, applied: result.results }, Date.now() - t0);
         return buildMcpResponse(JSON.stringify(result.results));
       }
+      log.toolResult(name, { success: true, version: result.doc.version, applied: result.results }, Date.now() - t0);
       return buildMcpResponse(`Applied design_surface → version ${result.doc.version}`);
     } catch (err) {
+      log.error('MCP tool error', { tool: name, error: formatError(err) });
       return buildMcpResponse(`Error applying design_surface: ${formatError(err)}`, true);
     }
   });

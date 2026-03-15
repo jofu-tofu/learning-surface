@@ -23,12 +23,13 @@ function rejectsAll(schema: z.ZodTypeAny, cases: [string, unknown][]) {
 // ---------------------------------------------------------------------------
 
 describe('DesignSurfaceSchema', () => {
-  it('accepts empty object (all fields optional)', () => {
-    expect(DesignSurfaceSchema.safeParse({}).success).toBe(true);
+  it('rejects empty object (summary is required)', () => {
+    expect(DesignSurfaceSchema.safeParse({}).success).toBe(false);
   });
 
-  it('accepts sections array with section updates', () => {
+  it('accepts valid input with summary', () => {
     const result = DesignSurfaceSchema.safeParse({
+      summary: 'Test topic',
       sections: [{ title: 'Test', explanation: 'Hello' }],
     });
     expect(result.success).toBe(true);

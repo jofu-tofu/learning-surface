@@ -96,7 +96,7 @@ function setup(opts: {
 describe('ws-handlers prompt flow', () => {
   it('sends prompt-complete after successful prompt', async () => {
     const { ws, send } = setup({
-      toolCalls: [{ toolName: 'design_surface', params: { sections: [{ id: 'introduction', explanation: 'Hello' }] } }],
+      toolCalls: [{ toolName: 'design_surface', params: { summary: 'Explaining something', sections: [{ id: 'introduction', explanation: 'Hello' }] } }],
     });
 
     await send({
@@ -148,7 +148,7 @@ describe('ws-handlers prompt flow', () => {
 
   it('multi-turn: second prompt gets prompt-complete after first', async () => {
     const { ws, send, promptDeps } = setup({
-      toolCalls: [{ toolName: 'design_surface', params: { sections: [{ id: 'introduction', explanation: 'TCP is a transport protocol.' }] } }],
+      toolCalls: [{ toolName: 'design_surface', params: { summary: 'TCP transport protocol', sections: [{ id: 'introduction', explanation: 'TCP is a transport protocol.' }] } }],
     });
 
     // First prompt: AI adds an explanation
@@ -164,7 +164,7 @@ describe('ws-handlers prompt flow', () => {
     // Second prompt: swap provider to one that replaces explanation
     promptDeps.getProvider = (id: string) =>
       id === 'fake'
-        ? fakeAgent([{ toolName: 'design_surface', params: { sections: [{ id: 'introduction', explanation: 'TCP uses a three-way handshake.' }] } }])
+        ? fakeAgent([{ toolName: 'design_surface', params: { summary: 'TCP three-way handshake', sections: [{ id: 'introduction', explanation: 'TCP uses a three-way handshake.' }] } }])
         : undefined;
 
     await send({
@@ -208,8 +208,8 @@ describe('ws-handlers prompt flow', () => {
   it('broadcasts tool-progress for each tool call during prompt', async () => {
     const { broadcast, send } = setup({
       toolCalls: [
-        { toolName: 'design_surface', params: { sections: [{ id: 'introduction', canvases: [{ id: 'v', type: 'code', content: 'graph LR' }] }] } },
-        { toolName: 'design_surface', params: { sections: [{ id: 'introduction', explanation: 'Hello' }] } },
+        { toolName: 'design_surface', params: { summary: 'Teaching intro', sections: [{ id: 'introduction', canvases: [{ id: 'v', type: 'code', content: 'graph LR' }] }] } },
+        { toolName: 'design_surface', params: { summary: 'Teaching intro', sections: [{ id: 'introduction', explanation: 'Hello' }] } },
       ],
     });
 
@@ -324,6 +324,31 @@ describe('ws-handlers other routes', () => {
       ([m]) => (m as WsMessage).type === 'session-init',
     );
     expect(sessionBroadcast).toBeUndefined();
+  });
+
+  // --- rename-chat ---
+
+  it('rename-chat with valid id updates title and broadcasts chat-list', async () => {
+    const { send, deps, broadcast } = setup();
+
+    const updateTitleSpy = vi.spyOn(deps.chatStore, 'updateChatTitle');
+    await send({ type: 'rename-chat', chatId: 'c1', title: 'Renamed Chat' });
+
+    expect(updateTitleSpy).toHaveBeenCalledWith('c1', 'Renamed Chat');
+    const chatListBroadcast = broadcast.mock.calls.find(
+      ([m]) => (m as WsMessage).type === 'chat-list',
+    );
+    expect(chatListBroadcast).toBeDefined();
+  });
+
+  it('rename-chat with unknown id early-returns without updating', async () => {
+    const { send, deps, broadcast } = setup();
+
+    const updateTitleSpy = vi.spyOn(deps.chatStore, 'updateChatTitle');
+    await send({ type: 'rename-chat', chatId: 'unknown', title: 'Renamed Chat' });
+
+    expect(updateTitleSpy).not.toHaveBeenCalled();
+    expect(broadcast).not.toHaveBeenCalled();
   });
 
   // --- select-version ---

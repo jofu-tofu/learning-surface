@@ -70,6 +70,7 @@ describe('MCP integration dry run', () => {
     const result = await client.callTool({
       name: 'design_surface',
       arguments: {
+        summary: 'Test section',
         sections: [{ title: 'Test Section', explanation: 'Hello from MCP' }],
       },
     });

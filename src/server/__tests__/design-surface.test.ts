@@ -3,6 +3,11 @@ import { applyDesignSurface } from '../tool-handlers.js';
 import { buildDocument, buildSection, buildCanvasContent, buildCheck } from '../../test/helpers.js';
 import type { LearningDocument } from '../../shared/types.js';
 
+/** Wrapper that injects a default summary for brevity. */
+function apply(doc: LearningDocument, params: Omit<Parameters<typeof applyDesignSurface>[1], 'summary'> & { summary?: string }) {
+  return applyDesignSurface(doc, { summary: 'test', ...params });
+}
+
 function makeDoc(overrides: Partial<LearningDocument> = {}): LearningDocument {
   return buildDocument({
     activeSection: 'test-section',
@@ -26,7 +31,7 @@ function makeDoc(overrides: Partial<LearningDocument> = {}): LearningDocument {
 describe('omitted leaf properties are untouched', () => {
   it('adding a canvas does not affect explanation, checks, followups, or unmentioned canvases', () => {
     const doc = makeDoc();
-    const { doc: result } = applyDesignSurface(doc, {
+    const { doc: result } = apply(doc, {
       sections: [{ id: 'test-section', canvases: [{ id: 'new', type: 'code', content: 'graph TD' }] }],
     });
 
@@ -47,7 +52,7 @@ describe('omitted leaf properties are untouched', () => {
 describe('explanation: replace', () => {
   it('replaces existing explanation', () => {
     const doc = makeDoc();
-    const { doc: result } = applyDesignSurface(doc, {
+    const { doc: result } = apply(doc, {
       sections: [{ id: 'test-section', explanation: 'new explanation' }],
     });
     expect(result.sections[0].explanation).toBe('new explanation');
@@ -57,7 +62,7 @@ describe('explanation: replace', () => {
 describe('canvases: upsert by ID — replace existing', () => {
   it('replaces canvas with matching ID', () => {
     const doc = makeDoc();
-    const { doc: result } = applyDesignSurface(doc, {
+    const { doc: result } = apply(doc, {
       sections: [{ id: 'test-section', canvases: [{ id: 'arch', type: 'code', content: 'graph TD\n  X-->Y' }] }],
     });
     expect(result.sections[0].canvases.find(c => c.id === 'arch')!.content).toBe('graph TD\n  X-->Y');
@@ -67,7 +72,7 @@ describe('canvases: upsert by ID — replace existing', () => {
 describe('canvases: upsert by ID — append new', () => {
   it('appends new canvas when ID does not exist', () => {
     const doc = makeDoc();
-    const { doc: result } = applyDesignSurface(doc, {
+    const { doc: result } = apply(doc, {
       sections: [{ id: 'test-section', canvases: [{ id: 'flow', type: 'code', content: 'graph LR' }] }],
     });
     expect(result.sections[0].canvases).toHaveLength(2);
@@ -79,7 +84,7 @@ describe('canvases: upsert by ID — append new', () => {
 describe('checks: append', () => {
   it('appends new checks without removing existing', () => {
     const doc = makeDoc();
-    const { doc: result } = applyDesignSurface(doc, {
+    const { doc: result } = apply(doc, {
       sections: [{ id: 'test-section', checks: [{ question: 'Q2', answer: 'A2' }] }],
     });
     expect(result.sections[0].checks).toHaveLength(2);
@@ -91,7 +96,7 @@ describe('checks: append', () => {
 describe('followups: replace', () => {
   it('replaces existing followups', () => {
     const doc = makeDoc();
-    const { doc: result } = applyDesignSurface(doc, {
+    const { doc: result } = apply(doc, {
       sections: [{ id: 'test-section', followups: ['new1'] }],
     });
     expect(result.sections[0].followups).toEqual(['new1']);
@@ -101,7 +106,7 @@ describe('followups: replace', () => {
 describe('clear: delete before apply', () => {
   it('clears canvases first then applies new canvas', () => {
     const doc = makeDoc();
-    const { doc: result } = applyDesignSurface(doc, {
+    const { doc: result } = apply(doc, {
       sections: [{
         id: 'test-section',
         clear: ['canvases'],
@@ -124,7 +129,7 @@ describe('invalid canvas content — partial success', () => {
       sections: [buildSection({ title: 'New' })],
       activeSection: 'new',
     });
-    const { doc: result, results } = applyDesignSurface(doc, {
+    const { doc: result, results } = apply(doc, {
       sections: [{
         id: 'new',
         canvases: [
@@ -158,7 +163,7 @@ describe('canvas cap exceeded', () => {
       })],
       activeSection: 'full',
     });
-    const { doc: result, results } = applyDesignSurface(doc, {
+    const { doc: result, results } = apply(doc, {
       sections: [{ id: 'full', canvases: [{ id: 'fifth', type: 'code', content: 'x' }] }],
     });
     expect(result.sections[0].canvases).toHaveLength(4);
@@ -170,7 +175,7 @@ describe('canvas cap exceeded', () => {
 describe('section not found', () => {
   it('returns error with available section list', () => {
     const doc = makeDoc();
-    const { results } = applyDesignSurface(doc, {
+    const { results } = apply(doc, {
       sections: [{ id: 'nonexistent' }],
     });
     expect(results.errors[0]).toContain("'nonexistent' not found");
@@ -181,7 +186,7 @@ describe('section not found', () => {
 describe('new section requires title', () => {
   it('errors when neither id nor title provided', () => {
     const doc = makeDoc();
-    const { results } = applyDesignSurface(doc, {
+    const { results } = apply(doc, {
       sections: [{ explanation: 'text' }],
     });
     expect(results.errors[0]).toContain("requires either 'id'");
@@ -197,7 +202,7 @@ describe('removeSection', () => {
         buildSection({ title: 'B', id: 'b' }),
       ],
     });
-    const { doc: result } = applyDesignSurface(doc, { removeSection: 'a' });
+    const { doc: result } = apply(doc, { removeSection: 'a' });
     expect(result.sections).toHaveLength(1);
     expect(result.sections[0].id).toBe('b');
     expect(result.activeSection).toBe('b');
@@ -205,7 +210,7 @@ describe('removeSection', () => {
 
   it('errors when trying to remove last section', () => {
     const doc = makeDoc();
-    const { results } = applyDesignSurface(doc, { removeSection: 'test-section' });
+    const { results } = apply(doc, { removeSection: 'test-section' });
     expect(results.errors[0]).toContain('Cannot remove last section');
   });
 });
@@ -213,7 +218,7 @@ describe('removeSection', () => {
 describe('clearAll', () => {
   it('resets entire document', () => {
     const doc = makeDoc();
-    const { doc: result } = applyDesignSurface(doc, { clearAll: true });
+    const { doc: result } = apply(doc, { clearAll: true });
     expect(result.sections).toHaveLength(1);
     expect(result.sections[0].id).toBe('start');
     expect(result.activeSection).toBe('start');
@@ -223,7 +228,7 @@ describe('clearAll', () => {
 describe('new section creation', () => {
   it('creates section from title', () => {
     const doc = makeDoc();
-    const { doc: result } = applyDesignSurface(doc, {
+    const { doc: result } = apply(doc, {
       sections: [{
         title: 'TCP Handshake',
         active: true,
@@ -243,7 +248,7 @@ describe('new section creation', () => {
       activeSection: 'untitled',
       sections: [buildSection({ title: 'Untitled', id: 'untitled' })],
     });
-    const { doc: result } = applyDesignSurface(doc, {
+    const { doc: result } = apply(doc, {
       sections: [{ title: 'Real Section', active: true }],
     });
     expect(result.sections).toHaveLength(1);
@@ -256,7 +261,7 @@ describe('immutability', () => {
   it('does not mutate the input document', () => {
     const doc = makeDoc();
     const originalJson = JSON.stringify(doc);
-    applyDesignSurface(doc, {
+    apply(doc, {
       sections: [{ id: 'test-section', explanation: 'modified' }],
     });
     expect(JSON.stringify(doc)).toBe(originalJson);
@@ -273,7 +278,7 @@ describe('property: canvas count never exceeds 4', () => {
       sections: [buildSection({ title: 'Empty' })],
       activeSection: 'empty',
     });
-    const { doc: result } = applyDesignSurface(doc, {
+    const { doc: result } = apply(doc, {
       sections: [{
         id: 'empty',
         canvases: [
@@ -292,7 +297,7 @@ describe('property: canvas count never exceeds 4', () => {
 describe('property: idempotence for replace operations', () => {
   it('applying same explanation twice produces same result', () => {
     const doc = makeDoc();
-    const update = { sections: [{ id: 'test-section', explanation: 'new text' }] };
+    const update = { summary: 'test', sections: [{ id: 'test-section', explanation: 'new text' }] };
     const { doc: first } = applyDesignSurface(doc, update);
     const { doc: second } = applyDesignSurface(first, update);
     expect(JSON.stringify(first)).toBe(JSON.stringify(second));
@@ -303,7 +308,7 @@ describe('structured canvas validation', () => {
   it('validates diagram content as JSON with nodes/edges', () => {
     const doc = buildDocument({ sections: [buildSection({ title: 'Test' })], activeSection: 'test' });
     const validDiagram = JSON.stringify({ nodes: [{ id: 'a', label: 'A' }], edges: [{ from: 'a', to: 'b' }] });
-    const { doc: result, results } = applyDesignSurface(doc, {
+    const { doc: result, results } = apply(doc, {
       sections: [{ id: 'test', canvases: [{ id: 'diag', type: 'diagram', content: validDiagram }] }],
     });
     expect(results.sections[0].results.canvases!['diag'].success).toBe(true);
@@ -313,7 +318,7 @@ describe('structured canvas validation', () => {
   it('rejects diagram with missing required fields', () => {
     const doc = buildDocument({ sections: [buildSection({ title: 'Test' })], activeSection: 'test' });
     const invalidDiagram = JSON.stringify({ nodes: [{ id: 'a' }], edges: [] }); // missing label
-    const { results } = applyDesignSurface(doc, {
+    const { results } = apply(doc, {
       sections: [{ id: 'test', canvases: [{ id: 'diag', type: 'diagram', content: invalidDiagram }] }],
     });
     expect(results.sections[0].results.canvases!['diag'].success).toBe(false);
@@ -322,7 +327,7 @@ describe('structured canvas validation', () => {
   it('validates timeline content', () => {
     const doc = buildDocument({ sections: [buildSection({ title: 'Test' })], activeSection: 'test' });
     const validTimeline = JSON.stringify({ events: [{ id: 'e1', date: 'T0', label: 'Start' }] });
-    const { results } = applyDesignSurface(doc, {
+    const { results } = apply(doc, {
       sections: [{ id: 'test', canvases: [{ id: 'tl', type: 'timeline', content: validTimeline }] }],
     });
     expect(results.sections[0].results.canvases!['tl'].success).toBe(true);
@@ -331,7 +336,7 @@ describe('structured canvas validation', () => {
   it('validates proof content', () => {
     const doc = buildDocument({ sections: [buildSection({ title: 'Test' })], activeSection: 'test' });
     const validProof = JSON.stringify({ steps: [{ expression: 'x=1', justification: 'given' }] });
-    const { results } = applyDesignSurface(doc, {
+    const { results } = apply(doc, {
       sections: [{ id: 'test', canvases: [{ id: 'pf', type: 'proof', content: validProof }] }],
     });
     expect(results.sections[0].results.canvases!['pf'].success).toBe(true);
@@ -339,7 +344,7 @@ describe('structured canvas validation', () => {
 
   it('skips validation for non-structured types (katex, code)', () => {
     const doc = buildDocument({ sections: [buildSection({ title: 'Test' })], activeSection: 'test' });
-    const { results } = applyDesignSurface(doc, {
+    const { results } = apply(doc, {
       sections: [{ id: 'test', canvases: [{ id: 'c', type: 'code', content: 'console.log("hi")', language: 'javascript' }] }],
     });
     expect(results.sections[0].results.canvases!['c'].success).toBe(true);
@@ -349,7 +354,7 @@ describe('structured canvas validation', () => {
 describe('checks with answer and hints', () => {
   it('appends check with all optional fields', () => {
     const doc = makeDoc();
-    const { doc: result } = applyDesignSurface(doc, {
+    const { doc: result } = apply(doc, {
       sections: [{
         id: 'test-section',
         checks: [{

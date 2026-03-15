@@ -268,6 +268,11 @@ export function applyDesignSurface(
   const errors: string[] = [];
   const sectionResults: SectionResult[] = [];
 
+  // Summary — update document label / chat title
+  if (params.summary) {
+    cloned.summary = params.summary;
+  }
+
   // clearAll — reset entire document
   if (params.clearAll) {
     cloned.sections = [{

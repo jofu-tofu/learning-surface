@@ -5,9 +5,10 @@ import { usePaneChanged, useIsProcessing } from '../hooks/SurfaceStatusContext.j
 interface PaneHeaderProps {
   paneId: string;
   title: string;
+  actions?: React.ReactNode;
 }
 
-export function PaneHeader({ paneId, title }: PaneHeaderProps): React.ReactElement {
+export function PaneHeader({ paneId, title, actions }: PaneHeaderProps): React.ReactElement {
   const changed = usePaneChanged(paneId);
   const isProcessing = useIsProcessing();
 
@@ -20,6 +21,7 @@ export function PaneHeader({ paneId, title }: PaneHeaderProps): React.ReactEleme
             Updated
           </span>
         )}
+        {actions && <div className="ml-auto flex items-center gap-1">{actions}</div>}
       </div>
       {isProcessing && (
         <div className="absolute bottom-0 left-0 right-0 h-0.5 overflow-hidden">

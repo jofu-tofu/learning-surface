@@ -129,7 +129,14 @@ exports[`zodToJsonSchema snapshot > DesignSurfaceSchema produces stable JSON Sch
       },
       "type": "array",
     },
+    "summary": {
+      "description": "Short label for this version of the surface (3-8 words). Summarizes what changed or what the learner is exploring. Used as the breadcrumb label in the timeline and as the chat title for the first version.",
+      "type": "string",
+    },
   },
+  "required": [
+    "summary",
+  ],
   "type": "object",
 }
 `;

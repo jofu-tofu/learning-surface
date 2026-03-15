@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { PreflightResult } from '../../shared/providers.js';
+import type { ChatLogger } from '../logger.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -18,7 +19,7 @@ function runCliProcess(
   args: string[],
   label: string,
   spawnOptions?: SpawnOptions,
-  options?: { log?: boolean },
+  options?: { log?: boolean; logger?: ChatLogger },
 ): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     const child = spawn(command, args, { stdio: ['pipe', 'pipe', 'pipe'], ...spawnOptions });
@@ -29,14 +30,18 @@ function runCliProcess(
       stdout += chunk.toString();
       if (options?.log) {
         const outputText = chunk.toString().trim();
-        if (outputText) console.log(`[${label}] ${outputText}`);
+        if (outputText) {
+          options.logger?.info(`[${label}] ${outputText}`);
+        }
       }
     });
     child.stderr?.on('data', (chunk: Buffer) => {
       const text = chunk.toString().trim();
       if (text) {
         stderrOutput += text + '\n';
-        if (options?.log) console.error(`[${label} stderr] ${text}`);
+        if (options?.log) {
+          options.logger?.warn(`[${label} stderr] ${text}`);
+        }
       }
     });
 
@@ -61,8 +66,9 @@ export async function spawnCli(
   args: string[],
   label: string,
   spawnOptions?: SpawnOptions,
+  logger?: ChatLogger,
 ): Promise<void> {
-  await runCliProcess(command, args, label, spawnOptions, { log: true });
+  await runCliProcess(command, args, label, spawnOptions, { log: true, logger });
 }
 
 /** Spawn a CLI subprocess, capture stdout and return it as a string. Rejects on non-zero exit. */

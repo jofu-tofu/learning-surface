@@ -18,6 +18,7 @@ import {
   ensureActiveChat,
   formatError,
 } from './utils/ws-helpers.js';
+import { createChatLogger, nullLogger } from './logger.js';
 
 /** Mutable server-side session state shared across handlers. */
 export interface SessionState {
@@ -112,6 +113,15 @@ export async function routeMessage(
       return;
     }
 
+    case 'rename-chat': {
+      const chat = chatStore.getChat(msg.chatId);
+      if (!chat) return;
+
+      await chatStore.updateChatTitle(msg.chatId, msg.title);
+      broadcast(buildChatListMessage(chatStore.listChats(), state.activeChatId));
+      return;
+    }
+
     case 'select-version': {
       if (!state.activeVersionStore) return;
 
@@ -142,11 +152,15 @@ export async function routeMessage(
 
     case 'prompt': {
       const { provider: providerId, model: modelId, reasoningEffort, text } = msg;
+
+      const chatDir = state.activeChatId ? chatStore.getChatDir(state.activeChatId) : null;
+      const log = chatDir ? createChatLogger(chatDir) : nullLogger;
+
       const versionLogSuffix = msg.fromVersion ? ` (from v${msg.fromVersion})` : '';
-      console.log(`[prompt]${versionLogSuffix} "${text}" provider=${providerId ?? 'none'} model=${modelId ?? 'none'} effort=${reasoningEffort ?? 'default'}`);
+      log.info(`Prompt received${versionLogSuffix}`, { text, providerId: providerId ?? 'none', modelId: modelId ?? 'none', reasoningEffort: reasoningEffort ?? 'default' });
 
       if (!providerId || !modelId) {
-        console.log('  No provider/model selected — waiting for REPL to call MCP tools');
+        log.info('No provider/model selected — waiting for REPL to call MCP tools');
         return;
       }
 
@@ -155,15 +169,13 @@ export async function routeMessage(
         return;
       }
 
-      const chatDir = chatStore.getChatDir(state.activeChatId);
-
       try {
         const result = await promptHandler({
           text,
           providerId,
           modelId,
           reasoningEffort,
-          chatDir,
+          chatDir: chatDir!,
           latestDocument: state.latestDocument,
           versionStore: state.activeVersionStore,
           onProgress(toolName, step) {
@@ -173,7 +185,7 @@ export async function routeMessage(
         state.latestDocument = result.updatedDocument;
         sendMessage(ws, { type: 'prompt-complete' });
       } catch (err) {
-        console.error('Provider error:', err);
+        log.error('Provider error', { error: formatError(err), providerId, modelId, text });
         broadcast({ type: 'provider-error', error: formatError(err) });
       }
       return;

@@ -33,6 +33,7 @@ interface UseSurfaceReturn {
   newChat: () => void;
   switchChat: (chatId: string) => void;
   deleteChat: (chatId: string) => void;
+  renameChat: (chatId: string, title: string) => void;
   /** True from prompt submission until updates settle */
   isProcessing: boolean;
   /** Which panes changed in the most recent document-update */
@@ -194,13 +195,17 @@ export function useSurface(): UseSurfaceReturn {
     send({ type: 'delete-chat', chatId });
   }, [send]);
 
+  const renameChat = useCallback((chatId: string, title: string) => {
+    send({ type: 'rename-chat', chatId, title });
+  }, [send]);
+
   const clearProviderError = useCallback(() => setState(prevState => ({ ...prevState, providerError: null })), []);
 
   return {
     document, versions, currentVersion, path, forwardPath,
     connected, chats, activeChatId,
     submitPrompt, selectVersion, selectSection,
-    newChat, switchChat, deleteChat,
+    newChat, switchChat, deleteChat, renameChat,
     isProcessing, changedPanes, versionChangedPanes, changedSectionIds, flashSectionIds, activity,
     providers, selectedProvider, selectedModel, selectedReasoningEffort,
     setSelectedProvider, setSelectedModel, setSelectedReasoningEffort,

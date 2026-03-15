@@ -6,6 +6,7 @@ import {
 } from '../surfaceReducer.js';
 import { buildDocument, buildSection, buildVersionMeta } from '../../../test/helpers.js';
 import type { WsMessage } from '../../../shared/types.js';
+import { DRAFT_CHAT_ID } from '../../../shared/types.js';
 
 function state(overrides: Partial<SurfaceState> = {}): SurfaceState {
   return { ...INITIAL_SURFACE_STATE, ...overrides };
@@ -49,6 +50,24 @@ describe('reduceSurfaceMessage', () => {
       const result = reduceSurfaceMessage(s, sessionInit({ chats }), null);
 
       expect(result.state.chats).toEqual(chats);
+      // No activeChatId in message → enters draft mode
+      expect(result.state.activeChatId).toBe(DRAFT_CHAT_ID);
+      expect(result.state.isDraftChat).toBe(true);
+    });
+
+    it('enters draft mode when activeChatId is absent', () => {
+      const s = state({ activeChatId: 'c1', isDraftChat: false });
+      const result = reduceSurfaceMessage(s, sessionInit(), null);
+
+      expect(result.state.isDraftChat).toBe(true);
+      expect(result.state.activeChatId).toBe(DRAFT_CHAT_ID);
+    });
+
+    it('exits draft mode when activeChatId is provided', () => {
+      const s = state({ activeChatId: DRAFT_CHAT_ID, isDraftChat: true });
+      const result = reduceSurfaceMessage(s, sessionInit({ activeChatId: 'c1' }), null);
+
+      expect(result.state.isDraftChat).toBe(false);
       expect(result.state.activeChatId).toBe('c1');
     });
 

@@ -1,4 +1,5 @@
 import type { LearningDocument, VersionMeta, WsMessage, Chat } from '../../shared/types.js';
+import { DRAFT_CHAT_ID } from '../../shared/types.js';
 import type { ProviderInfo } from '../../shared/providers.js';
 import { getToolLabel } from '../../shared/tool-labels.js';
 import { detectChangedPanes, detectChangedSections } from '../../shared/detectChangedPanes.js';
@@ -89,6 +90,7 @@ export function reduceSurfaceMessage(
       const currentMeta = doc
         ? msg.versions.find(version => version.version === doc.version)
         : undefined;
+      const hasActiveChat = Boolean(msg.activeChatId);
       return {
         state: {
           ...state,
@@ -96,8 +98,8 @@ export function reduceSurfaceMessage(
           currentVersion: doc?.version ?? 0,
           versions: msg.versions,
           chats: msg.chats,
-          activeChatId: msg.activeChatId ?? state.activeChatId,
-          isDraftChat: false,
+          activeChatId: hasActiveChat ? msg.activeChatId! : DRAFT_CHAT_ID,
+          isDraftChat: !hasActiveChat,
           isProcessing: false,
           activity: null,
           changedPanes: new Set(),

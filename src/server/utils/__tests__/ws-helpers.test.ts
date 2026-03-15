@@ -84,11 +84,11 @@ describe('ensureActiveChat', () => {
     expect(switchFn).toHaveBeenCalledWith('recent');
   });
 
-  it('creates and saves a new chat when none exist', async () => {
+  it('does nothing when no chats exist (client enters draft mode)', async () => {
     const switchFn = vi.fn(async () => {});
     const store = fakeChatStore([]);
     await ensureActiveChat(store, switchFn);
-    expect(store.save).toHaveBeenCalled();
-    expect(switchFn).toHaveBeenCalledWith('new-chat');
+    expect(switchFn).not.toHaveBeenCalled();
+    expect(store.save).not.toHaveBeenCalled();
   });
 });

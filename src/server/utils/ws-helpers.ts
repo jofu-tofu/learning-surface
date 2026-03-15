@@ -60,9 +60,6 @@ export async function ensureActiveChat(
   const chats = chatStore.listChats();
   if (chats.length > 0) {
     await switchToChat(sortChatsByRecent(chats)[0].id);
-  } else {
-    const chat = chatStore.createChat();
-    await chatStore.save();
-    await switchToChat(chat.id);
   }
+  // No chats: do nothing — client will enter draft mode
 }

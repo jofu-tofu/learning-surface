@@ -292,7 +292,7 @@ describe('ws-handlers other routes', () => {
 
   // --- delete-chat ---
 
-  it('delete-chat of active chat calls deleteChat and broadcasts session state', async () => {
+  it('delete-chat of active chat broadcasts chat-list', async () => {
     const { send, deps, state, broadcast } = setup();
     state.activeChatId = 'c1';
 
@@ -305,6 +305,28 @@ describe('ws-handlers other routes', () => {
       ([m]) => (m as WsMessage).type === 'session-init',
     );
     expect(sessionBroadcast).toBeDefined();
+  });
+
+  it('delete-chat of last remaining chat clears state and broadcasts session-init with no activeChatId', async () => {
+    const { send, deps, state, broadcast } = setup();
+    state.activeChatId = 'c1';
+
+    // After deletion, no chats remain
+    vi.spyOn(deps.chatStore, 'deleteChat').mockResolvedValue(undefined);
+    vi.spyOn(deps.chatStore, 'listChats').mockReturnValue([]);
+
+    await send({ type: 'delete-chat', chatId: 'c1' });
+
+    expect(state.activeChatId).toBeNull();
+    expect(state.activeVersionStore).toBeNull();
+    expect(state.latestDocument).toBeNull();
+
+    const sessionBroadcast = broadcast.mock.calls.find(
+      ([m]) => (m as WsMessage).type === 'session-init',
+    );
+    expect(sessionBroadcast).toBeDefined();
+    const msg = sessionBroadcast![0] as import('../../shared/types.js').WsSessionInit;
+    expect(msg.activeChatId).toBeUndefined();
   });
 
   it('delete-chat of non-active chat broadcasts chat-list', async () => {

@@ -133,6 +133,12 @@ export async function routeMessage(
 
       if (wasActive) {
         await ensureActiveChat(chatStore, switchToChat);
+        // If no chats remain, ensureActiveChat was a no-op — clear state
+        if (chatStore.listChats().length === 0) {
+          state.activeChatId = null;
+          state.activeVersionStore = null;
+          state.latestDocument = null;
+        }
 
         await broadcastSessionState({ state, chatStore, broadcast });
       } else {

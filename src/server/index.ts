@@ -198,9 +198,18 @@ export async function startServer(options: {
     process.on('SIGINT', () => {
       console.log('\nShutting down...');
       watcher.stop();
+      for (const client of webSocketServer.clients) {
+        client.terminate();
+      }
       webSocketServer.close();
-      httpServer.close();
-      resolve();
+      httpServer.close(() => {
+        resolve();
+        process.exit(0);
+      });
+      // Force exit if cleanup takes too long
+      setTimeout(() => {
+        process.exit(0);
+      }, 3000).unref();
     });
   });
 }

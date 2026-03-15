@@ -121,13 +121,6 @@ html, body {
   height: auto;
 }
 
-/* Mermaid output — stretch SVG to container width */
-.mermaid-output svg {
-  width: 100% !important;
-  max-width: 100%;
-  height: auto !important;
-}
-
 /* Prose overrides — maps to surface/accent tokens so themes swap automatically */
 .prose-surface {
   --tw-prose-body: var(--color-surface-200);
@@ -187,4 +180,10 @@ html, body {
 }
 .pane-shimmer {
   animation: shimmer-slide 1.5s ease-in-out infinite;
+}
+
+/* Sidebar section flash — brief background glow when a non-active section updates */
+@keyframes sidebar-flash {
+  0% { background-color: oklch(0.55 0.15 250 / 0.12); }
+  100% { background-color: transparent; }
 }

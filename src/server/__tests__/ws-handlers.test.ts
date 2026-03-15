@@ -208,7 +208,7 @@ describe('ws-handlers prompt flow', () => {
   it('broadcasts tool-progress for each tool call during prompt', async () => {
     const { broadcast, send } = setup({
       toolCalls: [
-        { toolName: 'design_surface', params: { sections: [{ id: 'introduction', canvases: [{ id: 'v', type: 'mermaid', content: 'graph LR' }] }] } },
+        { toolName: 'design_surface', params: { sections: [{ id: 'introduction', canvases: [{ id: 'v', type: 'code', content: 'graph LR' }] }] } },
         { toolName: 'design_surface', params: { sections: [{ id: 'introduction', explanation: 'Hello' }] } },
       ],
     });

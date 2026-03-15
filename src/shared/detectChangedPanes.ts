@@ -1,12 +1,13 @@
-import type { LearningDocument, Section } from './types.js';
+import { getActiveSection, type LearningDocument, type Section } from './types.js';
 
 /** Section keys that are metadata, not renderable content. */
-const META_KEYS = new Set(['id', 'title']);
+export const META_KEYS = new Set(['id', 'title']);
 
 /** Map Section content keys → pane IDs. Unmapped keys default to their own name. */
 export const CONTENT_KEY_TO_PANE: Record<string, string> = {
   canvases: 'canvas',
   explanation: 'explanation',
+  deeperPatterns: 'explanation',  // grouped: deeper patterns render inside explanation pane
   checks: 'explanation',      // grouped: checks render inside explanation pane
   followups: 'explanation',   // grouped: followups render inside explanation pane
 };
@@ -30,8 +31,8 @@ function allContentKeys(sectionA: Section | undefined, sectionB: Section | undef
 /** Compare two documents and return which panes changed. */
 export function detectChangedPanes(prev: LearningDocument, next: LearningDocument): Set<string> {
   const changed = new Set<string>();
-  const prevActive = prev.sections.find(section => section.id === prev.activeSection);
-  const nextActive = next.sections.find(section => section.id === next.activeSection);
+  const prevActive = getActiveSection(prev);
+  const nextActive = getActiveSection(next);
 
   for (const key of allContentKeys(prevActive, nextActive)) {
     const prevVal = (prevActive as unknown as Record<string, unknown>)?.[key] ?? null;

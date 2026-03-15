@@ -13,10 +13,9 @@ import {
   EDGE_LABEL_PADDING,
   EDGE_LABEL_HEIGHT,
   EDGE_LABEL_TEXT_OFFSET_Y,
-  BEZIER_CONTROL_FACTOR,
-  BEZIER_CONTROL_MIN,
   REROUTE_LABEL_WEIGHT_ENDPOINT,
   REROUTE_LABEL_WEIGHT_ROUTE,
+  controlPointOffset,
 } from './diagram-constants.js';
 
 /** Minimal positioned-node shape needed by overlap resolution. */
@@ -172,10 +171,6 @@ export function resolveEdgeLabelOverlaps(
 // ---------------------------------------------------------------------------
 // Cross-layer edge routing
 // ---------------------------------------------------------------------------
-
-function controlPointOffset(distance: number): number {
-  return Math.max(Math.abs(distance) * BEZIER_CONTROL_FACTOR, BEZIER_CONTROL_MIN);
-}
 
 /**
  * For edges that skip layers, reroute the Bezier curve around

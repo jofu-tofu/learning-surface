@@ -31,5 +31,30 @@ export function listProviders(): ProviderInfo[] {
     id: provider.config.id,
     name: provider.config.name,
     models: provider.config.models,
+    type: provider.config.type,
   }));
+}
+
+/** Run preflight checks for all providers and return enriched info with status. */
+export async function listProvidersWithStatus(): Promise<ProviderInfo[]> {
+  const results = await Promise.all(
+    [...providers.values()].map(async (provider) => {
+      const firstModel = provider.config.models[0]?.id ?? '';
+      let status: { available: boolean; error?: string };
+      try {
+        const result = await provider.preflight(firstModel);
+        status = { available: result.ok, error: result.error };
+      } catch (err) {
+        status = { available: false, error: err instanceof Error ? err.message : String(err) };
+      }
+      return {
+        id: provider.config.id,
+        name: provider.config.name,
+        models: provider.config.models,
+        type: provider.config.type,
+        status,
+      };
+    }),
+  );
+  return results;
 }

@@ -18,6 +18,8 @@ export interface SurfaceState {
   versionChangedPanes: Set<string>;
   /** Section IDs that were added or modified in the current version (persists until next version transition). */
   changedSectionIds: Set<string>;
+  /** Section IDs that changed in the most recent streaming update (1.2s flash lifetime, like changedPanes). */
+  flashSectionIds: Set<string>;
   activity: ToolActivity | null;
   providerError: string | null;
 }
@@ -32,6 +34,7 @@ export const INITIAL_SURFACE_STATE: SurfaceState = {
   changedPanes: new Set(),
   versionChangedPanes: new Set(),
   changedSectionIds: new Set(),
+  flashSectionIds: new Set(),
   activity: null,
   providerError: null,
 };
@@ -88,6 +91,7 @@ export function reduceSurfaceMessage(
           changedPanes: new Set(),
           versionChangedPanes: new Set(currentMeta?.changedPanes ?? []),
           changedSectionIds: new Set(currentMeta?.changedSectionIds ?? []),
+          flashSectionIds: new Set(),
           providerError: state.providerError,
         },
         effects: msg.providers
@@ -109,13 +113,21 @@ export function reduceSurfaceMessage(
       const next = msg.document;
       let changedPanes = state.changedPanes;
       let { versionChangedPanes, changedSectionIds } = state;
+      let flashSectionIds = state.flashSectionIds;
       const newEffects: SurfaceEffect[] = [{ type: 'reset-settle-timer' }];
 
       if (prevDoc) {
         const changed = detectChangedPanes(prevDoc, next);
+        const changedSects = detectChangedSections(prevDoc, next);
+
+        if (changed.size > 0 || changedSects.size > 0) {
+          newEffects.push({ type: 'schedule-flash-clear' });
+        }
         if (changed.size > 0) {
           changedPanes = changed;
-          newEffects.push({ type: 'schedule-flash-clear' });
+        }
+        if (changedSects.size > 0) {
+          flashSectionIds = changedSects;
         }
 
         // On version transition, capture which panes/sections changed vs the previous version
@@ -134,6 +146,7 @@ export function reduceSurfaceMessage(
           changedPanes,
           versionChangedPanes,
           changedSectionIds,
+          flashSectionIds,
         },
         effects: newEffects,
         prevDoc: next,

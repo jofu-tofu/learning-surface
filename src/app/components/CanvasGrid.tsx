@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import type { CanvasContent } from '../../shared/types.js';
 import { Canvas } from './Canvas.js';
+import { useContentRefresh } from '../hooks/useContentRefresh.js';
 
 interface CanvasGridProps {
   canvases: CanvasContent[];
@@ -14,16 +15,26 @@ interface CanvasGridProps {
  * - 3+: 2-column grid
  */
 export function CanvasGrid({ canvases }: CanvasGridProps): React.ReactElement {
+  const fingerprint = useMemo(
+    () => canvases.map(c => `${c.id}:${c.content}`).join('|'),
+    [canvases],
+  );
+  const refreshRef = useContentRefresh(fingerprint, 0);
+
   if (canvases.length === 0) {
     return <Canvas content={null} />;
   }
 
   if (canvases.length === 1) {
-    return <Canvas content={canvases[0]} />;
+    return (
+      <div ref={refreshRef} className="w-full h-full">
+        <Canvas content={canvases[0]} />
+      </div>
+    );
   }
 
   return (
-    <div className={`grid gap-3 w-full h-full ${canvases.length === 2 ? 'grid-cols-2' : 'grid-cols-2 grid-rows-2'}`}>
+    <div ref={refreshRef} className={`grid gap-3 w-full h-full ${canvases.length === 2 ? 'grid-cols-2' : 'grid-cols-2 grid-rows-2'}`}>
       {canvases.map((canvas) => (
         <div key={canvas.id} className="min-w-0 min-h-0">
           <Canvas content={canvas} />

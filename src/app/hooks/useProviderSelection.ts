@@ -25,11 +25,12 @@ export function useProviderSelection(): UseProviderSelectionReturn {
     if (providerList.length > 0) {
       setSelectedProviderState((prev) => {
         if (prev) return prev;
-        const firstProvider = providerList[0];
-        const firstModel = firstProvider.models[0];
+        // Prefer the first available provider; fall back to the first provider
+        const firstAvailable = providerList.find(p => p.status?.available !== false) ?? providerList[0];
+        const firstModel = firstAvailable.models[0];
         setSelectedModelState((previousModelId) => previousModelId ?? firstModel?.id ?? null);
         setSelectedReasoningEffortState((previousEffort) => previousEffort ?? firstModel?.defaultEffort ?? null);
-        return firstProvider.id;
+        return firstAvailable.id;
       });
     }
   }, []);

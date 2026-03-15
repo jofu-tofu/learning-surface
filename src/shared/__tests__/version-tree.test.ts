@@ -25,11 +25,32 @@ describe('version-tree', () => {
     it('returns empty for unknown version', () => {
       expect(getVersionPath(99, linear)).toEqual([]);
     });
+
+    it('returns full path for deep linear chain', () => {
+      expect(getVersionPath(3, linear).map(v => v.version)).toEqual([1, 2, 3]);
+    });
+
+    it('follows branch path (v5 → v4 → v2 → v1)', () => {
+      expect(getVersionPath(5, branched).map(v => v.version)).toEqual([1, 2, 4, 5]);
+    });
+
+    it('follows alternate branch (v3 → v2 → v1)', () => {
+      expect(getVersionPath(3, branched).map(v => v.version)).toEqual([1, 2, 3]);
+    });
   });
 
   describe('getChildren', () => {
     it('returns empty for leaf', () => {
       expect(getChildren(5, branched)).toEqual([]);
+    });
+
+    it('returns both children at branch point', () => {
+      const children = getChildren(2, branched);
+      expect(children.map(v => v.version).sort()).toEqual([3, 4]);
+    });
+
+    it('returns single child for linear node', () => {
+      expect(getChildren(1, linear).map(v => v.version)).toEqual([2]);
     });
   });
 
@@ -40,6 +61,14 @@ describe('version-tree', () => {
 
     it('returns empty at leaf', () => {
       expect(getForwardPath(3, branched)).toEqual([]);
+    });
+
+    it('follows linear chain to end', () => {
+      expect(getForwardPath(1, linear).map(v => v.version)).toEqual([2, 3]);
+    });
+
+    it('follows single-child chain from v4', () => {
+      expect(getForwardPath(4, branched).map(v => v.version)).toEqual([5]);
     });
   });
 });

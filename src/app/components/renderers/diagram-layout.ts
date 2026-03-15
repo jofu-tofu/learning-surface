@@ -39,6 +39,9 @@ export interface DiagramEdge {
   from: string;
   to: string;
   label?: string;
+  edgeType?: 'solid' | 'dashed' | 'dotted';
+  sourceLabel?: string;
+  targetLabel?: string;
 }
 
 export interface DiagramData {
@@ -52,6 +55,7 @@ export interface DiagramData {
 const VERTICAL_GAP = 64;
 const DIAGRAM_PADDING = 32;
 const GROUP_PADDING = 12;
+const SELF_LOOP_SIZE = 40;
 
 // --- Shape Constants ---
 
@@ -387,6 +391,50 @@ export function edgeLabelOnCurve(
   return cubicBezierPoint(start, cp1, cp2, end, 0.5);
 }
 
+// --- Endpoint Label Positioning ---
+
+const ENDPOINT_LABEL_T_SOURCE = 0.15;
+const ENDPOINT_LABEL_T_TARGET = 0.85;
+const ENDPOINT_LABEL_PERP_OFFSET = 10;
+
+/** Parse cubic Bezier control points from a path string: "M sx sy C c1x c1y, c2x c2y, ex ey". */
+function parseBezierFromPath(path: string): {
+  p0: { x: number; y: number };
+  p1: { x: number; y: number };
+  p2: { x: number; y: number };
+  p3: { x: number; y: number };
+} | null {
+  const nums = path.match(/-?\d+\.?\d*/g);
+  if (!nums || nums.length < 8) return null;
+  return {
+    p0: { x: parseFloat(nums[0]), y: parseFloat(nums[1]) },
+    p1: { x: parseFloat(nums[2]), y: parseFloat(nums[3]) },
+    p2: { x: parseFloat(nums[4]), y: parseFloat(nums[5]) },
+    p3: { x: parseFloat(nums[6]), y: parseFloat(nums[7]) },
+  };
+}
+
+/** Compute endpoint label position at parameter t on a cubic Bezier, offset perpendicular to the tangent. */
+function computeEndpointLabelPosition(
+  p0: { x: number; y: number },
+  p1: { x: number; y: number },
+  p2: { x: number; y: number },
+  p3: { x: number; y: number },
+  t: number,
+  perpOffset: number,
+): { x: number; y: number } {
+  const pt = cubicBezierPoint(p0, p1, p2, p3, t);
+  const mt = 1 - t;
+  const tx = 3 * mt * mt * (p1.x - p0.x) + 6 * mt * t * (p2.x - p1.x) + 3 * t * t * (p3.x - p2.x);
+  const ty = 3 * mt * mt * (p1.y - p0.y) + 6 * mt * t * (p2.y - p1.y) + 3 * t * t * (p3.y - p2.y);
+  const len = Math.sqrt(tx * tx + ty * ty) || 1;
+  // Offset perpendicular to the left of travel direction
+  return {
+    x: pt.x + (-ty / len) * perpOffset,
+    y: pt.y + (tx / len) * perpOffset,
+  };
+}
+
 // --- Parsing ---
 
 export function parseDiagramData(content: string): DiagramData | null {
@@ -419,6 +467,12 @@ export interface PositionedEdge extends DiagramEdge {
   /** On-curve anchor point (pre-displacement). Used for leader lines. */
   anchorX: number;
   anchorY: number;
+  /** Computed position for sourceLabel (near source endpoint). */
+  sourceLabelX?: number;
+  sourceLabelY?: number;
+  /** Computed position for targetLabel (near target endpoint). */
+  targetLabelX?: number;
+  targetLabelY?: number;
 }
 
 /** Displacement threshold beyond which a leader line is drawn. */
@@ -612,7 +666,7 @@ export function computeDiagramLayout(data: DiagramData): {
   const nodeIds = new Set(nodes.map(node => node.id));
   for (const node of nodes) incoming.set(node.id, new Set());
   for (const edge of edges) {
-    if (nodeIds.has(edge.to) && nodeIds.has(edge.from)) {
+    if (nodeIds.has(edge.to) && nodeIds.has(edge.from) && edge.from !== edge.to) {
       incoming.get(edge.to)!.add(edge.from);
     }
   }
@@ -726,6 +780,27 @@ export function computeDiagramLayout(data: DiagramData): {
     const to = posMap.get(edge.to);
     if (!from || !to) continue;
 
+    // Self-loop: from === to
+    if (edge.from === edge.to) {
+      const nx = from.x + NODE_WIDTH;
+      const ny = from.y;
+      const startY = ny + NODE_HEIGHT * 0.3;
+      const endY = ny + NODE_HEIGHT * 0.7;
+      const loopX = nx + SELF_LOOP_SIZE;
+      const path = `M ${nx} ${startY} C ${loopX} ${startY}, ${loopX} ${endY}, ${nx} ${endY}`;
+      const labelX = nx + SELF_LOOP_SIZE + 8;
+      const labelY = ny + NODE_HEIGHT / 2;
+      positionedEdges.push({
+        ...edge,
+        path,
+        labelX,
+        labelY,
+        anchorX: labelX,
+        anchorY: labelY,
+      });
+      continue;
+    }
+
     const { fromPort, toPort } = selectPorts(from, to, direction);
     const start = portPosition(from.x, from.y, fromPort);
     const end = portPosition(to.x, to.y, toPort);
@@ -756,6 +831,29 @@ export function computeDiagramLayout(data: DiagramData): {
   // 3. Shift edge labels away from nodes and each other
   resolveEdgeLabelOverlaps(positionedEdges, positionedNodes);
 
+  // 4. Compute endpoint label positions (sourceLabel / targetLabel)
+  for (const edge of positionedEdges) {
+    if (!edge.sourceLabel && !edge.targetLabel) continue;
+    const bezier = parseBezierFromPath(edge.path);
+    if (!bezier) continue;
+    if (edge.sourceLabel) {
+      const pos = computeEndpointLabelPosition(
+        bezier.p0, bezier.p1, bezier.p2, bezier.p3,
+        ENDPOINT_LABEL_T_SOURCE, ENDPOINT_LABEL_PERP_OFFSET,
+      );
+      edge.sourceLabelX = pos.x;
+      edge.sourceLabelY = pos.y;
+    }
+    if (edge.targetLabel) {
+      const pos = computeEndpointLabelPosition(
+        bezier.p0, bezier.p1, bezier.p2, bezier.p3,
+        ENDPOINT_LABEL_T_TARGET, ENDPOINT_LABEL_PERP_OFFSET,
+      );
+      edge.targetLabelX = pos.x;
+      edge.targetLabelY = pos.y;
+    }
+  }
+
   // Expand bounds if rerouted edges or shifted labels extend beyond original area
   let finalWidth = totalWidth;
   let finalHeight = totalHeight;
@@ -764,6 +862,16 @@ export function computeDiagramLayout(data: DiagramData): {
     const r = edgeLabelRect(edge.label, edge.labelX, edge.labelY);
     finalWidth = Math.max(finalWidth, r.x + r.width + DIAGRAM_PADDING);
     finalHeight = Math.max(finalHeight, r.y + r.height + DIAGRAM_PADDING);
+  }
+
+  // Expand bounds for self-loop edges
+  for (const edge of positionedEdges) {
+    if (edge.from === edge.to) {
+      const nodePos = posMap.get(edge.from);
+      if (nodePos) {
+        finalWidth = Math.max(finalWidth, nodePos.x + NODE_WIDTH + SELF_LOOP_SIZE + DIAGRAM_PADDING);
+      }
+    }
   }
 
   // Compute group rects

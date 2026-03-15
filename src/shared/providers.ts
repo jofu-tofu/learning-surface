@@ -91,5 +91,10 @@ export const ProviderInfoSchema = z.object({
   id: z.string(),
   name: z.string(),
   models: z.array(ModelConfigSchema),
+  type: z.enum(['cli', 'api']).optional(),
+  status: z.object({
+    available: z.boolean(),
+    error: z.string().optional(),
+  }).optional(),
 });
 export type ProviderInfo = z.infer<typeof ProviderInfoSchema>;

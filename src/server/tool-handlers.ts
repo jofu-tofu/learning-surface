@@ -1,4 +1,4 @@
-import type { LearningDocument, Section, CanvasContent, Check } from '../shared/types.js';
+import type { LearningDocument, Section, CanvasContent, Check, DeeperPattern } from '../shared/types.js';
 import {
   type DesignSurfaceInput,
   type SectionUpdateInput,
@@ -6,6 +6,7 @@ import {
   DiagramDataSchema,
   TimelineDataSchema,
   ProofDataSchema,
+  SequenceDataSchema,
 } from '../shared/schemas.js';
 import type { ZodType } from 'zod';
 import { slugify } from '../shared/slugify.js';
@@ -19,6 +20,7 @@ const STRUCTURED_SCHEMAS: Record<string, ZodType> = {
   diagram: DiagramDataSchema,
   timeline: TimelineDataSchema,
   proof: ProofDataSchema,
+  sequence: SequenceDataSchema,
 };
 
 // === Result Types ===
@@ -34,6 +36,7 @@ interface SectionResult {
     title?: boolean;
     canvases?: Record<string, CanvasResult>;
     explanation?: boolean;
+    deeperPatterns?: boolean;
     checks?: Record<string, boolean>;
     followups?: boolean;
     clear?: boolean;
@@ -76,6 +79,7 @@ function createSection(title: string): Section {
     id: slugify(title),
     title,
     canvases: [],
+    deeperPatterns: [],
   };
 }
 
@@ -144,6 +148,9 @@ function applySectionUpdate(
         case 'checks':
           delete section.checks;
           break;
+        case 'deeperPatterns':
+          section.deeperPatterns = [];
+          break;
         case 'followups':
           delete section.followups;
           break;
@@ -197,6 +204,15 @@ function applySectionUpdate(
   if (update.explanation !== undefined) {
     section.explanation = update.explanation;
     result.results.explanation = true;
+  }
+
+  // Deeper patterns: replace
+  if (update.deeperPatterns !== undefined) {
+    section.deeperPatterns = update.deeperPatterns.map(dp => ({
+      pattern: dp.pattern,
+      connection: dp.connection,
+    }));
+    result.results.deeperPatterns = true;
   }
 
   // Checks: append
@@ -258,6 +274,7 @@ export function applyDesignSurface(
       id: 'start',
       title: 'Start',
       canvases: [],
+      deeperPatterns: [],
     }];
     cloned.activeSection = 'start';
     delete cloned.summary;

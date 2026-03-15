@@ -1,5 +1,5 @@
 import type { Agent, ProviderConfig, PreflightResult } from '../../shared/providers.js';
-import { buildCliPrompt, spawnCli, spawnCliCapture, checkCliAvailable } from './spawn-cli.js';
+import { buildCliPrompt, spawnCli, spawnCliCapture, checkCliAvailable, writeMcpConfig, cleanupMcpConfig } from './spawn-cli.js';
 
 export function createClaudeCodeProvider(): Agent {
   const config: ProviderConfig = {
@@ -48,16 +48,23 @@ export function createClaudeCodeProvider(): Agent {
     },
 
     async run({ prompt, systemPrompt, model, sessionDir, reasoningEffort }) {
-      const cliArguments = [
-        '--print', '--dangerously-skip-permissions',
-        '--model', model,
-        '--tools', 'Read,Edit,Write',
-        '--no-session-persistence',
-      ];
-      if (reasoningEffort) cliArguments.push('--effort', reasoningEffort);
-      cliArguments.push(buildCliPrompt(systemPrompt, prompt));
+      const mcpConfigPath = await writeMcpConfig(sessionDir);
+      try {
+        const cliArguments = [
+          '--print', '--dangerously-skip-permissions',
+          '--model', model,
+          '--mcp-config', mcpConfigPath,
+          '--strict-mcp-config',
+          '--tools', '',
+          '--no-session-persistence',
+        ];
+        if (reasoningEffort) cliArguments.push('--effort', reasoningEffort);
+        cliArguments.push(buildCliPrompt(systemPrompt, prompt));
 
-      return spawnCli('claude', cliArguments, 'claude-code', { cwd: sessionDir });
+        return await spawnCli('claude', cliArguments, 'claude-code');
+      } finally {
+        await cleanupMcpConfig(mcpConfigPath);
+      }
     },
   };
 }

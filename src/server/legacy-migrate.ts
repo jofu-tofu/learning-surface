@@ -62,7 +62,7 @@ function parseLegacyMarkdown(raw: string): LearningDocument {
 
 function parseLegacySection(title: string, body: string): Section {
   const id = slugify(title);
-  const section: Section = { id, title, canvases: [] };
+  const section: Section = { id, title, canvases: [], deeperPatterns: [] };
 
   // Split by ### headings
   const blockRegex = /^### (.+)$/gm;

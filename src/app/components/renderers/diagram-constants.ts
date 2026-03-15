@@ -31,3 +31,10 @@ export const LABEL_SPREAD_FACTOR = 0.3;
 // --- Port Selection ---
 
 export const FLOW_DIRECTION_BIAS = 0.2;
+
+// --- Shared Bezier Helpers ---
+
+/** Compute Bezier control point offset from distance between endpoints. */
+export function controlPointOffset(distance: number): number {
+  return Math.max(Math.abs(distance) * BEZIER_CONTROL_FACTOR, BEZIER_CONTROL_MIN);
+}

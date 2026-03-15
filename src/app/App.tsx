@@ -77,6 +77,7 @@ export function App(): React.ReactElement {
     changedPanes,
     versionChangedPanes,
     changedSectionIds,
+    flashSectionIds,
     activity,
     providers,
     selectedProvider,
@@ -118,6 +119,7 @@ export function App(): React.ReactElement {
       flashPanes={changedPanes}
       versionChangedPanes={versionChangedPanes}
       changedSectionIds={changedSectionIds}
+      flashSectionIds={flashSectionIds}
       activity={activity}
     >
       <div className="h-dvh flex flex-col bg-surface-900 text-surface-100 overflow-hidden">

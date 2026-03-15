@@ -59,7 +59,7 @@ export interface DocumentService {
 export const BLANK_DOC: LearningDocument = {
   version: 0,
   activeSection: 'untitled',
-  sections: [{ id: 'untitled', title: 'Untitled', canvases: [] }],
+  sections: [{ id: 'untitled', title: 'Untitled', canvases: [], deeperPatterns: [] }],
 };
 
 export function createDocumentService(io: FileIO = nodeFileIO()): DocumentService {

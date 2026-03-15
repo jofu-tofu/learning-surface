@@ -4,7 +4,7 @@ Data contracts and shared abstractions consumed by both server and app.
 
 ## Conventions
 
-- `schemas.ts` defines the Zod schema for the `design_surface` tool parameters. `types.ts` defines data model interfaces (`LearningDocument`, `Section`, `CanvasContent`, `Check`, etc.) and behavioral interfaces (`VersionStore`, `ContextCompiler`, `FileWatcherService`) independently — they are not derived from Zod via `z.infer<>`.
+- `schemas.ts` defines the Zod schema for the `design_surface` tool parameters. `types.ts` defines data model interfaces (`LearningDocument`, `Section`, `CanvasContent`, `Check`, `DeeperPattern`, etc.) and behavioral interfaces (`VersionStore`, `ContextCompiler`, `FileWatcherService`) independently — they are not derived from Zod via `z.infer<>`.
 - `schemas.ts` contains the `design_surface` tool definition with Zod schema and `zodToJsonSchema()` for MCP SDK integration.
 - `providers.ts` defines Zod schemas for provider data contracts (`ProviderConfigSchema`, `ModelConfigSchema`, `PreflightResultSchema`, `ProviderToolCallSchema`, `ToolCallResultSchema`, `ToolDefinitionSchema`, `ProviderInfoSchema`) with types derived via `z.infer<>`. The `Agent` interface (strategy pattern, has methods) stays as a plain TypeScript interface.
 - `detectChangedPanes.ts` uses `CONTENT_KEY_TO_PANE` map to group Section keys into pane IDs. Unmapped keys default to their own name — this is intentional so new content types are automatically detected without editing the map. Only add explicit mappings when multiple keys should trigger the same pane flash.
@@ -16,9 +16,9 @@ The data contract between all modules. Documents are stored as `.surface` JSON f
 
 **Top-level fields:** `version` (integer), `active_section` (slug), `summary` (optional string), `sections` (array).
 
-**Sections:** Each has `id`, `title`, `canvases` (`CanvasContent[]` with IDs), `explanation`, `checks`, `followups`.
+**Sections:** Each has `id`, `title`, `canvases` (`CanvasContent[]` with IDs), `explanation`, `deeperPatterns` (required), `checks`, `followups`.
 
-**Multi-canvas:** Each section supports multiple canvases via `canvases: CanvasContent[]`. Each canvas has a unique `id` and a `type` (diagram/mermaid/katex/code/timeline/proof).
+**Multi-canvas:** Each section supports multiple canvases via `canvases: CanvasContent[]`. Each canvas has a unique `id` and a `type` (diagram/katex/code/timeline/proof/sequence).
 
 ## Key Files
 

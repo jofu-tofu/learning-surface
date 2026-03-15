@@ -45,6 +45,7 @@ describe('parseSurface + serializeSurface round-trip', () => {
         id: 'intro',
         title: 'Introduction',
         canvases: [],
+        deeperPatterns: [],
         explanation: 'Hello world',
       }],
     };
@@ -67,6 +68,7 @@ describe('parseSurface + serializeSurface round-trip', () => {
           type: 'diagram' as const,
           content: JSON.stringify({ nodes: [{ id: 'a', label: 'A' }], edges: [] }),
         }],
+        deeperPatterns: [],
       }],
     };
     const serialized = serializeSurface(doc);
@@ -83,6 +85,7 @@ describe('parseSurface + serializeSurface round-trip', () => {
         id: 's1',
         title: 'Section 1',
         canvases: [],
+        deeperPatterns: [],
         checks: [{ id: 'c1', question: 'Why?', status: 'unanswered' as const, answer: 'Because.' }],
         followups: ['What about X?', 'Tell me about Y'],
       }],

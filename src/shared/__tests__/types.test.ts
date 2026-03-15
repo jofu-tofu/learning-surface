@@ -10,7 +10,7 @@ function makeDoc(activeSection: string, sectionIds: string[]): LearningDocument 
   return {
     version: 1,
     activeSection,
-    sections: sectionIds.map(id => ({ id, title: id, canvases: [] })),
+    sections: sectionIds.map(id => ({ id, title: id, canvases: [], deeperPatterns: [] })),
   };
 }
 

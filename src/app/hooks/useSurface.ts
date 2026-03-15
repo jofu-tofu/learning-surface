@@ -41,6 +41,8 @@ interface UseSurfaceReturn {
   versionChangedPanes: Set<string>;
   /** Section IDs that were added or modified in the current version (persists until next version transition) */
   changedSectionIds: Set<string>;
+  /** Section IDs that changed in the most recent streaming update (1.2s flash lifetime) */
+  flashSectionIds: Set<string>;
   /** Current tool-call activity during processing, null when idle */
   activity: ToolActivity | null;
   /** Provider/model selection */
@@ -56,13 +58,15 @@ interface UseSurfaceReturn {
   clearProviderError: () => void;
 }
 
-const WS_URL = 'ws://localhost:8080';
+const WS_URL = typeof window !== 'undefined'
+  ? `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`
+  : 'ws://localhost:8080';
 
 export function useSurface(): UseSurfaceReturn {
   const [state, setState] = useState<SurfaceState>(INITIAL_SURFACE_STATE);
   const { document, versions, currentVersion, chats, activeChatId,
           isProcessing, changedPanes, versionChangedPanes, changedSectionIds,
-          activity, providerError } = state;
+          flashSectionIds, activity, providerError } = state;
   const {
     providers, selectedProvider, selectedModel, selectedReasoningEffort,
     setProviders, setSelectedProvider, setSelectedModel, setSelectedReasoningEffort,
@@ -103,7 +107,7 @@ export function useSurface(): UseSurfaceReturn {
                 break;
               case 'schedule-flash-clear':
                 clearTimeout(flashTimerRef.current);
-                flashTimerRef.current = setTimeout(() => setState(prevState => ({ ...prevState, changedPanes: new Set() })), 1200);
+                flashTimerRef.current = setTimeout(() => setState(prevState => ({ ...prevState, changedPanes: new Set(), flashSectionIds: new Set() })), 1200);
                 break;
               case 'clear-settle-timer':
                 clearTimeout(settleTimerRef.current);
@@ -197,7 +201,7 @@ export function useSurface(): UseSurfaceReturn {
     connected, chats, activeChatId,
     submitPrompt, selectVersion, selectSection,
     newChat, switchChat, deleteChat,
-    isProcessing, changedPanes, versionChangedPanes, changedSectionIds, activity,
+    isProcessing, changedPanes, versionChangedPanes, changedSectionIds, flashSectionIds, activity,
     providers, selectedProvider, selectedModel, selectedReasoningEffort,
     setSelectedProvider, setSelectedModel, setSelectedReasoningEffort,
     providerError, clearProviderError,

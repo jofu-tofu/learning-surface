@@ -10,6 +10,8 @@ interface SurfaceStatusValue {
   versionChangedPanes: Set<string>;
   /** Section IDs that were added or modified in the current version. */
   changedSectionIds: Set<string>;
+  /** Section IDs that changed in the most recent streaming update (1.2s flash lifetime). */
+  flashSectionIds: Set<string>;
   /** Current tool-call activity during processing. */
   activity: ToolActivity | null;
 }
@@ -19,6 +21,7 @@ const EMPTY: SurfaceStatusValue = {
   flashPanes: new Set(),
   versionChangedPanes: new Set(),
   changedSectionIds: new Set(),
+  flashSectionIds: new Set(),
   activity: null,
 };
 
@@ -28,7 +31,7 @@ export function SurfaceStatusProvider({ children, ...value }: SurfaceStatusValue
   const memo = React.useMemo(
     () => value,
     // eslint-disable-next-line react-hooks/exhaustive-deps -- identity of Sets changes per render; the provider sits at the root so this is fine
-    [value.isProcessing, value.flashPanes, value.versionChangedPanes, value.changedSectionIds, value.activity],
+    [value.isProcessing, value.flashPanes, value.versionChangedPanes, value.changedSectionIds, value.flashSectionIds, value.activity],
   );
   return <SurfaceStatusContext value={memo}>{children}</SurfaceStatusContext>;
 }
@@ -54,4 +57,9 @@ export function usePaneChanged(paneId: string): boolean {
 /** Get the full set of changed section IDs. */
 export function useChangedSectionIds(): Set<string> {
   return useContext(SurfaceStatusContext).changedSectionIds;
+}
+
+/** Get the set of section IDs that changed in the most recent streaming update (1.2s flash). */
+export function useFlashSectionIds(): Set<string> {
+  return useContext(SurfaceStatusContext).flashSectionIds;
 }

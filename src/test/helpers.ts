@@ -18,8 +18,8 @@ import { META_KEYS } from '../shared/detectChangedPanes.js';
 export function buildCanvasContent(overrides: Partial<CanvasContent> = {}): CanvasContent {
   return {
     id: overrides.id ?? 'default-canvas',
-    type: 'mermaid',
-    content: 'graph LR\n  A --> B',
+    type: 'diagram',
+    content: JSON.stringify({ nodes: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }], edges: [{ from: 'a', to: 'b' }] }),
     ...overrides,
   };
 }
@@ -40,6 +40,7 @@ export function buildSection(overrides: Partial<Section> = {}): Section {
     id: slugify(title),
     title,
     canvases: [],
+    deeperPatterns: [],
     ...overrides,
   };
 }

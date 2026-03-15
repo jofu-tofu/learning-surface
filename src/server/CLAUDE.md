@@ -9,7 +9,7 @@ Node.js server — WebSocket hub, document I/O, version storage, chat persistenc
 - `HandlerDeps` (ws-handlers.ts) — all collaborators overridable for testing
 - `PromptDeps` (prompt-handler.ts) — documentService, contextCompiler, getProvider with production defaults
 
-**Composition root:** `index.ts` wires WebSocket server, chat store, version store, file watcher, and document service. Creates mutable `SessionState`, delegates message routing to `routeMessage()`.
+**Composition root:** `index.ts` wires HTTP server, WebSocket server (attached to the HTTP server), chat store, version store, file watcher, and document service. Creates mutable `SessionState`, delegates message routing to `routeMessage()`. In production, serves static frontend files from `clientDir`; in dev, returns a placeholder (Vite serves the frontend separately).
 
 ## Tool Philosophy
 
@@ -21,8 +21,8 @@ This replaces the previous 12-tool approach. The single tool definition IS the p
 
 | File | Role |
 |------|------|
-| `index.ts` | Server factory — wires WebSocket, watcher, chat store |
-| `cli.ts` | CLI entry point — resolves session dir and port, calls `startServer()` |
+| `index.ts` | Server factory — wires HTTP + WebSocket, watcher, chat store; serves static files in production |
+| `cli.ts` | CLI entry point — resolves session dir, port, and clientDir; calls `startServer()` |
 | `ws-handlers.ts` | Message routing with `HandlerDeps` DI |
 | `prompt-handler.ts` | AI orchestration — pure functions + `handlePrompt` imperative shell |
 | `system-prompt.ts` | Single source of truth for all AI system prompts and teaching principles |

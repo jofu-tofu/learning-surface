@@ -13,6 +13,7 @@ function setup(opts: {
   toolCalls?: Array<{ toolName: string; params: Record<string, unknown> }>;
   providerType?: 'api' | 'cli';
   initialDoc?: string;
+  cliRunBehavior?: (io: ReturnType<typeof fakeFileIO>) => Promise<void>;
 } = {}) {
   const io = fakeFileIO(new Map([
     ['/chat/current.surface', opts.initialDoc ?? MINIMAL_DOC],
@@ -22,6 +23,10 @@ function setup(opts: {
   const provider = fakeAgent(opts.toolCalls ?? [], {
     type: opts.providerType ?? 'api',
   });
+
+  if (opts.cliRunBehavior) {
+    provider.run = async () => opts.cliRunBehavior!(io);
+  }
 
   const deps = {
     documentService,
@@ -107,30 +112,20 @@ describe('handlePrompt integration', () => {
   });
 
   it('CLI mode: content change triggers version creation', async () => {
-    const io = fakeFileIO(new Map([
-      ['/chat/current.surface', MINIMAL_DOC],
-    ]));
-    const documentService = createDocumentService(io);
-    const store = spyVersionStore();
-
-    const cliProvider = fakeAgent([], { type: 'cli', id: 'cli-fake' });
-    cliProvider.run = async () => {
-      const updatedContent = MINIMAL_DOC.replace(
-        'This is the introduction.',
-        'CLI wrote this new explanation.',
-      );
-      io.files.set('/chat/current.surface', updatedContent);
-    };
-
-    const deps = {
-      documentService,
-      contextCompiler: fakeContextCompiler(),
-      getProvider: (id: string) => id === 'cli-fake' ? cliProvider : undefined,
-    };
+    const { deps, store } = setup({
+      providerType: 'cli',
+      cliRunBehavior: async (io) => {
+        const updatedContent = MINIMAL_DOC.replace(
+          'This is the introduction.',
+          'CLI wrote this new explanation.',
+        );
+        io.files.set('/chat/current.surface', updatedContent);
+      },
+    });
 
     await handlePrompt({
       text: 'update via CLI',
-      providerId: 'cli-fake',
+      providerId: 'fake',
       modelId: 'any',
       chatDir: '/chat',
       latestDocument: null,
@@ -141,24 +136,14 @@ describe('handlePrompt integration', () => {
   });
 
   it('CLI mode: identical content → no version created', async () => {
-    const io = fakeFileIO(new Map([
-      ['/chat/current.surface', MINIMAL_DOC],
-    ]));
-    const documentService = createDocumentService(io);
-    const store = spyVersionStore();
-
-    const cliProvider = fakeAgent([], { type: 'cli', id: 'cli-noop' });
-    cliProvider.run = async () => {};
-
-    const deps = {
-      documentService,
-      contextCompiler: fakeContextCompiler(),
-      getProvider: (id: string) => id === 'cli-noop' ? cliProvider : undefined,
-    };
+    const { deps, store } = setup({
+      providerType: 'cli',
+      cliRunBehavior: async () => {},
+    });
 
     await handlePrompt({
       text: 'nothing happens',
-      providerId: 'cli-noop',
+      providerId: 'fake',
       modelId: 'any',
       chatDir: '/chat',
       latestDocument: null,
@@ -174,7 +159,7 @@ describe('handlePrompt onProgress', () => {
     const onProgress = vi.fn();
     const { deps, store } = setup({
       toolCalls: [
-        { toolName: 'design_surface', params: { sections: [{ id: 'introduction', canvases: [{ id: 'v', type: 'mermaid', content: 'graph LR\n  A-->B' }] }] } },
+        { toolName: 'design_surface', params: { sections: [{ id: 'introduction', canvases: [{ id: 'v', type: 'code', content: 'graph LR\n  A-->B' }] }] } },
         { toolName: 'design_surface', params: { sections: [{ id: 'introduction', explanation: 'An explanation.' }] } },
       ],
     });
@@ -215,19 +200,10 @@ describe('handlePrompt onProgress', () => {
 
   it('CLI mode: emits thinking (no per-tool progress)', async () => {
     const onProgress = vi.fn();
-    const io = fakeFileIO(new Map([
-      ['/chat/current.surface', MINIMAL_DOC],
-    ]));
-    const documentService = createDocumentService(io);
-    const store = spyVersionStore();
-    const cliProvider = fakeAgent([], { type: 'cli', id: 'fake' });
-    cliProvider.run = async () => {};
-
-    const deps = {
-      documentService,
-      contextCompiler: fakeContextCompiler(),
-      getProvider: (id: string) => id === 'fake' ? cliProvider : undefined,
-    };
+    const { deps, store } = setup({
+      providerType: 'cli',
+      cliRunBehavior: async () => {},
+    });
 
     await handlePrompt({
       text: 'cli prompt',

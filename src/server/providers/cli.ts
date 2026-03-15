@@ -2,7 +2,7 @@ import { writeFile, unlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Agent, ProviderConfig, PreflightResult } from '../../shared/providers.js';
-import { buildCliPrompt, spawnCli, spawnCliCapture, checkCliAvailable } from './spawn-cli.js';
+import { buildCliPrompt, spawnCli, spawnCliCapture, checkCliAvailable, codexMcpConfigArgs } from './spawn-cli.js';
 
 export function createCliProvider(): Agent {
   const config: ProviderConfig = {
@@ -46,8 +46,12 @@ export function createCliProvider(): Agent {
 
     async run({ prompt, systemPrompt, model, sessionDir, reasoningEffort }) {
       const cliArguments = [
-        'exec', '--full-auto', '--skip-git-repo-check', '--ephemeral',
-        '-m', model, '-C', sessionDir,
+        'exec',
+        '--sandbox', 'read-only',
+        '--skip-git-repo-check',
+        '--ephemeral',
+        '-m', model,
+        ...codexMcpConfigArgs(sessionDir),
       ];
       if (reasoningEffort) cliArguments.push('-c', `model_reasoning_effort="${reasoningEffort}"`);
       cliArguments.push(buildCliPrompt(systemPrompt, prompt));

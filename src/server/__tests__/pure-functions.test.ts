@@ -18,6 +18,22 @@ describe('prompt-handler pure functions', () => {
     it('returns false for cli mode when same content', () => {
       expect(shouldCreateVersion('cli', 1, 1, 'same', 'same')).toBe(false);
     });
+
+    it('returns true for api mode when version differs', () => {
+      expect(shouldCreateVersion('api', 1, 2, '', '')).toBe(true);
+    });
+
+    it('returns true for cli mode when content differs', () => {
+      expect(shouldCreateVersion('cli', 1, 1, 'old', 'new')).toBe(true);
+    });
+
+    it('api mode ignores content difference', () => {
+      expect(shouldCreateVersion('api', 1, 1, 'old', 'new')).toBe(false);
+    });
+
+    it('cli mode ignores version difference', () => {
+      expect(shouldCreateVersion('cli', 1, 2, 'same', 'same')).toBe(false);
+    });
   });
 
   describe('buildVersionMeta', () => {
@@ -26,6 +42,26 @@ describe('prompt-handler pure functions', () => {
       expect(meta.summary).toBeNull();
       expect(meta.prompt).toBe('prompt');
       expect(meta.source).toBe('ai');
+    });
+
+    it('omits changedPanes when empty array', () => {
+      const meta = buildVersionMeta('p', null, 'ts', []);
+      expect(meta).not.toHaveProperty('changedPanes');
+    });
+
+    it('includes changedPanes when non-empty', () => {
+      const meta = buildVersionMeta('p', null, 'ts', ['canvas']);
+      expect(meta.changedPanes).toEqual(['canvas']);
+    });
+
+    it('omits changedSectionIds when empty', () => {
+      const meta = buildVersionMeta('p', null, 'ts', undefined, []);
+      expect(meta).not.toHaveProperty('changedSectionIds');
+    });
+
+    it('includes changedSectionIds when non-empty', () => {
+      const meta = buildVersionMeta('p', null, 'ts', undefined, ['intro']);
+      expect(meta.changedSectionIds).toEqual(['intro']);
     });
   });
 });

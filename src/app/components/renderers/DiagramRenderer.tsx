@@ -371,7 +371,9 @@ export function DiagramRenderer({ content, containerWidth, containerHeight }: Re
         ))}
 
         {/* Edges (behind nodes) */}
-        {layout.edges.map((edge, edgeIndex) => (
+        {layout.edges.map((edge, edgeIndex) => {
+          const dashArray = edge.edgeType === 'dashed' ? '8 4' : edge.edgeType === 'dotted' ? '2 3' : undefined;
+          return (
           <g
             key={`edge-${edgeIndex}`}
             style={{
@@ -385,8 +387,37 @@ export function DiagramRenderer({ content, containerWidth, containerHeight }: Re
               stroke="var(--color-accent-400)"
               strokeOpacity={0.5}
               strokeWidth={SHAPE_STROKE_WIDTH}
+              strokeDasharray={dashArray}
               markerEnd={`url(#dg-arrow-${markerId})`}
             />
+            {edge.sourceLabel && edge.sourceLabelX != null && edge.sourceLabelY != null && (
+              <text
+                x={edge.sourceLabelX}
+                y={edge.sourceLabelY}
+                textAnchor="middle"
+                dominantBaseline="central"
+                fill="var(--color-accent-400)"
+                fillOpacity={0.7}
+                fontSize={10}
+                fontFamily="var(--font-sans)"
+              >
+                {edge.sourceLabel}
+              </text>
+            )}
+            {edge.targetLabel && edge.targetLabelX != null && edge.targetLabelY != null && (
+              <text
+                x={edge.targetLabelX}
+                y={edge.targetLabelY}
+                textAnchor="middle"
+                dominantBaseline="central"
+                fill="var(--color-accent-400)"
+                fillOpacity={0.7}
+                fontSize={10}
+                fontFamily="var(--font-sans)"
+              >
+                {edge.targetLabel}
+              </text>
+            )}
             {edge.label && (() => {
               const pill = edgeLabelRect(edge.label, edge.labelX, edge.labelY);
               const displacement = Math.hypot(
@@ -437,7 +468,8 @@ export function DiagramRenderer({ content, containerWidth, containerHeight }: Re
               );
             })()}
           </g>
-        ))}
+          );
+        })}
 
         {/* Nodes */}
         {layout.nodes.map((node, i) => (

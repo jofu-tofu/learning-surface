@@ -39,25 +39,26 @@ export function ChatBar({
           onKeyDown={handleKeyDown}
           disabled={isProcessing}
           placeholder={isProcessing ? "Processing..." : "Ask a question or explore a concept..."}
-          className={`w-full h-8 bg-surface-700/60 text-surface-100 placeholder:text-surface-500 rounded-full px-4 text-sm border focus:outline-none transition-all duration-150 ${isProcessing ? 'border-accent-500/40 text-surface-400' : 'border-surface-600/30 focus:border-accent-500/70 focus:ring-2 focus:ring-accent-500/20 focus:bg-surface-700/80'}`}
+          className={`w-full h-8 bg-surface-700/60 text-surface-100 placeholder:text-surface-500 rounded-full pl-4 pr-9 text-sm border focus:outline-none transition-all duration-150 ${isProcessing ? 'border-accent-500/40 text-surface-400' : 'border-surface-600/30 focus:border-accent-500/70 focus:ring-2 focus:ring-accent-500/20 focus:bg-surface-700/80'}`}
         />
-        {isProcessing && (
-          <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+        {isProcessing ? (
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-accent-400 animate-bounce [animation-delay:0ms]" />
             <span className="w-1.5 h-1.5 rounded-full bg-accent-400 animate-bounce [animation-delay:150ms]" />
             <span className="w-1.5 h-1.5 rounded-full bg-accent-400 animate-bounce [animation-delay:300ms]" />
           </div>
+        ) : (
+          <button
+            disabled={!inputText.trim()}
+            onClick={handleSubmit}
+            aria-label="Send"
+            className="absolute right-1 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-full transition-all duration-150 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-400 disabled:cursor-not-allowed text-surface-500 hover:text-accent-400 disabled:text-surface-600"
+          >
+            <Icon name="arrowRight" size={14} />
+          </button>
         )}
       </div>
       {providerSelection && <ProviderSelector {...providerSelection} />}
-      <button
-        disabled={!inputText.trim() || isProcessing}
-        onClick={handleSubmit}
-        aria-label="Send"
-        className="shrink-0 w-8 h-8 flex items-center justify-center rounded-full transition-all duration-150 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-400 disabled:cursor-not-allowed bg-surface-700/40 text-surface-400 hover:text-accent-400 hover:bg-accent-500/10 disabled:text-surface-600 disabled:hover:bg-transparent"
-      >
-        <Icon name="arrowRight" size={16} />
-      </button>
     </div>
   );
 }

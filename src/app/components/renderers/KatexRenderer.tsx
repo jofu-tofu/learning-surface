@@ -2,6 +2,7 @@ import React from 'react';
 import { useAsyncRender } from '../../hooks/useAsyncRender.js';
 import { ErrorBanner } from '../ErrorBanner.js';
 import type { RendererProps } from './registry.js';
+import { LoadingSpinner } from '../LoadingSpinner.js';
 
 export function KatexRenderer({ content }: RendererProps): React.ReactElement {
   const { html, error, loading } = useAsyncRender(
@@ -14,12 +15,7 @@ export function KatexRenderer({ content }: RendererProps): React.ReactElement {
 
   return (
     <div data-testid="canvas-katex" className="canvas-container overflow-x-auto">
-      {loading && (
-        <div className="flex items-center gap-2 text-sm text-surface-400">
-          <div className="w-4 h-4 border-2 border-surface-500 border-t-accent-400 rounded-full animate-spin" />
-          Loading math...
-        </div>
-      )}
+      {loading && <LoadingSpinner label="Loading math..." />}
       {error && <ErrorBanner message={error} />}
       {html && <div dangerouslySetInnerHTML={{ __html: html }} />}
     </div>

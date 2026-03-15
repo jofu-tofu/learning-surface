@@ -148,4 +148,39 @@ describe('computeDiagramLayout', () => {
     expect(left.y).toBe(right.y);
     expect(left.x).not.toBe(right.x);
   });
+
+  it('self-loop edge produces non-empty path', () => {
+    const result = computeDiagramLayout({
+      nodes: [{ id: 'a', label: 'A' }],
+      edges: [{ from: 'a', to: 'a', label: 'retry' }],
+    });
+    expect(result.edges).toHaveLength(1);
+    expect(result.edges[0].path.length).toBeGreaterThan(0);
+  });
+
+  it('self-loop label is positioned right of the node', () => {
+    const result = computeDiagramLayout({
+      nodes: [{ id: 'a', label: 'A' }],
+      edges: [{ from: 'a', to: 'a', label: 'loop' }],
+    });
+    const node = result.nodes.find(n => n.id === 'a')!;
+    expect(result.edges[0].labelX).toBeGreaterThan(node.x + 160); // NODE_WIDTH
+  });
+
+  it('passes through edgeType field', () => {
+    const result = computeDiagramLayout({
+      nodes: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }],
+      edges: [{ from: 'a', to: 'b', edgeType: 'dashed' }],
+    });
+    expect(result.edges[0].edgeType).toBe('dashed');
+  });
+
+  it('passes through sourceLabel and targetLabel', () => {
+    const result = computeDiagramLayout({
+      nodes: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }],
+      edges: [{ from: 'a', to: 'b', sourceLabel: '1', targetLabel: '*' }],
+    });
+    expect(result.edges[0].sourceLabel).toBe('1');
+    expect(result.edges[0].targetLabel).toBe('*');
+  });
 });

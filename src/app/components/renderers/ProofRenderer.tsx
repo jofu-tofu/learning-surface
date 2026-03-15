@@ -1,21 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React from 'react';
 import type { RendererProps } from './registry.js';
 import { ErrorBanner } from '../ErrorBanner.js';
 import { useAsyncRender } from '../../hooks/useAsyncRender.js';
 import { parseProofData, renderKatex } from './proof-layout.js';
+import { LoadingSpinner } from '../LoadingSpinner.js';
+import { useMountAnimation } from '../../hooks/useMountAnimation.js';
 
 export function ProofRenderer({ content }: RendererProps): React.ReactElement {
-  const [mounted, setMounted] = useState(false);
-  const prevContentRef = useRef(content);
-
-  useEffect(() => {
-    if (content !== prevContentRef.current) {
-      setMounted(false);
-      prevContentRef.current = content;
-    }
-    const timer = requestAnimationFrame(() => setMounted(true));
-    return () => cancelAnimationFrame(timer);
-  }, [content]);
+  const mounted = useMountAnimation(content);
 
   const { html, error, loading } = useAsyncRender(
     async () => {
@@ -72,12 +64,7 @@ export function ProofRenderer({ content }: RendererProps): React.ReactElement {
         transition: 'opacity 0.4s ease',
       }}
     >
-      {loading && (
-        <div className="flex items-center gap-2 text-sm text-surface-400">
-          <div className="w-4 h-4 border-2 border-surface-500 border-t-accent-400 rounded-full animate-spin" />
-          Rendering proof...
-        </div>
-      )}
+      {loading && <LoadingSpinner label="Rendering proof..." />}
       {error && <ErrorBanner message={error} />}
       {html && <div dangerouslySetInnerHTML={{ __html: html }} />}
     </div>

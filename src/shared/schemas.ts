@@ -19,6 +19,9 @@ export const DiagramDataSchema = z.object({
     from: z.string(),
     to: z.string(),
     label: z.string().optional(),
+    edgeType: z.enum(['solid', 'dashed', 'dotted']).optional(),
+    sourceLabel: z.string().optional(),
+    targetLabel: z.string().optional(),
   })),
   direction: z.enum(['TB', 'LR']).optional(),
 });
@@ -44,13 +47,33 @@ export const ProofDataSchema = z.object({
   })),
 });
 
+export const SequenceDataSchema = z.object({
+  participants: z.array(z.object({
+    id: z.string(),
+    label: z.string(),
+  })),
+  messages: z.array(z.object({
+    from: z.string(),
+    to: z.string(),
+    label: z.string().optional(),
+    type: z.enum(['solid', 'dashed']).optional(),
+    group: z.string().optional(),
+  })),
+});
+
 // === design_surface Schema ===
 
 const CanvasInputSchema = z.object({
   id: z.string(),
-  type: z.enum(['mermaid', 'katex', 'code', 'diagram', 'timeline', 'proof']),
-  content: z.string(),
-  language: z.string().optional(),
+  type: z.enum(['katex', 'code', 'diagram', 'timeline', 'proof', 'sequence']),
+  content: z.string().describe(
+    'diagram: JSON {nodes: [{id, label, shape?: "rectangle"|"rounded"|"diamond"|"circle", category?: "input"|"process"|"output"|"decision"|"concept"|"warning", description?, emphasis?: "normal"|"highlighted"|"dimmed", group?}], edges: [{from, to, label?, edgeType?: "solid"|"dashed"|"dotted", sourceLabel?, targetLabel?}], direction?: "TB"|"LR"}. ' +
+    'sequence: JSON {participants: [{id, label}], messages: [{from, to, label?, type?: "solid"|"dashed", group?}]}. ' +
+    'timeline: JSON {events: [{id, date, label, description?, category?}], direction?: "horizontal"|"vertical"}. ' +
+    'proof: JSON {title?, premises?: string[], steps: [{expression, justification, isGoal?}]}. ' +
+    'katex: raw LaTeX string. code: raw source code (set language field).',
+  ),
+  language: z.string().optional().describe('Programming language for code canvases (e.g. "typescript", "python").'),
 });
 
 const CheckInputSchema = z.object({
@@ -60,15 +83,21 @@ const CheckInputSchema = z.object({
   answerExplanation: z.string().optional(),
 });
 
+const DeeperPatternInputSchema = z.object({
+  pattern: z.string().describe('The recurring or universal concept (e.g. "Feedback loops", "Divide and conquer", "Graph traversal").'),
+  connection: z.string().describe('1-2 sentences explaining how this topic uses or relates to the pattern — bridge from what the learner likely already knows to the new material.'),
+});
+
 const SectionUpdateSchema = z.object({
   id: z.string().optional(),
   title: z.string().optional(),
   active: z.boolean().optional(),
   canvases: z.array(CanvasInputSchema).optional(),
   explanation: z.string().optional(),
+  deeperPatterns: z.array(DeeperPatternInputSchema).optional(),
   checks: z.array(CheckInputSchema).optional(),
   followups: z.array(z.string()).optional(),
-  clear: z.array(z.enum(['canvases', 'explanation', 'checks', 'followups'])).optional(),
+  clear: z.array(z.enum(['canvases', 'explanation', 'deeperPatterns', 'checks', 'followups'])).optional(),
 });
 
 export const DesignSurfaceSchema = z.object({
@@ -96,7 +125,7 @@ export const TOOL_DEFS = [
   {
     name: 'design_surface',
     label: 'Designing surface',
-    description: 'Declarative batch tool: create sections, set canvases, explain, challenge, clear, navigate. Each section entry targets by id (existing) or creates by title (new). Within a section: canvases upsert by id (max 4), explanation replaces, checks append, followups replace, clear deletes panes before applying. Partial success: invalid fields return errors, valid fields still apply.',
+    description: 'Declarative batch tool: create sections, set canvases, explain, challenge, clear, navigate. Each section entry targets by id (existing) or creates by title (new). Within a section: canvases upsert by id (max 4), explanation replaces, deeperPatterns replaces, checks append, followups replace, clear deletes panes before applying. Partial success: invalid fields return errors, valid fields still apply.',
     schema: DesignSurfaceSchema,
   },
 ] as const satisfies readonly ToolDefinitionEntry[];
@@ -120,28 +149,27 @@ function zodFieldToJsonSchema(field: z.ZodTypeAny): Record<string, unknown> {
     return zodFieldToJsonSchema(field.unwrap());
   }
 
+  let result: Record<string, unknown>;
+
   if (field instanceof z.ZodString) {
-    return { type: 'string' };
+    result = { type: 'string' };
+  } else if (field instanceof z.ZodBoolean) {
+    result = { type: 'boolean' };
+  } else if (field instanceof z.ZodEnum) {
+    result = { type: 'string', enum: field.options };
+  } else if (field instanceof z.ZodArray) {
+    result = { type: 'array', items: zodFieldToJsonSchema(field.element) };
+  } else if (field instanceof z.ZodObject) {
+    result = zodToJsonSchema(field);
+  } else {
+    result = { type: 'string' };
   }
 
-  if (field instanceof z.ZodBoolean) {
-    return { type: 'boolean' };
+  if (field.description) {
+    result.description = field.description;
   }
 
-  if (field instanceof z.ZodEnum) {
-    return { type: 'string', enum: field.options };
-  }
-
-  if (field instanceof z.ZodArray) {
-    return { type: 'array', items: zodFieldToJsonSchema(field.element) };
-  }
-
-  if (field instanceof z.ZodObject) {
-    return zodToJsonSchema(field);
-  }
-
-  // Fallback
-  return { type: 'string' };
+  return result;
 }
 
 /** Convert a flat Zod object schema to JSON Schema for MCP tool registration. */

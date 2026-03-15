@@ -85,3 +85,11 @@ describe('zodToJsonSchema', () => {
     expect(zodToJsonSchema(AllOptional).required).toBeUndefined();
   });
 });
+
+describe('zodToJsonSchema snapshot', () => {
+  it('DesignSurfaceSchema produces stable JSON Schema', () => {
+    const jsonSchema = zodToJsonSchema(DesignSurfaceSchema);
+    // Snapshot the structure to catch accidental drift
+    expect(jsonSchema).toMatchSnapshot();
+  });
+});

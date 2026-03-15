@@ -13,8 +13,8 @@ describe('ContextCompiler', () => {
       });
 
       const ctx = await compiler.compile(doc, '/tmp/test-session');
-      // canvases is always present (empty array) but explanation etc are absent
-      expect(ctx.surface).toEqual({ canvases: [] });
+      // canvases and deeperPatterns are always present (empty arrays) but explanation etc are absent
+      expect(ctx.surface).toEqual({ canvases: [], deeperPatterns: [] });
     });
 
     it('includes extra unknown keys from section in surface', async () => {

@@ -30,8 +30,7 @@ export function createMcpServer(options: {
 }): { start(): Promise<void>; stop(): Promise<void>; flushVersionBatch(): Promise<void> } {
   const { sessionDir, versionStore, debounceMs = DEFAULT_DEBOUNCE_MS, transport: injectedTransport } = options;
 
-  if (!versionStore) throw new Error('versionStore is required');
-  const store = versionStore;
+  const store = versionStore ?? null;
 
   const documentService = options.documentService ?? createDocumentService();
   const filePath = documentService.filePath(sessionDir);
@@ -43,6 +42,7 @@ export function createMcpServer(options: {
 
   async function flushVersionBatch(): Promise<void> {
     if (debounceTimer) { clearTimeout(debounceTimer); debounceTimer = null; }
+    if (!store) return;
     if (batchStartVersion === null) return;
 
     const content = documentService.readRaw(filePath);
@@ -100,7 +100,7 @@ export function createMcpServer(options: {
 
     try {
       // Start a new batch if not already in one
-      if (batchStartVersion === null) {
+      if (store && batchStartVersion === null) {
         const doc = documentService.read(filePath);
         if (doc) {
           batchStartVersion = doc.version;
@@ -116,8 +116,10 @@ export function createMcpServer(options: {
       );
 
       // Reset debounce timer — version is created only after the batch settles
-      if (debounceTimer) clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(() => { flushVersionBatch(); }, debounceMs);
+      if (store) {
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => { flushVersionBatch(); }, debounceMs);
+      }
 
       // Return structured result
       if (result.results.errors.length > 0) {

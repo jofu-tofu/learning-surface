@@ -9,7 +9,7 @@ function makeDoc(overrides: Partial<LearningDocument> = {}): LearningDocument {
     sections: [
       buildSection({
         title: 'Test Section',
-        canvases: [buildCanvasContent({ id: 'arch', type: 'mermaid', content: 'graph LR\n  A-->B' })],
+        canvases: [buildCanvasContent({ id: 'arch', type: 'code', content: 'graph LR\n  A-->B' })],
         explanation: 'Some text',
         checks: [buildCheck({ id: 'c1', question: 'Q1' })],
         followups: ['Follow 1'],
@@ -27,7 +27,7 @@ describe('omitted leaf properties are untouched', () => {
   it('adding a canvas does not affect explanation, checks, followups, or unmentioned canvases', () => {
     const doc = makeDoc();
     const { doc: result } = applyDesignSurface(doc, {
-      sections: [{ id: 'test-section', canvases: [{ id: 'new', type: 'mermaid', content: 'graph TD' }] }],
+      sections: [{ id: 'test-section', canvases: [{ id: 'new', type: 'code', content: 'graph TD' }] }],
     });
 
     const s = result.sections[0];
@@ -58,7 +58,7 @@ describe('canvases: upsert by ID — replace existing', () => {
   it('replaces canvas with matching ID', () => {
     const doc = makeDoc();
     const { doc: result } = applyDesignSurface(doc, {
-      sections: [{ id: 'test-section', canvases: [{ id: 'arch', type: 'mermaid', content: 'graph TD\n  X-->Y' }] }],
+      sections: [{ id: 'test-section', canvases: [{ id: 'arch', type: 'code', content: 'graph TD\n  X-->Y' }] }],
     });
     expect(result.sections[0].canvases.find(c => c.id === 'arch')!.content).toBe('graph TD\n  X-->Y');
   });
@@ -68,7 +68,7 @@ describe('canvases: upsert by ID — append new', () => {
   it('appends new canvas when ID does not exist', () => {
     const doc = makeDoc();
     const { doc: result } = applyDesignSurface(doc, {
-      sections: [{ id: 'test-section', canvases: [{ id: 'flow', type: 'mermaid', content: 'graph LR' }] }],
+      sections: [{ id: 'test-section', canvases: [{ id: 'flow', type: 'code', content: 'graph LR' }] }],
     });
     expect(result.sections[0].canvases).toHaveLength(2);
     expect(result.sections[0].canvases[0].id).toBe('arch');
@@ -105,7 +105,7 @@ describe('clear: delete before apply', () => {
       sections: [{
         id: 'test-section',
         clear: ['canvases'],
-        canvases: [{ id: 'new', type: 'mermaid', content: 'graph TD' }],
+        canvases: [{ id: 'new', type: 'code', content: 'graph TD' }],
       }],
     });
     expect(result.sections[0].canvases).toHaveLength(1);
@@ -128,7 +128,7 @@ describe('invalid canvas content — partial success', () => {
       sections: [{
         id: 'new',
         canvases: [
-          { id: 'good', type: 'mermaid', content: 'graph LR' },
+          { id: 'good', type: 'code', content: 'graph LR' },
           { id: 'bad', type: 'diagram', content: 'not json' },
         ],
         explanation: 'text',
@@ -159,7 +159,7 @@ describe('canvas cap exceeded', () => {
       activeSection: 'full',
     });
     const { doc: result, results } = applyDesignSurface(doc, {
-      sections: [{ id: 'full', canvases: [{ id: 'fifth', type: 'mermaid', content: 'x' }] }],
+      sections: [{ id: 'full', canvases: [{ id: 'fifth', type: 'code', content: 'x' }] }],
     });
     expect(result.sections[0].canvases).toHaveLength(4);
     expect(results.sections[0].results.canvases!['fifth'].success).toBe(false);
@@ -227,7 +227,7 @@ describe('new section creation', () => {
       sections: [{
         title: 'TCP Handshake',
         active: true,
-        canvases: [{ id: 'arch', type: 'mermaid', content: 'graph LR' }],
+        canvases: [{ id: 'arch', type: 'code', content: 'graph LR' }],
         explanation: 'TCP uses a three-way handshake.',
       }],
     });
@@ -277,11 +277,11 @@ describe('property: canvas count never exceeds 4', () => {
       sections: [{
         id: 'empty',
         canvases: [
-          { id: 'a', type: 'mermaid', content: 'x' },
-          { id: 'b', type: 'mermaid', content: 'x' },
-          { id: 'c', type: 'mermaid', content: 'x' },
-          { id: 'd', type: 'mermaid', content: 'x' },
-          { id: 'e', type: 'mermaid', content: 'x' },
+          { id: 'a', type: 'code', content: 'x' },
+          { id: 'b', type: 'code', content: 'x' },
+          { id: 'c', type: 'code', content: 'x' },
+          { id: 'd', type: 'code', content: 'x' },
+          { id: 'e', type: 'code', content: 'x' },
         ],
       }],
     });
@@ -337,7 +337,7 @@ describe('structured canvas validation', () => {
     expect(results.sections[0].results.canvases!['pf'].success).toBe(true);
   });
 
-  it('skips validation for non-structured types (mermaid, katex, code)', () => {
+  it('skips validation for non-structured types (katex, code)', () => {
     const doc = buildDocument({ sections: [buildSection({ title: 'Test' })], activeSection: 'test' });
     const { results } = applyDesignSurface(doc, {
       sections: [{ id: 'test', canvases: [{ id: 'c', type: 'code', content: 'console.log("hi")', language: 'javascript' }] }],

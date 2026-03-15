@@ -3,7 +3,7 @@ import type { ProviderInfo, ReasoningEffort } from './providers.js';
 // === Core Data Types ===
 
 /** Canonical list of canvas types — single source of truth for types.ts, schemas.ts, and block definitions. */
-export const CANVAS_TYPES = ['mermaid', 'katex', 'code', 'diagram', 'timeline', 'proof'] as const;
+export const CANVAS_TYPES = ['katex', 'code', 'diagram', 'timeline', 'proof', 'sequence'] as const;
 type CanvasType = (typeof CANVAS_TYPES)[number];
 
 export interface CanvasContent {
@@ -22,11 +22,17 @@ export interface Check {
   answerExplanation?: string;
 }
 
+export interface DeeperPattern {
+  pattern: string;         // the recurring / universal concept
+  connection: string;      // how this topic relates to it — bridges from known to new
+}
+
 export interface Section {
   id: string; // slug derived from title
   title: string;
   canvases: CanvasContent[];
   explanation?: string;
+  deeperPatterns: DeeperPattern[];
   checks?: Check[];
   followups?: string[];
 }

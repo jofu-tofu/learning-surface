@@ -15,15 +15,6 @@ beforeAll(() => {
 });
 
 describe('Canvas', () => {
-  it('shows error state on invalid mermaid syntax', () => {
-    const content = buildCanvasContent({
-      type: 'mermaid',
-      content: 'not valid mermaid {{{{',
-    });
-    render(<Canvas content={content} />);
-    expect(screen.getByText(/error/i)).toBeDefined();
-  });
-
   it('shows error on invalid diagram JSON', () => {
     const content = buildCanvasContent({ type: 'diagram', content: 'not json' });
     render(<Canvas content={content} />);

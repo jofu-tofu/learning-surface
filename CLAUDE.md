@@ -9,6 +9,8 @@ A comprehension engine that transforms AI output into a multi-pane learning surf
 | `npm test` | Run all tests (vitest) |
 | `npx tsc --noEmit` | Type check |
 | `npm run dev` | Start server + Vite dev UI (concurrently) |
+| `npm run build` | Production build (server → `dist/server/`, client → `dist/client/`) |
+| `npm start` | Run production server (`NODE_ENV=production`) |
 | `npm run typecheck` | Type check (alias for `tsc --noEmit`) |
 
 Server tests run in node environment; component tests run in jsdom.
@@ -33,14 +35,14 @@ src/
     utils/             # WebSocket helpers, version meta reader
   app/                 # React frontend — multi-pane tutoring surface
     components/        # CanvasGrid, Canvas, Explanation, Sidebar, SidebarPanel, ChatList, Breadcrumb, ChatBar, ProviderSelector, PromptPreview, ActivityStatus, BranchPopover, PaneHeader, ErrorBanner, EmptyState, Icon, VersionDot, ThemeSelector
-      renderers/       # Registry-based visual renderers (Mermaid, KaTeX, Code, Diagram, Timeline, Proof) + pure layout modules (diagram-layout, timeline-layout, proof-layout)
-      content-slots/   # Registry-based content slots for Explanation pane (ExplanationSlot, ChecksSlot, FollowupsSlot)
+      renderers/       # Registry-based visual renderers (KaTeX, Code, Diagram, Timeline, Proof, Sequence) + pure layout modules (diagram-layout, timeline-layout, proof-layout, sequence-layout)
+      content-slots/   # Registry-based content slots for Explanation pane (ExplanationSlot, DeeperPatternsSlot, ChecksSlot, FollowupsSlot)
     hooks/             # useSurface (central state), surfaceReducer (pure state machine), SurfaceStatusContext, useWebSocket, useMarkdown, useAsyncRender, useProviderSelection, useClickOutside, useContainerSize
     utils/             # versionLabel, styles, formatTime, detectChangedPanes
   test/                # Test data builders, mock factories, test fixtures
 ```
 
-**Content pipeline:** User prompt -> AI provider -> `design_surface` tool -> `.surface` JSON file -> file watcher -> WebSocket -> rendered surface
+**Content pipeline:** User prompt -> AI provider -> `design_surface` tool -> `.surface` JSON file -> file watcher -> WebSocket -> rendered surface. All providers (API and CLI) interact through `design_surface` — CLI providers connect via MCP (`--mcp-config` pointing to `mcp-entry.ts`).
 
 **Data model:** `chats.json` index -> per-chat directories -> `v1.surface` + patches + `meta.json` -> version reconstruction
 
@@ -48,7 +50,7 @@ src/
 
 - Single window — no tab-switching, no separate apps
 - Must work with existing REPL subscriptions — CLI provider uses codex CLI auth (default, no API key); API provider uses `OPENAI_API_KEY` env var
-- Use existing libraries (Mermaid, KaTeX, chokidar) where they fit — custom renderers (e.g., DiagramRenderer) are appropriate when structured data needs bespoke SVG layout
+- Use existing libraries (KaTeX, chokidar) where they fit — custom renderers (e.g., DiagramRenderer, SequenceRenderer) are appropriate when structured data needs bespoke SVG layout
 - Desktop-first (VS Code / browser)
 
 ## Design Principles

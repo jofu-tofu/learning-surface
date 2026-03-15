@@ -1,10 +1,10 @@
 import type React from 'react';
-import { MermaidRenderer } from './MermaidRenderer.js';
 import { KatexRenderer } from './KatexRenderer.js';
 import { CodeRenderer } from './CodeRenderer.js';
 import { DiagramRenderer } from './DiagramRenderer.js';
 import { TimelineRenderer } from './TimelineRenderer.js';
 import { ProofRenderer } from './ProofRenderer.js';
+import { SequenceRenderer } from './SequenceRenderer.js';
 
 /** Common props accepted by all canvas renderers. */
 export interface RendererProps {
@@ -28,9 +28,9 @@ export function getRenderer(type: string): RendererComponent | undefined {
 }
 
 // Built-in renderers
-registerRenderer('mermaid', MermaidRenderer);
 registerRenderer('katex', KatexRenderer);
 registerRenderer('code', CodeRenderer);
 registerRenderer('diagram', DiagramRenderer);
 registerRenderer('timeline', TimelineRenderer);
 registerRenderer('proof', ProofRenderer);
+registerRenderer('sequence', SequenceRenderer);

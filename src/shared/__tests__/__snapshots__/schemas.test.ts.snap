@@ -19,6 +19,7 @@ exports[`zodToJsonSchema snapshot > DesignSurfaceSchema produces stable JSON Sch
             "items": {
               "properties": {
                 "content": {
+                  "description": "diagram: JSON {nodes: [{id, label, shape?: "rectangle"|"rounded"|"diamond"|"circle", category?: "input"|"process"|"output"|"decision"|"concept"|"warning", description?, emphasis?: "normal"|"highlighted"|"dimmed", group?}], edges: [{from, to, label?, edgeType?: "solid"|"dashed"|"dotted", sourceLabel?, targetLabel?}], direction?: "TB"|"LR"}. sequence: JSON {participants: [{id, label}], messages: [{from, to, label?, type?: "solid"|"dashed", group?}]}. timeline: JSON {events: [{id, date, label, description?, category?}], direction?: "horizontal"|"vertical"}. proof: JSON {title?, premises?: string[], steps: [{expression, justification, isGoal?}]}. katex: raw LaTeX string. code: raw source code (set language field).",
                   "type": "string",
                 },
                 "id": {
@@ -29,12 +30,12 @@ exports[`zodToJsonSchema snapshot > DesignSurfaceSchema produces stable JSON Sch
                 },
                 "type": {
                   "enum": [
-                    "mermaid",
                     "katex",
                     "code",
                     "diagram",
                     "timeline",
                     "proof",
+                    "sequence",
                   ],
                   "type": "string",
                 },
@@ -80,10 +81,31 @@ exports[`zodToJsonSchema snapshot > DesignSurfaceSchema produces stable JSON Sch
               "enum": [
                 "canvases",
                 "explanation",
+                "deeperPatterns",
                 "checks",
                 "followups",
               ],
               "type": "string",
+            },
+            "type": "array",
+          },
+          "deeperPatterns": {
+            "items": {
+              "properties": {
+                "connection": {
+                  "description": "1-2 sentences explaining how this topic uses or relates to the pattern — bridge from what the learner likely already knows to the new material.",
+                  "type": "string",
+                },
+                "pattern": {
+                  "description": "The recurring or universal concept (e.g. "Feedback loops", "Divide and conquer", "Graph traversal").",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "pattern",
+                "connection",
+              ],
+              "type": "object",
             },
             "type": "array",
           },

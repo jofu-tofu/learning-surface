@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState } from 'react';
 import type { RendererProps } from './registry.js';
 import { ErrorBanner } from '../ErrorBanner.js';
 import { computeSvgFitStyle } from './diagram-layout.js';
@@ -7,22 +7,13 @@ import {
   computeTimelineLayout,
   TIMELINE_CONSTANTS,
 } from './timeline-layout.js';
+import { useMountAnimation } from '../../hooks/useMountAnimation.js';
 
 const { EVENT_RADIUS, LABEL_OFFSET, DATE_OFFSET } = TIMELINE_CONSTANTS;
 
 export function TimelineRenderer({ content, containerWidth, containerHeight }: RendererProps): React.ReactElement {
-  const [mounted, setMounted] = useState(false);
+  const mounted = useMountAnimation(content);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
-  const prevContentRef = useRef(content);
-
-  useEffect(() => {
-    if (content !== prevContentRef.current) {
-      setMounted(false);
-      prevContentRef.current = content;
-    }
-    const timer = requestAnimationFrame(() => setMounted(true));
-    return () => cancelAnimationFrame(timer);
-  }, [content]);
 
   const data = useMemo(() => parseTimelineData(content), [content]);
   const layout = useMemo(() => data ? computeTimelineLayout(data) : null, [data]);

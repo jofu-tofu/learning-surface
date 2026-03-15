@@ -121,13 +121,13 @@ export interface WsSessionInit {
   providers?: ProviderInfo[];
 }
 
-export interface WsDocumentUpdate {
+interface WsDocumentUpdate {
   type: 'document-update';
   document?: LearningDocument;
   versions?: VersionMeta[];
 }
 
-export interface WsVersionChange {
+interface WsVersionChange {
   type: 'version-change';
   document?: LearningDocument;
   version?: number;
@@ -140,7 +140,7 @@ export interface WsChatList {
   activeChatId?: string;
 }
 
-export interface WsProviderList {
+interface WsProviderList {
   type: 'provider-list';
   providers: ProviderInfo[];
 }
@@ -150,13 +150,13 @@ export interface WsProviderError {
   error: string;
 }
 
-export interface WsPreflightResult {
+interface WsPreflightResult {
   type: 'preflight-result';
   ok: boolean;
   error?: string;
 }
 
-export interface WsToolProgress {
+interface WsToolProgress {
   type: 'tool-progress';
   /** Raw tool or phase name (e.g. 'design_surface', 'thinking') */
   toolName: string;
@@ -164,7 +164,7 @@ export interface WsToolProgress {
   step?: number;
 }
 
-export interface WsPromptComplete {
+interface WsPromptComplete {
   type: 'prompt-complete';
 }
 

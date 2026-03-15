@@ -1,3 +1,4 @@
+import type { DiagramData, DiagramNode, DiagramEdge } from '../../../shared/schemas.js';
 import {
   edgeLabelRect,
   resolveEdgeLabelOverlaps,
@@ -7,48 +8,25 @@ import {
   NODE_WIDTH,
   NODE_HEIGHT,
   HORIZONTAL_GAP,
-  EDGE_LABEL_CHAR_WIDTH,
-  EDGE_LABEL_PADDING,
   EDGE_LABEL_HEIGHT,
-  EDGE_LABEL_TEXT_OFFSET_Y,
-  REROUTE_LABEL_WEIGHT_ENDPOINT,
-  REROUTE_LABEL_WEIGHT_ROUTE,
   FLOW_DIRECTION_BIAS,
   LABEL_SPREAD_FACTOR,
   controlPointOffset,
+  ARROW_VIEWBOX,
+  ARROW_REF_X,
+  ARROW_REF_Y,
+  ARROW_WIDTH,
+  ARROW_HEIGHT,
+  ARROW_PATH,
 } from './diagram-constants.js';
 
 export { NODE_WIDTH, NODE_HEIGHT, EDGE_LABEL_TEXT_OFFSET_Y } from './diagram-constants.js';
+export { ARROW_VIEWBOX, ARROW_REF_X, ARROW_REF_Y, ARROW_WIDTH, ARROW_HEIGHT, ARROW_PATH } from './diagram-constants.js';
 
 // --- Data Shape ---
 
-export type NodeCategory = 'input' | 'process' | 'output' | 'decision' | 'concept' | 'warning';
-export type NodeEmphasis = 'normal' | 'highlighted' | 'dimmed';
-
-export interface DiagramNode {
-  id: string;
-  label: string;
-  shape?: 'rectangle' | 'rounded' | 'diamond' | 'circle';
-  category?: NodeCategory;
-  description?: string;
-  emphasis?: NodeEmphasis;
-  group?: string;
-}
-
-export interface DiagramEdge {
-  from: string;
-  to: string;
-  label?: string;
-  edgeType?: 'solid' | 'dashed' | 'dotted';
-  sourceLabel?: string;
-  targetLabel?: string;
-}
-
-export interface DiagramData {
-  nodes: DiagramNode[];
-  edges: DiagramEdge[];
-  direction?: 'TB' | 'LR';
-}
+type NodeCategory = 'input' | 'process' | 'output' | 'decision' | 'concept' | 'warning';
+type NodeEmphasis = 'normal' | 'highlighted' | 'dimmed';
 
 // --- Layout Constants ---
 
@@ -87,15 +65,6 @@ const CATEGORY_LEFT_INSET = 20;
 const INFO_RIGHT_INSET = 22;
 export const NODE_LABEL_LINE_HEIGHT = 16;
 const NODE_LABEL_MAX_LINES = 2;
-
-// --- Arrow Marker Constants ---
-
-export const ARROW_VIEWBOX = '0 0 10 8';
-export const ARROW_REF_X = 9;
-export const ARROW_REF_Y = 4;
-export const ARROW_WIDTH = 8;
-export const ARROW_HEIGHT = 6;
-export const ARROW_PATH = 'M 0 0 L 10 4 L 0 8 Z';
 
 // --- Group Rendering Constants ---
 
@@ -138,7 +107,7 @@ export const DEFAULT_COLORS = {
 
 // --- Pure Render Helpers ---
 
-export type NodeShape = 'rectangle' | 'rounded' | 'diamond' | 'circle';
+type NodeShape = 'rectangle' | 'rounded' | 'diamond' | 'circle';
 
 /** Corner radius for a given node shape. */
 export function shapeCornerRadius(shape: NodeShape): number {
@@ -186,23 +155,7 @@ export function computeTooltipPosition(
   };
 }
 
-/** Determine CSS style to fit an SVG within a container, preserving aspect ratio. */
-export function computeSvgFitStyle(
-  diagramWidth: number, diagramHeight: number,
-  containerWidth: number | undefined, containerHeight: number | undefined,
-): { width: string; height: string; maxWidth?: string } {
-  const safeContainerWidth = containerWidth ?? 0;
-  const safeContainerHeight = containerHeight ?? 0;
-  if (safeContainerWidth > 0 && safeContainerHeight > 0) {
-    const diagramAspect = diagramWidth / diagramHeight;
-    const containerAspect = safeContainerWidth / safeContainerHeight;
-    if (diagramAspect > containerAspect) {
-      return { width: '100%', height: 'auto' };
-    }
-    return { width: 'auto', height: '100%', maxWidth: '100%' };
-  }
-  return { width: '100%', height: 'auto' };
-}
+export { computeSvgFitStyle } from './shared/svg-utils.js';
 
 /** Staggered opacity transition string for node entry animation. */
 export function nodeTransition(index: number): string {
@@ -279,7 +232,7 @@ export { controlPointOffset } from './diagram-constants.js';
 
 // --- Port Selection ---
 
-export type Port = 'top' | 'bottom' | 'left' | 'right';
+type Port = 'top' | 'bottom' | 'left' | 'right';
 
 /** Port position on a node's boundary. */
 export function portPosition(
@@ -460,7 +413,7 @@ export interface PositionedNode extends DiagramNode {
   y: number;
 }
 
-export interface PositionedEdge extends DiagramEdge {
+interface PositionedEdge extends DiagramEdge {
   path: string;
   labelX: number;
   labelY: number;
@@ -641,7 +594,7 @@ export function minimizeCrossings(
   return bestOrder;
 }
 
-export interface GroupRect {
+interface GroupRect {
   group: string;
   x: number;
   y: number;

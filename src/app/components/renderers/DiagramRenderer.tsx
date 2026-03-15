@@ -30,12 +30,9 @@ import {
   GROUP_LABEL_OFFSET_Y,
   GROUP_LABEL_FONT_SIZE,
   GROUP_RECT_DASH,
-  TOOLTIP_MAX_WIDTH,
-  TOOLTIP_FO_HEIGHT,
   diamondPoints,
   ellipseGeometry,
   computeGlowRect,
-  computeTooltipPosition,
   computeSvgFitStyle,
   nodeTransition,
   edgeTransition,
@@ -49,6 +46,7 @@ import {
 } from './diagram-layout.js';
 import { edgeLabelRect } from './overlap-resolution.js';
 import { useMountAnimation } from '../../hooks/useMountAnimation.js';
+import { SvgTooltip } from './shared/SvgTooltip.js';
 
 
 
@@ -104,41 +102,6 @@ function NodeShape({ shape, width, height, fill, stroke }: {
         />
       );
   }
-}
-
-// --- Tooltip Component ---
-
-function Tooltip({ text, x, y, svgWidth }: {
-  text: string; x: number; y: number; svgWidth: number;
-}): React.ReactElement {
-  const pos = computeTooltipPosition(x, y, svgWidth);
-
-  return (
-    <foreignObject
-      x={pos.x}
-      y={pos.y}
-      width={TOOLTIP_MAX_WIDTH}
-      height={TOOLTIP_FO_HEIGHT}
-      style={{ overflow: 'visible', pointerEvents: 'none' }}
-    >
-      <div
-        style={{
-          background: 'var(--color-surface-900)',
-          border: '1px solid var(--color-surface-600)',
-          borderRadius: '8px',
-          padding: '6px 10px',
-          fontSize: '11px',
-          lineHeight: '1.4',
-          color: 'var(--color-surface-200)',
-          maxWidth: `${TOOLTIP_MAX_WIDTH}px`,
-          transform: 'translateY(-100%)',
-          boxShadow: '0 4px 12px var(--color-shadow-color)',
-        }}
-      >
-        {text}
-      </div>
-    </foreignObject>
-  );
 }
 
 // --- Diagram Node Element ---
@@ -485,7 +448,7 @@ export function DiagramRenderer({ content, containerWidth, containerHeight }: Re
 
         {/* Tooltip for hovered node */}
         {hoveredNode?.description && (
-          <Tooltip
+          <SvgTooltip
             text={hoveredNode.description}
             x={hoveredNode.x + NODE_WIDTH / 2}
             y={hoveredNode.y}

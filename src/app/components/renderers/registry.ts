@@ -19,7 +19,7 @@ type RendererComponent = React.ComponentType<RendererProps>;
 
 const registry = new Map<string, RendererComponent>();
 
-export function registerRenderer(type: string, component: RendererComponent): void {
+function registerRenderer(type: string, component: RendererComponent): void {
   registry.set(type, component);
 }
 

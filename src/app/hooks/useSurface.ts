@@ -5,16 +5,9 @@ import type { ProviderInfo, ReasoningEffort } from '../../shared/providers.js';
 import { getVersionPath, getForwardPath } from '../../shared/version-tree.js';
 import { useWebSocket } from './useWebSocket.js';
 import { useProviderSelection } from './useProviderSelection.js';
-import { reduceSurfaceMessage, INITIAL_SURFACE_STATE, type SurfaceState } from './surfaceReducer.js';
+import { reduceSurfaceMessage, INITIAL_SURFACE_STATE, type SurfaceState, type ToolActivity } from './surfaceReducer.js';
 
-export interface ToolActivity {
-  /** Human-readable label (e.g. "Building diagram") */
-  label: string;
-  /** Raw tool or phase name (e.g. "show_visual", "thinking") */
-  toolName: string;
-  /** 1-based step counter (0 for the initial "thinking" phase) */
-  step: number;
-}
+export type { ToolActivity } from './surfaceReducer.js';
 
 interface UseSurfaceReturn {
   document: LearningDocument | null;

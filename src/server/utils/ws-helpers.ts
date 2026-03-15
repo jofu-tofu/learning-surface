@@ -5,9 +5,6 @@ import type { ProviderInfo } from '../../shared/providers.js';
 import type { LearningDocument, VersionStore } from '../../shared/types.js';
 import type { ChatStore } from '../chat-store.js';
 
-/** @deprecated Use CURRENT_SURFACE from document-service.ts. Kept for migration compatibility. */
-export const CURRENT_MD = 'current.md';
-
 /** Send a typed WsMessage over a WebSocket connection. */
 export function sendMessage(ws: WebSocket, msg: WsMessage): void {
   ws.send(JSON.stringify(msg));

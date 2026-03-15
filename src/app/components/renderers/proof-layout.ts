@@ -1,16 +1,4 @@
-// --- Data Shape ---
-
-export interface ProofStep {
-  expression: string;
-  justification: string;
-  isGoal?: boolean;
-}
-
-export interface ProofData {
-  title?: string;
-  premises?: string[];
-  steps: ProofStep[];
-}
+import type { ProofData, ProofStep } from '../../../shared/schemas.js';
 
 // --- Parsing ---
 

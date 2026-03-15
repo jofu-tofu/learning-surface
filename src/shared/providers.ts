@@ -4,10 +4,10 @@ import { z } from 'zod';
 
 // === Zod Schemas for Provider Data Contracts ===
 
-export const ReasoningEffortSchema = z.enum(['none', 'low', 'medium', 'high', 'xhigh', 'max']);
+const ReasoningEffortSchema = z.enum(['none', 'low', 'medium', 'high', 'xhigh', 'max']);
 export type ReasoningEffort = z.infer<typeof ReasoningEffortSchema>;
 
-export const ModelConfigSchema = z.object({
+const ModelConfigSchema = z.object({
   id: z.string(),
   name: z.string(),
   displayName: z.string().optional(),
@@ -24,7 +24,7 @@ export const ProviderConfigSchema = z.object({
 });
 export type ProviderConfig = z.infer<typeof ProviderConfigSchema>;
 
-export const ToolDefinitionSchema = z.object({
+const ToolDefinitionSchema = z.object({
   name: z.string(),
   description: z.string(),
   parameters: z.record(z.unknown()), // JSON Schema
@@ -38,7 +38,7 @@ export const ProviderToolCallSchema = z.object({
 export type ProviderToolCall = z.infer<typeof ProviderToolCallSchema>;
 
 /** Result returned to the AI after a tool call is executed. */
-export const ToolCallResultSchema = z.object({
+const ToolCallResultSchema = z.object({
   success: z.boolean(),
   message: z.string(),
 });
@@ -87,7 +87,7 @@ export interface Agent {
 }
 
 /** Serializable provider/model info for the frontend. */
-export const ProviderInfoSchema = z.object({
+const ProviderInfoSchema = z.object({
   id: z.string(),
   name: z.string(),
   models: z.array(ModelConfigSchema),

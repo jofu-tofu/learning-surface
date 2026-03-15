@@ -5,6 +5,7 @@ import { useAsyncRender } from '../../hooks/useAsyncRender.js';
 import { parseProofData, renderKatex } from './proof-layout.js';
 import { LoadingSpinner } from '../LoadingSpinner.js';
 import { useMountAnimation } from '../../hooks/useMountAnimation.js';
+import { mountStyle } from './shared/svg-utils.js';
 
 export function ProofRenderer({ content }: RendererProps): React.ReactElement {
   const mounted = useMountAnimation(content);
@@ -59,10 +60,7 @@ export function ProofRenderer({ content }: RendererProps): React.ReactElement {
     <div
       data-testid="canvas-proof"
       className="canvas-container overflow-y-auto"
-      style={{
-        opacity: mounted ? 1 : 0,
-        transition: 'opacity 0.4s ease',
-      }}
+      style={mountStyle(mounted)}
     >
       {loading && <LoadingSpinner label="Rendering proof..." />}
       {error && <ErrorBanner message={error} />}

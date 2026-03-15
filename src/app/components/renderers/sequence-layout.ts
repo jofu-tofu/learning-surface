@@ -1,22 +1,4 @@
-// --- Data Shape ---
-
-export interface SequenceParticipant {
-  id: string;
-  label: string;
-}
-
-export interface SequenceMessage {
-  from: string;
-  to: string;
-  label?: string;
-  type?: 'solid' | 'dashed';
-  group?: string;
-}
-
-export interface SequenceData {
-  participants: SequenceParticipant[];
-  messages: SequenceMessage[];
-}
+import type { SequenceData, SequenceParticipant, SequenceMessage } from '../../../shared/schemas.js';
 
 // --- Layout Constants ---
 
@@ -42,14 +24,14 @@ export const SEQUENCE_CONSTANTS = {
 
 // --- Positioned Types ---
 
-export interface PositionedParticipant extends SequenceParticipant {
+interface PositionedParticipant extends SequenceParticipant {
   x: number;  // center x of participant box
   y: number;  // top of participant box
   width: number;
   height: number;
 }
 
-export interface PositionedMessage extends SequenceMessage {
+interface PositionedMessage extends SequenceMessage {
   index: number;
   x1: number;  // start x (center of from-participant lifeline)
   x2: number;  // end x (center of to-participant lifeline)
@@ -57,7 +39,7 @@ export interface PositionedMessage extends SequenceMessage {
   isSelf: boolean;  // from === to
 }
 
-export interface PositionedGroup {
+interface PositionedGroup {
   label: string;
   x: number;
   y: number;
@@ -65,7 +47,7 @@ export interface PositionedGroup {
   height: number;
 }
 
-export interface SequenceLayout {
+interface SequenceLayout {
   participants: PositionedParticipant[];
   messages: PositionedMessage[];
   groups: PositionedGroup[];

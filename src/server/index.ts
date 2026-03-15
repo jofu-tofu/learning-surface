@@ -6,7 +6,7 @@ import { createFileWatcher } from './watcher.js';
 import { createVersionStore } from './versions.js';
 import { createChatStore } from './chat-store.js';
 import { createDocumentService } from './document-service.js';
-import { listProviders, listProvidersWithStatus } from './providers/registry.js';
+import { listProvidersWithStatus } from './providers/registry.js';
 import { routeMessage, type SessionState } from './ws-handlers.js';
 import {
   sendMessage,
@@ -14,7 +14,6 @@ import {
   getVersions,
   ensureActiveChat,
 } from './utils/ws-helpers.js';
-import { migrateMdToSurface } from './legacy-migrate.js';
 import type { ClientMessage, WsMessage, VersionStore } from '../shared/types.js';
 import { createChatLogger } from './logger.js';
 
@@ -113,7 +112,6 @@ export async function startServer(options: {
       state.activeVersionStore = await initVersionStoreForChat(chatId);
 
       const chatDir = chatStore.getChatDir(chatId);
-      migrateMdToSurface(chatDir);
       state.latestDocument = documentService.read(documentService.filePath(chatDir));
 
       const log = createChatLogger(chatDir);

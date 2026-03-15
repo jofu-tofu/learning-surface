@@ -1,13 +1,14 @@
 import React, { useMemo, useState } from 'react';
 import type { RendererProps } from './registry.js';
 import { ErrorBanner } from '../ErrorBanner.js';
-import { computeSvgFitStyle } from './diagram-layout.js';
+import { computeSvgFitStyle, staggerTransition } from './shared/svg-utils.js';
 import {
   parseTimelineData,
   computeTimelineLayout,
   TIMELINE_CONSTANTS,
 } from './timeline-layout.js';
 import { useMountAnimation } from '../../hooks/useMountAnimation.js';
+import { SvgTooltip } from './shared/SvgTooltip.js';
 
 const { EVENT_RADIUS, LABEL_OFFSET, DATE_OFFSET } = TIMELINE_CONSTANTS;
 
@@ -58,7 +59,7 @@ export function TimelineRenderer({ content, containerWidth, containerHeight }: R
               key={event.id}
               style={{
                 opacity: mounted ? 1 : 0,
-                transition: `opacity 0.4s ease ${i * 0.08}s`,
+                transition: staggerTransition(i, 0.4, 0.08),
                 cursor: event.description ? 'pointer' : 'default',
               }}
               onMouseEnter={event.description ? () => setHoveredId(event.id) : undefined}
@@ -131,28 +132,13 @@ export function TimelineRenderer({ content, containerWidth, containerHeight }: R
 
               {/* Tooltip on hover */}
               {isHovered && event.description && (
-                <foreignObject
-                  x={isHorizontal ? event.x - 100 : event.x + LABEL_OFFSET}
+                <SvgTooltip
+                  text={event.description}
+                  x={event.x}
                   y={isHorizontal ? event.y + LABEL_OFFSET + 12 : event.y + 16}
-                  width={200}
-                  height={80}
-                  style={{ overflow: 'visible', pointerEvents: 'none' }}
-                >
-                  <div
-                    style={{
-                      background: 'var(--color-surface-900)',
-                      border: '1px solid var(--color-surface-600)',
-                      borderRadius: '8px',
-                      padding: '6px 10px',
-                      fontSize: '11px',
-                      lineHeight: '1.4',
-                      color: 'var(--color-surface-200)',
-                      maxWidth: '200px',
-                    }}
-                  >
-                    {event.description}
-                  </div>
-                </foreignObject>
+                  svgWidth={layout.width}
+                  placement="below"
+                />
               )}
             </g>
           );

@@ -1,5 +1,5 @@
 import React, { createContext, useContext } from 'react';
-import type { ToolActivity } from './useSurface.js';
+import type { ToolActivity } from './surfaceReducer.js';
 
 interface SurfaceStatusValue {
   /** True from prompt submission until updates settle. */

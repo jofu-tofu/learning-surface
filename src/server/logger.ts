@@ -9,7 +9,6 @@ export interface ChatLogger {
   error(message: string, data?: unknown): void;
   toolCall(toolName: string, params: unknown): void;
   toolResult(toolName: string, result: unknown, durationMs?: number): void;
-  clear(): void;
 }
 
 /** No-op logger for contexts where no chat directory is available. */
@@ -19,7 +18,6 @@ export const nullLogger: ChatLogger = {
   error() {},
   toolCall() {},
   toolResult() {},
-  clear() {},
 };
 
 /**
@@ -79,14 +77,6 @@ export function createChatLogger(chatDir: string): ChatLogger {
     toolResult(toolName, result, durationMs) {
       const suffix = durationMs !== undefined ? ` (${durationMs}ms)` : '';
       append('TOOL_RESULT', `${toolName}${suffix}`, result);
-    },
-
-    clear() {
-      try {
-        writeFileSync(logPath, '', 'utf-8');
-      } catch {
-        // Swallow errors
-      }
     },
   };
 }

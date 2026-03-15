@@ -21,8 +21,8 @@ export const EDGE_LABEL_TEXT_OFFSET_Y = 4;
 
 // --- Bezier Curve Constants ---
 
-export const BEZIER_CONTROL_FACTOR = 0.4;
-export const BEZIER_CONTROL_MIN = 20;
+const BEZIER_CONTROL_FACTOR = 0.4;
+const BEZIER_CONTROL_MIN = 20;
 export const REROUTE_LABEL_WEIGHT_ENDPOINT = 0.125;
 export const REROUTE_LABEL_WEIGHT_ROUTE = 0.75;
 /** Lateral CP1 shift for labeled edges — fraction of cross-axis displacement. */
@@ -31,6 +31,15 @@ export const LABEL_SPREAD_FACTOR = 0.3;
 // --- Port Selection ---
 
 export const FLOW_DIRECTION_BIAS = 0.2;
+
+// --- Arrow Marker Constants ---
+
+export const ARROW_VIEWBOX = '0 0 10 8';
+export const ARROW_REF_X = 9;
+export const ARROW_REF_Y = 4;
+export const ARROW_WIDTH = 8;
+export const ARROW_HEIGHT = 6;
+export const ARROW_PATH = 'M 0 0 L 10 4 L 0 8 Z';
 
 // --- Shared Bezier Helpers ---
 

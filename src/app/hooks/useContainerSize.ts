@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-export interface ContainerSize {
+interface ContainerSize {
   width: number;
   height: number;
 }

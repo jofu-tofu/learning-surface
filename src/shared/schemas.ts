@@ -3,7 +3,7 @@ import { z } from 'zod';
 // === Internal Validators (used by tool handler, not exposed as tools) ===
 
 /** Diagram node/edge validation — used inside design_surface handler. */
-export const DiagramNodeSchema = z.object({
+const DiagramNodeSchema = z.object({
   id: z.string(),
   label: z.string(),
   shape: z.enum(['rectangle', 'rounded', 'diamond', 'circle']).optional(),
@@ -61,6 +61,22 @@ export const SequenceDataSchema = z.object({
   })),
 });
 
+// --- Inferred Types (used by renderer layout files) ---
+
+export type DiagramData = z.infer<typeof DiagramDataSchema>;
+export type DiagramNode = z.infer<typeof DiagramNodeSchema>;
+export type DiagramEdge = DiagramData['edges'][number];
+
+export type TimelineData = z.infer<typeof TimelineDataSchema>;
+export type TimelineEvent = TimelineData['events'][number];
+
+export type ProofData = z.infer<typeof ProofDataSchema>;
+export type ProofStep = ProofData['steps'][number];
+
+export type SequenceData = z.infer<typeof SequenceDataSchema>;
+export type SequenceParticipant = SequenceData['participants'][number];
+export type SequenceMessage = SequenceData['messages'][number];
+
 // === design_surface Schema ===
 
 const CanvasInputSchema = z.object({
@@ -112,11 +128,11 @@ export const DesignSurfaceSchema = z.object({
 export type DesignSurfaceInput = z.infer<typeof DesignSurfaceSchema>;
 export type SectionUpdateInput = z.infer<typeof SectionUpdateSchema>;
 export type CanvasInput = z.infer<typeof CanvasInputSchema>;
-export type CheckInput = z.infer<typeof CheckInputSchema>;
+
 
 // === Tool Definitions ===
 
-export interface ToolDefinitionEntry {
+interface ToolDefinitionEntry {
   name: string;
   /** Human-readable label for frontend activity status during processing. */
   label: string;
@@ -133,8 +149,7 @@ export const TOOL_DEFS = [
   },
 ] as const satisfies readonly ToolDefinitionEntry[];
 
-/** Union of all tool name literals. */
-export type ToolName = typeof TOOL_DEFS[number]['name'];
+
 
 // === Schema Lookup Map ===
 

@@ -1,4 +1,4 @@
-import type { LearningDocument, Section, CanvasContent, Check, DeeperPattern } from '../shared/types.js';
+import type { LearningDocument, Section, CanvasContent, Check } from '../shared/types.js';
 import {
   type DesignSurfaceInput,
   type SectionUpdateInput,

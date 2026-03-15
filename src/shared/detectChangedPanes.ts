@@ -4,7 +4,7 @@ import { getActiveSection, type LearningDocument, type Section } from './types.j
 export const META_KEYS = new Set(['id', 'title']);
 
 /** Map Section content keys → pane IDs. Unmapped keys default to their own name. */
-export const CONTENT_KEY_TO_PANE: Record<string, string> = {
+const CONTENT_KEY_TO_PANE: Record<string, string> = {
   canvases: 'canvas',
   explanation: 'explanation',
   deeperPatterns: 'explanation',  // grouped: deeper patterns render inside explanation pane

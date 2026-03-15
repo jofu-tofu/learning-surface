@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { CanvasGrid } from './components/CanvasGrid.js';
 import { Explanation } from './components/Explanation.js';
 import type { Section } from '../shared/types.js';

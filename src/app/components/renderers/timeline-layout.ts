@@ -1,17 +1,4 @@
-// --- Data Shape ---
-
-export interface TimelineEvent {
-  id: string;
-  date: string;
-  label: string;
-  description?: string;
-  category?: string;
-}
-
-export interface TimelineData {
-  events: TimelineEvent[];
-  direction?: 'horizontal' | 'vertical';
-}
+import type { TimelineData, TimelineEvent } from '../../../shared/schemas.js';
 
 // --- Layout Constants ---
 
@@ -44,7 +31,7 @@ const CATEGORY_PALETTE = [
   'var(--color-cat-warning-stroke)',
 ];
 
-export function categoryColor(category: string | undefined, categoryIndex: Map<string, number>): string {
+function categoryColor(category: string | undefined, categoryIndex: Map<string, number>): string {
   if (!category) return 'var(--color-accent-400)';
   if (!categoryIndex.has(category)) {
     categoryIndex.set(category, categoryIndex.size);
@@ -54,13 +41,13 @@ export function categoryColor(category: string | undefined, categoryIndex: Map<s
 
 // --- Positioned Types ---
 
-export interface PositionedEvent extends TimelineEvent {
+interface PositionedEvent extends TimelineEvent {
   x: number;
   y: number;
   color: string;
 }
 
-export interface TimelineLayout {
+interface TimelineLayout {
   events: PositionedEvent[];
   axisStart: { x: number; y: number };
   axisEnd: { x: number; y: number };

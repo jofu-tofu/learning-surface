@@ -1,8 +1,16 @@
 import type { LearningDocument, VersionMeta, WsMessage, Chat } from '../../shared/types.js';
 import type { ProviderInfo } from '../../shared/providers.js';
 import { getToolLabel } from '../../shared/tool-labels.js';
-import { detectChangedPanes, detectChangedSections } from '../utils/detectChangedPanes.js';
-import type { ToolActivity } from './useSurface.js';
+import { detectChangedPanes, detectChangedSections } from '../../shared/detectChangedPanes.js';
+
+export interface ToolActivity {
+  /** Human-readable label (e.g. "Building diagram") */
+  label: string;
+  /** Raw tool or phase name (e.g. "show_visual", "thinking") */
+  toolName: string;
+  /** 1-based step counter (0 for the initial "thinking" phase) */
+  step: number;
+}
 
 // === Pure state shape ===
 

@@ -1,9 +1,17 @@
 import React, { useId, useMemo, useState } from 'react';
 import type { RendererProps } from './registry.js';
 import { ErrorBanner } from '../ErrorBanner.js';
-import { computeSvgFitStyle } from './diagram-layout.js';
+import { computeSvgFitStyle, mountStyle, staggerTransition } from './shared/svg-utils.js';
 import { parseSequenceData, computeSequenceLayout, SEQUENCE_CONSTANTS } from './sequence-layout.js';
 import { useMountAnimation } from '../../hooks/useMountAnimation.js';
+import {
+  ARROW_VIEWBOX,
+  ARROW_REF_X,
+  ARROW_REF_Y,
+  ARROW_WIDTH,
+  ARROW_HEIGHT,
+  ARROW_PATH,
+} from './diagram-constants.js';
 
 const {
   PARTICIPANT_WIDTH,
@@ -43,26 +51,26 @@ export function SequenceRenderer({ content, containerWidth, containerHeight }: R
           {/* Solid arrow marker */}
           <marker
             id={markerId}
-            viewBox="0 0 10 8"
-            refX={9}
-            refY={4}
-            markerWidth={8}
-            markerHeight={6}
+            viewBox={ARROW_VIEWBOX}
+            refX={ARROW_REF_X}
+            refY={ARROW_REF_Y}
+            markerWidth={ARROW_WIDTH}
+            markerHeight={ARROW_HEIGHT}
             orient="auto-start-reverse"
           >
-            <path d="M 0 0 L 10 4 L 0 8 Z" fill="var(--color-accent-400)" />
+            <path d={ARROW_PATH} fill="var(--color-accent-400)" />
           </marker>
           {/* Dashed arrow marker (lower opacity) */}
           <marker
             id={markerIdDashed}
-            viewBox="0 0 10 8"
-            refX={9}
-            refY={4}
-            markerWidth={8}
-            markerHeight={6}
+            viewBox={ARROW_VIEWBOX}
+            refX={ARROW_REF_X}
+            refY={ARROW_REF_Y}
+            markerWidth={ARROW_WIDTH}
+            markerHeight={ARROW_HEIGHT}
             orient="auto-start-reverse"
           >
-            <path d="M 0 0 L 10 4 L 0 8 Z" fill="var(--color-accent-400)" fillOpacity={0.6} />
+            <path d={ARROW_PATH} fill="var(--color-accent-400)" fillOpacity={0.6} />
           </marker>
         </defs>
 
@@ -70,10 +78,7 @@ export function SequenceRenderer({ content, containerWidth, containerHeight }: R
         {layout.groups.map((group, i) => (
           <g
             key={`group-${i}`}
-            style={{
-              opacity: mounted ? 1 : 0,
-              transition: 'opacity 0.4s ease',
-            }}
+            style={mountStyle(mounted)}
           >
             <rect
               x={group.x}
@@ -134,7 +139,7 @@ export function SequenceRenderer({ content, containerWidth, containerHeight }: R
             key={`participant-${p.id}`}
             style={{
               opacity: mounted ? 1 : 0,
-              transition: `opacity 0.4s ease ${i * 0.05}s`,
+              transition: staggerTransition(i),
             }}
           >
             <rect
@@ -184,7 +189,7 @@ export function SequenceRenderer({ content, containerWidth, containerHeight }: R
                 key={`msg-${msg.index}`}
                 style={{
                   opacity: mounted ? 1 : 0,
-                  transition: `opacity 0.4s ease ${baseDelay + msg.index * 0.04}s`,
+                  transition: staggerTransition(msg.index, 0.4, 0.04, baseDelay),
                 }}
                 onMouseEnter={() => setHoveredIndex(msg.index)}
                 onMouseLeave={() => setHoveredIndex(null)}
@@ -222,7 +227,7 @@ export function SequenceRenderer({ content, containerWidth, containerHeight }: R
               key={`msg-${msg.index}`}
               style={{
                 opacity: mounted ? 1 : 0,
-                transition: `opacity 0.4s ease ${baseDelay + msg.index * 0.04}s`,
+                transition: staggerTransition(msg.index, 0.4, 0.04, baseDelay),
               }}
               onMouseEnter={() => setHoveredIndex(msg.index)}
               onMouseLeave={() => setHoveredIndex(null)}

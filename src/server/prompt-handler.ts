@@ -1,10 +1,9 @@
 import { createContextCompiler } from './context.js';
 import { createDocumentService, type DocumentService } from './document-service.js';
 import { getProvider as getProviderFromRegistry } from './providers/registry.js';
-import { zodToJsonSchema } from '../shared/schemas.js';
+import { zodToJsonSchema, TOOL_DEFS } from '../shared/schemas.js';
 import { SYSTEM_PROMPT } from './system-prompt.js';
 import type { Agent, ToolDefinition, ReasoningEffort } from '../shared/providers.js';
-import { selectTools } from './tool-selector.js';
 import type { ContextCompiler, LearningDocument, SurfaceContext, VersionStore } from '../shared/types.js';
 import { detectChangedPanes, detectChangedSections } from '../shared/detectChangedPanes.js';
 import { createChatLogger } from './logger.js';
@@ -104,7 +103,7 @@ export async function handlePrompt(
   const systemPrompt = buildSystemPrompt(context);
 
   // Single tool set — no planning stage
-  const toolDefs = selectTools();
+  const toolDefs = [...TOOL_DEFS];
   const providerTools: ToolDefinition[] = toolDefs.map((def) => ({
     name: def.name,
     description: def.description,

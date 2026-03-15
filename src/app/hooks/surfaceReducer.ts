@@ -12,6 +12,8 @@ export interface SurfaceState {
   currentVersion: number;
   chats: Chat[];
   activeChatId: string | null;
+  /** True when the active "chat" is a local draft that hasn't been persisted yet. */
+  isDraftChat: boolean;
   isProcessing: boolean;
   changedPanes: Set<string>;
   /** Panes that changed in the current version compared to the previous version (persists until next version transition). */
@@ -30,6 +32,7 @@ export const INITIAL_SURFACE_STATE: SurfaceState = {
   currentVersion: 0,
   chats: [],
   activeChatId: null,
+  isDraftChat: false,
   isProcessing: false,
   changedPanes: new Set(),
   versionChangedPanes: new Set(),
@@ -86,6 +89,7 @@ export function reduceSurfaceMessage(
           versions: msg.versions,
           chats: msg.chats,
           activeChatId: msg.activeChatId ?? state.activeChatId,
+          isDraftChat: false,
           isProcessing: false,
           activity: null,
           changedPanes: new Set(),
@@ -178,6 +182,7 @@ export function reduceSurfaceMessage(
           ...state,
           chats: msg.chats,
           activeChatId: msg.activeChatId ?? state.activeChatId,
+          isDraftChat: msg.activeChatId ? false : state.isDraftChat,
         },
         effects: [],
         prevDoc,

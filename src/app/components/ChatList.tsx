@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { Chat } from '../../shared/types.js';
-import { sortChatsByRecent } from '../../shared/types.js';
+import { sortChatsByRecent, DRAFT_CHAT_ID } from '../../shared/types.js';
 import { listContainer, listItemBase, listItemActive, listItemInactive, focusRing } from '../utils/styles.js';
 import { Icon } from './Icon.js';
 
@@ -60,6 +60,7 @@ export function ChatList({
         const isActive = chat.id === activeChatId;
         const isConfirming = chatIdPendingDelete === chat.id;
         const isEditing = editingChatId === chat.id;
+        const isDraft = chat.id === DRAFT_CHAT_ID;
 
         return (
           <div
@@ -107,13 +108,14 @@ export function ChatList({
             ) : (
               <button
                 onClick={() => onChatSelect?.(chat.id)}
-                onDoubleClick={() => startRename(chat)}
+                onDoubleClick={isDraft ? undefined : () => startRename(chat)}
                 className={`${listItemBase} ${isActive ? listItemActive : listItemInactive}`}
               >
                 {/* Chat icon */}
                 <Icon name="chat" className={`shrink-0 ${isActive ? 'text-accent-500/60' : 'text-surface-500'}`} size={14} />
                 <span className="truncate flex-1">{chat.title}</span>
-                {/* Action buttons — visible on hover */}
+                {/* Action buttons — visible on hover (hidden for draft chats) */}
+                {!isDraft && (
                 <span className="shrink-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                   <span
                     role="button"
@@ -138,6 +140,7 @@ export function ChatList({
                     <Icon name="close" size={12} />
                   </span>
                 </span>
+                )}
               </button>
             )}
           </div>

@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import type { LearningDocument, VersionMeta, WsMessage, Chat, ClientMessage } from '../../shared/types.js';
+import { DRAFT_CHAT_ID } from '../../shared/types.js';
 import type { ProviderInfo, ReasoningEffort } from '../../shared/providers.js';
 import { getVersionPath, getForwardPath } from '../../shared/version-tree.js';
 import { useWebSocket } from './useWebSocket.js';
@@ -65,7 +66,7 @@ const WS_URL = typeof window !== 'undefined'
 
 export function useSurface(): UseSurfaceReturn {
   const [state, setState] = useState<SurfaceState>(INITIAL_SURFACE_STATE);
-  const { document, versions, currentVersion, chats, activeChatId,
+  const { document, versions, currentVersion, chats, activeChatId, isDraftChat,
           isProcessing, changedPanes, versionChangedPanes, changedSectionIds,
           flashSectionIds, activity, providerError } = state;
   const {
@@ -76,7 +77,7 @@ export function useSurface(): UseSurfaceReturn {
   const prevDocRef = useRef<LearningDocument | null>(null);
   const settleTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const flashTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const pendingPromptRef = useRef<Omit<Extract<ClientMessage, { type: 'prompt' }>, 'type'> | null>(null);
+  const pendingPromptRef = useRef<Omit<Extract<ClientMessage, { type: 'prompt' }>, 'type'> & { isDraft?: boolean } | null>(null);
   const sendRef = useRef<(data: unknown) => void>(() => {});
 
   const onMessage = useCallback((msg: WsMessage) => {
@@ -115,7 +116,8 @@ export function useSurface(): UseSurfaceReturn {
                 break;
               case 'send-pending-prompt':
                 if (pendingPromptRef.current) {
-                  sendRef.current({ type: 'prompt', ...pendingPromptRef.current });
+                  const { isDraft, ...promptData } = pendingPromptRef.current;
+                  sendRef.current({ type: isDraft ? 'new-chat-with-prompt' : 'prompt', ...promptData });
                   pendingPromptRef.current = null;
                 }
                 break;
@@ -145,30 +147,33 @@ export function useSurface(): UseSurfaceReturn {
   const submitPrompt = useCallback((text: string) => {
     setState(prevState => ({ ...prevState, isProcessing: true, providerError: null }));
 
+    const msgType = isDraftChat ? 'new-chat-with-prompt' : 'prompt';
+
     if (!selectedProvider || !selectedModel) {
       send({
-        type: 'prompt',
+        type: msgType,
         text,
-        fromVersion: currentVersion,
+        fromVersion: isDraftChat ? undefined : currentVersion,
         provider: selectedProvider,
         model: selectedModel,
         reasoningEffort: selectedReasoningEffort ?? undefined,
-      });
+      } as ClientMessage);
       return;
     }
 
     // Store prompt for after preflight succeeds
     pendingPromptRef.current = {
       text,
-      fromVersion: currentVersion,
+      fromVersion: isDraftChat ? undefined : currentVersion,
       provider: selectedProvider,
       model: selectedModel,
       reasoningEffort: selectedReasoningEffort ?? undefined,
+      isDraft: isDraftChat,
     };
 
     // Run preflight check before sending the prompt
     send({ type: 'preflight', provider: selectedProvider, model: selectedModel });
-  }, [send, currentVersion, selectedProvider, selectedModel, selectedReasoningEffort]);
+  }, [send, currentVersion, selectedProvider, selectedModel, selectedReasoningEffort, isDraftChat]);
 
   const selectVersion = useCallback((version: number) => {
     setState(prevState => ({ ...prevState, currentVersion: version }));
@@ -184,8 +189,17 @@ export function useSurface(): UseSurfaceReturn {
   }, [send]);
 
   const newChat = useCallback(() => {
-    send({ type: 'new-chat' });
-  }, [send]);
+    setState(prev => {
+      if (prev.isDraftChat) return prev; // already in draft mode
+      return {
+        ...INITIAL_SURFACE_STATE,
+        chats: prev.chats,
+        activeChatId: DRAFT_CHAT_ID,
+        isDraftChat: true,
+        providerError: null,
+      };
+    });
+  }, []);
 
   const switchChat = useCallback((chatId: string) => {
     send({ type: 'switch-chat', chatId });
@@ -201,9 +215,19 @@ export function useSurface(): UseSurfaceReturn {
 
   const clearProviderError = useCallback(() => setState(prevState => ({ ...prevState, providerError: null })), []);
 
+  // Include a synthetic draft chat in the list when in draft mode
+  const effectiveChats = useMemo(() => {
+    if (isDraftChat) {
+      const now = new Date().toISOString();
+      const draft: Chat = { id: DRAFT_CHAT_ID, title: 'New Chat', createdAt: now, updatedAt: now };
+      return [draft, ...chats];
+    }
+    return chats;
+  }, [chats, isDraftChat]);
+
   return {
     document, versions, currentVersion, path, forwardPath,
-    connected, chats, activeChatId,
+    connected, chats: effectiveChats, activeChatId,
     submitPrompt, selectVersion, selectSection,
     newChat, switchChat, deleteChat, renameChat,
     isProcessing, changedPanes, versionChangedPanes, changedSectionIds, flashSectionIds, activity,

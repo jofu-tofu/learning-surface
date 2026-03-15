@@ -89,6 +89,34 @@ export async function routeMessage(
       return;
     }
 
+    case 'new-chat-with-prompt': {
+      // Create and switch to the new chat first
+      const chat = chatStore.createChat();
+      await chatStore.save();
+      await switchToChat(chat.id);
+
+      broadcast(buildChatListMessage(chatStore.listChats(), chat.id));
+
+      sendMessage(ws, buildSessionInitMessage({
+        sessionDir: chatStore.getChatDir(chat.id),
+        versions: [],
+        chats: chatStore.listChats(),
+        activeChatId: chat.id,
+      }));
+
+      // Then process the prompt in the new chat
+      const promptMsg: ClientMessage = {
+        type: 'prompt',
+        text: msg.text,
+        provider: msg.provider,
+        model: msg.model,
+        reasoningEffort: msg.reasoningEffort,
+        fromVersion: msg.fromVersion,
+      };
+      await routeMessage(ws, promptMsg, deps);
+      return;
+    }
+
     case 'switch-chat': {
       const chat = chatStore.getChat(msg.chatId);
       if (!chat) return;

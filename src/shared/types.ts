@@ -77,6 +77,9 @@ export interface SurfaceContext {
 
 // === Chat Types ===
 
+/** Sentinel ID used for client-side draft chats that haven't been persisted yet. */
+export const DRAFT_CHAT_ID = '__draft__';
+
 export interface Chat {
   id: string;
   title: string;
@@ -102,6 +105,7 @@ export type ClientMessage =
   | { type: 'select-version'; version: number }
   | { type: 'select-section'; sectionId: string }
   | { type: 'prompt'; text: string; provider?: string; model?: string; reasoningEffort?: ReasoningEffort; fromVersion?: number }
+  | { type: 'new-chat-with-prompt'; text: string; provider?: string; model?: string; reasoningEffort?: ReasoningEffort; fromVersion?: number }
   | { type: 'preflight'; provider: string; model: string }
   | { type: 'get-providers' };
 

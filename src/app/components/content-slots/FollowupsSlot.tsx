@@ -1,8 +1,7 @@
 import React from 'react';
 import { useIsProcessing } from '../../hooks/SurfaceStatusContext.js';
-import { Icon } from '../Icon.js';
-import { sectionHeading, focusRing } from '../../utils/styles.js';
-import { registerContentSlot, type ContentSlotProps } from './registry.js';
+import { focusRing } from '../../utils/styles.js';
+import { registerContentSlot, SlotHeading, type ContentSlotProps } from './registry.js';
 
 function FollowupsSlot({ section, onFollowupClick }: ContentSlotProps): React.ReactElement {
   const isProcessing = useIsProcessing();
@@ -10,10 +9,7 @@ function FollowupsSlot({ section, onFollowupClick }: ContentSlotProps): React.Re
 
   return (
     <div className="space-y-3">
-      <h3 className={`${sectionHeading} flex items-center gap-2`}>
-        <Icon name="send" className="w-3.5 h-3.5" size={14} />
-        Explore Further
-      </h3>
+      <SlotHeading icon="send">Explore Further</SlotHeading>
       <div className="flex flex-wrap gap-2">
         {followups.map((followupQuestion) => (
           <button

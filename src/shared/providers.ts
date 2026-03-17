@@ -14,8 +14,6 @@ const ModelConfigSchema = z.object({
   reasoningEfforts: z.array(ReasoningEffortSchema).optional(),
   defaultEffort: ReasoningEffortSchema.optional(),
 });
-export type ModelConfig = z.infer<typeof ModelConfigSchema>;
-
 export const ProviderConfigSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -52,10 +50,7 @@ export const PreflightResultSchema = z.object({
 export type PreflightResult = z.infer<typeof PreflightResultSchema>;
 
 /**
- * Unified AI agent interface. All providers implement both methods:
- * - `ask()` — single-shot structured output (e.g., tool planning)
- * - `run()` — multi-round tool chain execution
- *
+ * Unified AI agent interface.
  * Callers never know or care whether the underlying provider is CLI or API.
  */
 export interface Agent {
@@ -63,16 +58,6 @@ export interface Agent {
 
   /** Check if the provider is reachable and ready to accept prompts. */
   preflight(model: string): Promise<PreflightResult>;
-
-  /** Single-shot: send prompt, get structured JSON matching responseSchema. */
-  ask(opts: {
-    prompt: string;
-    systemPrompt: string;
-    model: string;
-    responseSchema: Record<string, unknown>;
-    schemaName: string;
-    reasoningEffort?: ReasoningEffort;
-  }): Promise<Record<string, unknown>>;
 
   /** Multi-round: send prompt with tools, process tool calls in a loop via onToolCall. */
   run(opts: {

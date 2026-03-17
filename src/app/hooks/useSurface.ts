@@ -210,13 +210,9 @@ export function useSurface(): UseSurfaceReturn {
 
   const clearProviderError = useCallback(() => setState(prevState => ({ ...prevState, providerError: null })), []);
 
-  // When in draft mode, no synthetic entry is added — the "New Chat" button
-  // in ChatList is highlighted instead to indicate we're in draft state.
-  const effectiveChats = chats;
-
   return {
     document, versions, currentVersion, path, forwardPath,
-    connected, chats: effectiveChats, activeChatId, isDraftChat,
+    connected, chats, activeChatId, isDraftChat,
     submitPrompt, selectVersion, selectSection,
     newChat, switchChat, deleteChat, renameChat,
     isProcessing, changedPanes, versionChangedPanes, changedSectionIds, flashSectionIds, activity,

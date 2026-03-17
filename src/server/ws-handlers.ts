@@ -55,6 +55,26 @@ async function broadcastSessionState(deps: {
   }));
 }
 
+/** Create a new chat, switch to it, and broadcast the updated state. */
+async function createAndInitChat(
+  ws: WebSocket,
+  deps: Pick<HandlerDeps, 'chatStore' | 'switchToChat' | 'broadcast'>,
+): Promise<void> {
+  const { chatStore, switchToChat, broadcast } = deps;
+  const chat = chatStore.createChat();
+  await chatStore.save();
+  await switchToChat(chat.id);
+
+  broadcast(buildChatListMessage(chatStore.listChats(), chat.id));
+
+  sendMessage(ws, buildSessionInitMessage({
+    sessionDir: chatStore.getChatDir(chat.id),
+    versions: [],
+    chats: chatStore.listChats(),
+    activeChatId: chat.id,
+  }));
+}
+
 /** Route a parsed client message to the appropriate handler. */
 export async function routeMessage(
   ws: WebSocket,
@@ -74,35 +94,12 @@ export async function routeMessage(
     }
 
     case 'new-chat': {
-      const chat = chatStore.createChat();
-      await chatStore.save();
-      await switchToChat(chat.id);
-
-      broadcast(buildChatListMessage(chatStore.listChats(), chat.id));
-
-      sendMessage(ws, buildSessionInitMessage({
-        sessionDir: chatStore.getChatDir(chat.id),
-        versions: [],
-        chats: chatStore.listChats(),
-        activeChatId: chat.id,
-      }));
+      await createAndInitChat(ws, deps);
       return;
     }
 
     case 'new-chat-with-prompt': {
-      // Create and switch to the new chat first
-      const chat = chatStore.createChat();
-      await chatStore.save();
-      await switchToChat(chat.id);
-
-      broadcast(buildChatListMessage(chatStore.listChats(), chat.id));
-
-      sendMessage(ws, buildSessionInitMessage({
-        sessionDir: chatStore.getChatDir(chat.id),
-        versions: [],
-        chats: chatStore.listChats(),
-        activeChatId: chat.id,
-      }));
+      await createAndInitChat(ws, deps);
 
       // Then process the prompt in the new chat
       const promptMsg: ClientMessage = {
@@ -219,8 +216,9 @@ export async function routeMessage(
         state.latestDocument = result.updatedDocument;
         sendMessage(ws, { type: 'prompt-complete' });
       } catch (err) {
-        log.error('Provider error', { error: formatError(err), providerId, modelId, text });
-        broadcast({ type: 'provider-error', error: formatError(err) });
+        const errorMessage = formatError(err);
+        log.error('Provider error', { error: errorMessage, providerId, modelId, text });
+        broadcast({ type: 'provider-error', error: errorMessage });
       }
       return;
     }

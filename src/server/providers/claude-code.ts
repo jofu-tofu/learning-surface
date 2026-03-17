@@ -1,5 +1,5 @@
 import type { Agent, ProviderConfig, PreflightResult } from '../../shared/providers.js';
-import { buildCliPrompt, spawnCli, spawnCliCapture, checkCliAvailable, writeMcpConfig, cleanupMcpConfig } from './spawn-cli.js';
+import { buildCliPrompt, spawnCli, checkCliAvailable, writeMcpConfig, cleanupMcpConfig } from './spawn-cli.js';
 import { createChatLogger } from '../logger.js';
 
 export function createClaudeCodeProvider(): Agent {
@@ -31,21 +31,6 @@ export function createClaudeCodeProvider(): Agent {
 
     async preflight(): Promise<PreflightResult> {
       return checkCliAvailable('claude');
-    },
-
-    async ask({ prompt, systemPrompt, model, responseSchema, reasoningEffort }) {
-      const schemaJson = JSON.stringify(responseSchema);
-      const args = [
-        '--print', '--model', model,
-        '--json-schema', schemaJson,
-        '--no-session-persistence',
-      ];
-      if (reasoningEffort) args.push('--effort', reasoningEffort);
-      args.push(buildCliPrompt(systemPrompt, prompt));
-      const stdout = await spawnCliCapture('claude', args, 'claude-ask');
-      // Claude Code may wrap output in markdown fences
-      const cleaned = stdout.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
-      return JSON.parse(cleaned) as Record<string, unknown>;
     },
 
     async run({ prompt, systemPrompt, model, sessionDir, reasoningEffort }) {

@@ -1,4 +1,4 @@
-import React, { useId, useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import type { RendererProps } from './registry.js';
 import { ErrorBanner } from '../ErrorBanner.js';
 import {
@@ -45,7 +45,8 @@ import {
   type PositionedNode,
 } from './diagram-layout.js';
 import { edgeLabelRect } from './overlap-resolution.js';
-import { useMountAnimation } from '../../hooks/useMountAnimation.js';
+import { useSanitizedId } from '../../hooks/useSanitizedId.js';
+import { useRendererLayout } from '../../hooks/useRendererLayout.js';
 import { SvgTooltip } from './shared/SvgTooltip.js';
 
 
@@ -251,13 +252,9 @@ function DiagramNodeElement({ node, index, mounted, isHovered, onHover }: Diagra
 // --- Component ---
 
 export function DiagramRenderer({ content, containerWidth, containerHeight }: RendererProps): React.ReactElement {
-  const reactId = useId();
-  const markerId = reactId.replace(/:/g, '');
+  const markerId = useSanitizedId();
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
-  const mounted = useMountAnimation(content);
-
-  const diagramData = useMemo(() => parseDiagramData(content), [content]);
-  const layout = useMemo(() => diagramData ? computeDiagramLayout(diagramData) : null, [diagramData]);
+  const { mounted, data: diagramData, layout } = useRendererLayout(content, parseDiagramData, computeDiagramLayout);
 
   if (!diagramData || !layout) {
     return <ErrorBanner message="Invalid diagram data — expected JSON with nodes and edges arrays" />;

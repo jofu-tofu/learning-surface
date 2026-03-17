@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import type { RendererProps } from './registry.js';
 import { ErrorBanner } from '../ErrorBanner.js';
 import { computeSvgFitStyle, staggerTransition } from './shared/svg-utils.js';
@@ -7,17 +7,14 @@ import {
   computeTimelineLayout,
   TIMELINE_CONSTANTS,
 } from './timeline-layout.js';
-import { useMountAnimation } from '../../hooks/useMountAnimation.js';
+import { useRendererLayout } from '../../hooks/useRendererLayout.js';
 import { SvgTooltip } from './shared/SvgTooltip.js';
 
 const { EVENT_RADIUS, LABEL_OFFSET, DATE_OFFSET } = TIMELINE_CONSTANTS;
 
 export function TimelineRenderer({ content, containerWidth, containerHeight }: RendererProps): React.ReactElement {
-  const mounted = useMountAnimation(content);
+  const { mounted, data, layout } = useRendererLayout(content, parseTimelineData, computeTimelineLayout);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
-
-  const data = useMemo(() => parseTimelineData(content), [content]);
-  const layout = useMemo(() => data ? computeTimelineLayout(data) : null, [data]);
 
   if (!data || !layout) {
     return <ErrorBanner message="Invalid timeline data — expected JSON with events array" />;

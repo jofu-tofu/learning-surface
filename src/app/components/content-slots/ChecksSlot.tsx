@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Icon } from '../Icon.js';
-import { sectionHeading } from '../../utils/styles.js';
-import { registerContentSlot, type ContentSlotProps } from './registry.js';
+import { registerContentSlot, SlotHeading, type ContentSlotProps } from './registry.js';
 
 function ChecksSlot({ section }: ContentSlotProps): React.ReactElement {
   const checks = section.checks ?? [];
@@ -18,10 +17,7 @@ function ChecksSlot({ section }: ContentSlotProps): React.ReactElement {
 
   return (
     <div className="space-y-3">
-      <h3 className={`${sectionHeading} flex items-center gap-2`}>
-        <Icon name="question" className="w-3.5 h-3.5" size={14} />
-        Concept Checks
-      </h3>
+      <SlotHeading icon="question">Concept Checks</SlotHeading>
       {checks.map((check) => {
         const revealed = revealedIds.has(check.id);
         return (

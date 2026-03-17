@@ -1,9 +1,10 @@
-import React, { useId, useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import type { RendererProps } from './registry.js';
 import { ErrorBanner } from '../ErrorBanner.js';
 import { computeSvgFitStyle, mountStyle, staggerTransition } from './shared/svg-utils.js';
 import { parseSequenceData, computeSequenceLayout, SEQUENCE_CONSTANTS } from './sequence-layout.js';
-import { useMountAnimation } from '../../hooks/useMountAnimation.js';
+import { useSanitizedId } from '../../hooks/useSanitizedId.js';
+import { useRendererLayout } from '../../hooks/useRendererLayout.js';
 import {
   ARROW_VIEWBOX,
   ARROW_REF_X,
@@ -21,14 +22,11 @@ const {
 } = SEQUENCE_CONSTANTS;
 
 export function SequenceRenderer({ content, containerWidth, containerHeight }: RendererProps): React.ReactElement {
-  const mounted = useMountAnimation(content);
+  const { mounted, data, layout } = useRendererLayout(content, parseSequenceData, computeSequenceLayout);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-  const reactId = useId();
-  const markerId = `seq-arrow-${reactId.replace(/:/g, '')}`;
-  const markerIdDashed = `seq-arrow-dashed-${reactId.replace(/:/g, '')}`;
-
-  const data = useMemo(() => parseSequenceData(content), [content]);
-  const layout = useMemo(() => data ? computeSequenceLayout(data) : null, [data]);
+  const sanitizedId = useSanitizedId();
+  const markerId = `seq-arrow-${sanitizedId}`;
+  const markerIdDashed = `seq-arrow-dashed-${sanitizedId}`;
 
   if (!data || !layout) {
     return <ErrorBanner message="Invalid sequence data — expected JSON with participants and messages arrays" />;

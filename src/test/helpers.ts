@@ -74,12 +74,6 @@ export const MINIMAL_DOC = serializeSurface(buildDocument({
   activeSection: 'introduction',
 }));
 
-// Generated from builders — empty section with no blocks.
-export const EMPTY_SECTION_DOC = serializeSurface(buildDocument({
-  sections: [buildSection({ title: 'Empty' })],
-  activeSection: 'empty',
-}));
-
 // === Test Doubles ===
 
 export function spyVersionStore(): VersionStore & { createVersion: ReturnType<typeof vi.fn> } {
@@ -122,7 +116,6 @@ export function fakeFileIO(files: Map<string, string> = new Map()): FileIO & { f
 
 /**
  * Fake Agent that simulates AI returning a pre-configured sequence of tool calls.
- * `ask()` returns a configurable response (defaults to empty object).
  * `run()` invokes `onToolCall` for each tool call in the sequence.
  */
 export function fakeAgent(
@@ -140,7 +133,6 @@ export function fakeAgent(
   return {
     config,
     async preflight() { return { ok: true }; },
-    async ask() { return {}; },
     async run(runRequest) {
       if (runRequest.onToolCall) {
         for (const toolCall of toolCalls) {

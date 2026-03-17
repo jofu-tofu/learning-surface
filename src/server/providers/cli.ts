@@ -1,8 +1,5 @@
-import { writeFile, unlink } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import type { Agent, ProviderConfig, PreflightResult } from '../../shared/providers.js';
-import { buildCliPrompt, spawnCli, spawnCliCapture, checkCliAvailable, codexMcpConfigArgs } from './spawn-cli.js';
+import { buildCliPrompt, spawnCli, checkCliAvailable, codexMcpConfigArgs } from './spawn-cli.js';
 import { createChatLogger } from '../logger.js';
 
 export function createCliProvider(): Agent {
@@ -29,20 +26,6 @@ export function createCliProvider(): Agent {
 
     async preflight(): Promise<PreflightResult> {
       return checkCliAvailable('codex');
-    },
-
-    async ask({ prompt, systemPrompt, model, responseSchema, reasoningEffort }) {
-      const tmpFile = join(tmpdir(), `ls-schema-${Date.now()}.json`);
-      try {
-        await writeFile(tmpFile, JSON.stringify(responseSchema), 'utf-8');
-        const args = ['exec', '--output-schema', tmpFile, '-m', model];
-        if (reasoningEffort) args.push('-c', `model_reasoning_effort="${reasoningEffort}"`);
-        args.push(buildCliPrompt(systemPrompt, prompt));
-        const stdout = await spawnCliCapture('codex', args, 'codex-ask');
-        return JSON.parse(stdout) as Record<string, unknown>;
-      } finally {
-        await unlink(tmpFile).catch(() => {});
-      }
     },
 
     async run({ prompt, systemPrompt, model, sessionDir, reasoningEffort }) {

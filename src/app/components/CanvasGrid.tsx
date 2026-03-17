@@ -42,11 +42,13 @@ export function CanvasGrid({ canvases }: CanvasGridProps): React.ReactElement {
   }, [focusedId]);
 
   // Reset focus when canvases change and the focused one no longer exists
+  useEffect(() => {
+    if (focusedId && !canvases.find(c => c.id === focusedId)) {
+      setFocusedId(null);
+    }
+  }, [focusedId, canvases]);
+
   const focusedCanvas = focusedId ? canvases.find(c => c.id === focusedId) : null;
-  if (focusedId && !focusedCanvas) {
-    // Will be cleaned up on next render cycle
-    setFocusedId(null);
-  }
 
   if (canvases.length === 0) {
     return <Canvas content={null} />;

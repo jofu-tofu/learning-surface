@@ -9,8 +9,10 @@ import './content-slots/DeeperPatternsSlot.js';
 import './content-slots/ChecksSlot.js';
 import './content-slots/FollowupsSlot.js';
 import { EmptyState } from './EmptyState.js';
+import { ProcessingState } from './ProcessingState.js';
 import { Icon } from './Icon.js';
 import { useContentRefresh } from '../hooks/useContentRefresh.js';
+import { useIsProcessing } from '../hooks/SurfaceStatusContext.js';
 
 interface ExplanationProps {
   section: Section | undefined;
@@ -24,6 +26,7 @@ const explanationEmptyIcon = (
 export function Explanation({ section, onFollowupClick }: ExplanationProps): React.ReactElement {
   const slots = getContentSlots();
   const activeSlots = section ? slots.filter(slot => slot.hasContent(section)) : [];
+  const isProcessing = useIsProcessing();
 
   const fingerprint = useMemo(() => {
     if (!section) return '';
@@ -38,7 +41,9 @@ export function Explanation({ section, onFollowupClick }: ExplanationProps): Rea
       ))}
 
       {activeSlots.length === 0 && (
-        <EmptyState icon={explanationEmptyIcon} message="Select a section to see its explanation" />
+        isProcessing
+          ? <ProcessingState message="Generating explanation..." />
+          : <EmptyState icon={explanationEmptyIcon} message="Select a section to see its explanation" />
       )}
     </div>
   );

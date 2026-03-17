@@ -1,12 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { Chat } from '../../shared/types.js';
-import { sortChatsByRecent, DRAFT_CHAT_ID } from '../../shared/types.js';
+import { sortChatsByRecent } from '../../shared/types.js';
 import { listContainer, listItemBase, listItemActive, listItemInactive, focusRing } from '../utils/styles.js';
 import { Icon } from './Icon.js';
 
 interface ChatListProps {
   chats: Chat[];
   activeChatId: string | null;
+  /** True when the app is in draft mode (no chat created yet). */
+  isDraftChat?: boolean;
   onChatSelect?: (chatId: string) => void;
   onNewChat?: () => void;
   onDeleteChat?: (chatId: string) => void;
@@ -16,6 +18,7 @@ interface ChatListProps {
 export function ChatList({
   chats,
   activeChatId,
+  isDraftChat = false,
   onChatSelect,
   onNewChat,
   onDeleteChat,
@@ -60,7 +63,6 @@ export function ChatList({
         const isActive = chat.id === activeChatId;
         const isConfirming = chatIdPendingDelete === chat.id;
         const isEditing = editingChatId === chat.id;
-        const isDraft = chat.id === DRAFT_CHAT_ID;
 
         return (
           <div
@@ -108,14 +110,13 @@ export function ChatList({
             ) : (
               <button
                 onClick={() => onChatSelect?.(chat.id)}
-                onDoubleClick={isDraft ? undefined : () => startRename(chat)}
-                className={`${listItemBase} ${isActive ? listItemActive : listItemInactive}`}
+                onDoubleClick={() => startRename(chat)}
+                className={`${listItemBase} ${isActive && !isDraftChat ? listItemActive : listItemInactive}`}
               >
                 {/* Chat icon */}
-                <Icon name="chat" className={`shrink-0 ${isActive ? 'text-accent-500/60' : 'text-surface-500'}`} size={14} />
+                <Icon name="chat" className={`shrink-0 ${isActive && !isDraftChat ? 'text-accent-500/60' : 'text-surface-500'}`} size={14} />
                 <span className="truncate flex-1">{chat.title}</span>
-                {/* Action buttons — visible on hover (hidden for draft chats) */}
-                {!isDraft && (
+                {/* Action buttons — visible on hover */}
                 <span className="shrink-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                   <span
                     role="button"
@@ -140,18 +141,21 @@ export function ChatList({
                     <Icon name="close" size={12} />
                   </span>
                 </span>
-                )}
               </button>
             )}
           </div>
         );
       })}
 
-      {/* New chat button */}
+      {/* New chat button — highlighted when in draft mode */}
       <button
         data-testid="new-chat-btn"
         onClick={() => onNewChat?.()}
-        className={`flex items-center gap-2.5 w-full text-left px-3 py-2.5 rounded-lg text-sm text-surface-400 hover:bg-surface-700/40 hover:text-surface-200 transition-colors cursor-pointer mt-1 ${focusRing}`}
+        className={`flex items-center gap-2.5 w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors cursor-pointer mt-1 ${focusRing} ${
+          isDraftChat
+            ? 'bg-accent-600/15 text-accent-400 font-medium border border-accent-500/30'
+            : 'text-surface-400 hover:bg-surface-700/40 hover:text-surface-200'
+        }`}
       >
         <Icon name="plus" className="shrink-0" size={14} />
         <span>New Chat</span>

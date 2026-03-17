@@ -88,6 +88,7 @@ export function App(): React.ReactElement {
     connected,
     chats,
     activeChatId,
+    isDraftChat,
     submitPrompt,
     selectVersion,
     selectSection,
@@ -200,6 +201,7 @@ export function App(): React.ReactElement {
               <ChatList
                 chats={chats}
                 activeChatId={activeChatId}
+                isDraftChat={isDraftChat}
                 onChatSelect={switchChat}
                 onNewChat={newChat}
                 onDeleteChat={deleteChat}

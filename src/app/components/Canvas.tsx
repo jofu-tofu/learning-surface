@@ -2,8 +2,10 @@ import React from 'react';
 import type { CanvasContent } from '../../shared/types.js';
 import { getRenderer } from './renderers/registry.js';
 import { EmptyState } from './EmptyState.js';
+import { ProcessingState } from './ProcessingState.js';
 import { Icon } from './Icon.js';
 import { useContainerSize } from '../hooks/useContainerSize.js';
+import { useIsProcessing } from '../hooks/SurfaceStatusContext.js';
 
 interface CanvasProps {
   content: CanvasContent | null;
@@ -16,8 +18,12 @@ const canvasEmptyIcon = (
 /* eslint-disable react-hooks/static-components -- getRenderer is a registry lookup, not component creation */
 export function Canvas({ content }: CanvasProps): React.ReactElement {
   const { ref, size } = useContainerSize();
+  const isProcessing = useIsProcessing();
 
   if (!content) {
+    if (isProcessing) {
+      return <ProcessingState message="Generating visual..." />;
+    }
     return (
       <div data-testid="canvas-empty">
         <EmptyState icon={canvasEmptyIcon} message="No visual content yet" />

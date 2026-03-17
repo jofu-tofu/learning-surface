@@ -182,6 +182,45 @@ html, body {
   animation: shimmer-slide 1.5s ease-in-out infinite;
 }
 
+/* Processing orbit animation — three dots circling a center point */
+@keyframes orbit-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes orbit-pulse {
+  0%, 100% { opacity: 0.4; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1); }
+}
+.processing-orbit {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  animation: orbit-spin 2.4s linear infinite;
+}
+.processing-dot {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-accent-400);
+  animation: orbit-pulse 1.6s ease-in-out infinite;
+}
+.processing-dot:nth-child(1) {
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.processing-dot:nth-child(2) {
+  bottom: 2px;
+  left: 4px;
+  animation-delay: 0.4s;
+}
+.processing-dot:nth-child(3) {
+  bottom: 2px;
+  right: 4px;
+  animation-delay: 0.8s;
+}
+
 /* Sidebar section flash — brief background glow when a non-active section updates */
 @keyframes sidebar-flash {
   0% { background-color: oklch(0.55 0.15 250 / 0.12); }

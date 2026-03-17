@@ -21,6 +21,8 @@ interface UseSurfaceReturn {
   /** Chat management */
   chats: Chat[];
   activeChatId: string | null;
+  /** True when the current view is a blank draft (no chat created yet). */
+  isDraftChat: boolean;
   submitPrompt: (text: string) => void;
   selectVersion: (version: number) => void;
   selectSection: (sectionId: string) => void;
@@ -208,19 +210,13 @@ export function useSurface(): UseSurfaceReturn {
 
   const clearProviderError = useCallback(() => setState(prevState => ({ ...prevState, providerError: null })), []);
 
-  // Include a synthetic draft chat in the list when in draft mode
-  const effectiveChats = useMemo(() => {
-    if (isDraftChat) {
-      const now = new Date().toISOString();
-      const draft: Chat = { id: DRAFT_CHAT_ID, title: 'New Chat', createdAt: now, updatedAt: now };
-      return [draft, ...chats];
-    }
-    return chats;
-  }, [chats, isDraftChat]);
+  // When in draft mode, no synthetic entry is added — the "New Chat" button
+  // in ChatList is highlighted instead to indicate we're in draft state.
+  const effectiveChats = chats;
 
   return {
     document, versions, currentVersion, path, forwardPath,
-    connected, chats: effectiveChats, activeChatId,
+    connected, chats: effectiveChats, activeChatId, isDraftChat,
     submitPrompt, selectVersion, selectSection,
     newChat, switchChat, deleteChat, renameChat,
     isProcessing, changedPanes, versionChangedPanes, changedSectionIds, flashSectionIds, activity,

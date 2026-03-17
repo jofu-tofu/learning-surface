@@ -116,6 +116,7 @@ export function App(): React.ReactElement {
   const [currentTheme, setCurrentTheme] = useState<ThemeId>(getStoredTheme);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [canvasFullscreen, setCanvasFullscreen] = useState(false);
+  const [explanationFullscreen, setExplanationFullscreen] = useState(false);
   const { splitPercent, isDragging, containerRef, startDrag } = useResizablePane({ initialSplit: 50, minPercent: 20 });
 
   const paneScrollRefs = useMemo(() => {
@@ -128,15 +129,18 @@ export function App(): React.ReactElement {
 
   useEffect(() => { applyTheme(currentTheme); }, [currentTheme]);
 
-  // Escape key exits canvas fullscreen
+  // Escape key exits any fullscreen overlay
   useEffect(() => {
-    if (!canvasFullscreen) return;
+    if (!canvasFullscreen && !explanationFullscreen) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setCanvasFullscreen(false);
+      if (e.key === 'Escape') {
+        setCanvasFullscreen(false);
+        setExplanationFullscreen(false);
+      }
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [canvasFullscreen]);
+  }, [canvasFullscreen, explanationFullscreen]);
 
   const handlePromptSubmit = useCallback((text: string) => {
     for (const ref of Object.values(paneScrollRefs)) {
@@ -259,6 +263,13 @@ export function App(): React.ReactElement {
                 title={explanationConfig.title}
                 className="flex-1"
                 scrollRef={paneScrollRefs[explanationConfig.id]}
+                actions={
+                  <IconButton
+                    icon="maximize"
+                    title="Expand explanation to fullscreen"
+                    onClick={() => setExplanationFullscreen(true)}
+                  />
+                }
               >
                 {explanationConfig.render({ section: activeSection, onFollowupClick: handlePromptSubmit })}
               </Pane>
@@ -336,6 +347,32 @@ export function App(): React.ReactElement {
           </div>
           <div className="canvas-fullscreen-body">
             <CanvasGrid canvases={activeSection?.canvases ?? []} />
+          </div>
+        </div>
+      )}
+
+      {/* Explanation fullscreen overlay */}
+      {explanationFullscreen && (
+        <div className="canvas-fullscreen">
+          <div className="canvas-fullscreen-header">
+            <h2 className="text-sm font-semibold text-surface-50">Explanation</h2>
+            <div className="flex items-center gap-2">
+              <IconButton
+                icon="minimize"
+                title="Exit fullscreen (Esc)"
+                onClick={() => setExplanationFullscreen(false)}
+              />
+              <button
+                onClick={() => setExplanationFullscreen(false)}
+                title="Close"
+                className="p-1.5 rounded-lg text-surface-400 hover:text-surface-100 hover:bg-surface-600/60 transition-colors"
+              >
+                <Icon name="close" size={18} strokeWidth={2} />
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 overflow-auto p-6">
+            <Explanation section={activeSection} onFollowupClick={handlePromptSubmit} />
           </div>
         </div>
       )}

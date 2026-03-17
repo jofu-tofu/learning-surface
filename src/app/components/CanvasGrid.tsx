@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import type { CanvasContent } from '../../shared/types.js';
 import { Canvas } from './Canvas.js';
 import { Icon } from './Icon.js';
@@ -26,6 +26,20 @@ export function CanvasGrid({ canvases }: CanvasGridProps): React.ReactElement {
     [canvases],
   );
   const refreshRef = useContentRefresh(fingerprint, 0);
+
+  // Escape key exits focus mode (stopImmediatePropagation so App-level
+  // fullscreen handler doesn't also fire on the same keydown event)
+  useEffect(() => {
+    if (!focusedId) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopImmediatePropagation();
+        setFocusedId(null);
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [focusedId]);
 
   // Reset focus when canvases change and the focused one no longer exists
   const focusedCanvas = focusedId ? canvases.find(c => c.id === focusedId) : null;

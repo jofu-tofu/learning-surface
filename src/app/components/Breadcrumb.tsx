@@ -47,7 +47,7 @@ export function Breadcrumb({
             ${focusRing}
             ${faded ? 'opacity-35' : ''}
             ${isCurrent
-              ? 'bg-accent-600/15 border-accent-500/30 text-accent-300 shadow-sm shadow-accent-500/5'
+              ? 'bg-accent-600/15 border-accent-500/30 text-accent-400 shadow-sm shadow-accent-500/5'
               : 'bg-surface-800/40 border-surface-700/60 text-surface-400 hover:bg-surface-700/40 hover:text-surface-300 hover:border-surface-600'
             }
           `}

@@ -1,46 +1,5 @@
-import { z } from 'zod';
-import { CANVAS_TYPES } from '../shared/types.js';
+import { SurfaceFileSchema } from '../shared/schemas.js';
 import type { LearningDocument } from '../shared/types.js';
-
-// === Zod Schema for .surface file validation ===
-
-const CanvasContentSchema = z.object({
-  id: z.string(),
-  type: z.enum(CANVAS_TYPES),
-  content: z.string(),
-  language: z.string().optional(),
-});
-
-const CheckSchema = z.object({
-  id: z.string(),
-  question: z.string(),
-  status: z.enum(['unanswered', 'attempted', 'revealed']),
-  hints: z.array(z.string()).optional(),
-  answer: z.string(),
-  answerExplanation: z.string().optional(),
-});
-
-const DeeperPatternSchema = z.object({
-  pattern: z.string(),
-  connection: z.string(),
-});
-
-const SectionSchema = z.object({
-  id: z.string(),
-  title: z.string(),
-  canvases: z.array(CanvasContentSchema),
-  explanation: z.string().optional(),
-  deeperPatterns: z.array(DeeperPatternSchema).default([]),
-  checks: z.array(CheckSchema).optional(),
-  followups: z.array(z.string()).optional(),
-});
-
-const SurfaceFileSchema = z.object({
-  version: z.number(),
-  activeSection: z.string(),
-  summary: z.string().optional(),
-  sections: z.array(SectionSchema),
-});
 
 // === Public API ===
 

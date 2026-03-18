@@ -1,4 +1,5 @@
 import type { TimelineData, TimelineEvent } from '../../../shared/schemas.js';
+import { parseJsonData } from './shared/parse-utils.js';
 
 // --- Layout Constants ---
 
@@ -59,16 +60,14 @@ interface TimelineLayout {
 // --- Parsing ---
 
 export function parseTimelineData(content: string): TimelineData | null {
-  try {
-    const parsed = JSON.parse(content);
-    if (!Array.isArray(parsed.events)) return null;
-    for (const event of parsed.events) {
+  return parseJsonData<TimelineData>(content, (parsed) => {
+    const d = parsed as Record<string, unknown>;
+    if (!Array.isArray(d.events)) return null;
+    for (const event of d.events as Record<string, unknown>[]) {
       if (typeof event.id !== 'string' || typeof event.date !== 'string' || typeof event.label !== 'string') return null;
     }
     return parsed as TimelineData;
-  } catch {
-    return null;
-  }
+  });
 }
 
 // --- Layout Computation ---

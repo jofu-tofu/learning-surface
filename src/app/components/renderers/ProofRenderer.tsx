@@ -6,6 +6,7 @@ import { parseProofData, renderKatex } from './proof-layout.js';
 import { LoadingSpinner } from '../LoadingSpinner.js';
 import { useMountAnimation } from '../../hooks/useMountAnimation.js';
 import { mountStyle } from './shared/svg-utils.js';
+import { escapeHtml } from './shared/html-utils.js';
 
 export function ProofRenderer({ content }: RendererProps): React.ReactElement {
   const mounted = useMountAnimation(content);
@@ -67,12 +68,4 @@ export function ProofRenderer({ content }: RendererProps): React.ReactElement {
       {html && <div dangerouslySetInnerHTML={{ __html: html }} />}
     </div>
   );
-}
-
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 }

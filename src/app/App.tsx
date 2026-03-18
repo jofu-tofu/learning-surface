@@ -9,52 +9,17 @@ import { Breadcrumb } from './components/Breadcrumb.js';
 import { BranchPopover } from './components/BranchPopover.js';
 import { ChatBar } from './components/ChatBar.js';
 import { PromptPreview } from './components/PromptPreview.js';
-import { PaneHeader } from './components/PaneHeader.js';
+import { Pane } from './components/Pane.js';
+import { IconButton } from './components/IconButton.js';
 import { ErrorBanner } from './components/ErrorBanner.js';
 import { ActivityStatus } from './components/ActivityStatus.js';
 import { ThemeSelector } from './components/ThemeSelector.js';
 import { Icon } from './components/Icon.js';
 import { useSurface } from './hooks/useSurface.js';
-import { SurfaceStatusProvider, usePaneFlash } from './hooks/SurfaceStatusContext.js';
+import { SurfaceStatusProvider } from './hooks/SurfaceStatusContext.js';
 import { getActiveSection } from '../shared/types.js';
 import { applyTheme, getStoredTheme, type ThemeId } from '../shared/themes.js';
 import { useResizablePane } from './hooks/useResizablePane.js';
-
-function Pane({ id, title, className, scrollRef, children, style, actions }: {
-  id: string;
-  title: string;
-  className?: string;
-  scrollRef?: React.RefObject<HTMLDivElement | null>;
-  children: React.ReactNode;
-  style?: React.CSSProperties;
-  actions?: React.ReactNode;
-}): React.ReactElement {
-  const flash = usePaneFlash(id);
-  return (
-    <div data-testid={`pane-${id}`} style={style} className={`flex flex-col min-w-0 ${flash ? 'pane-updated' : ''} ${className ?? ''}`}>
-      <PaneHeader paneId={id} title={title} actions={actions} />
-      <div ref={scrollRef} className="flex-1 overflow-auto p-6">{children}</div>
-    </div>
-  );
-}
-
-/** Small icon button used in pane headers and the sidebar toggle. */
-function IconButton({ icon, title, onClick, className = '' }: {
-  icon: string;
-  title: string;
-  onClick: () => void;
-  className?: string;
-}): React.ReactElement {
-  return (
-    <button
-      onClick={onClick}
-      title={title}
-      className={`p-1 rounded-md text-surface-400 hover:text-surface-200 hover:bg-surface-700/50 transition-colors ${className}`}
-    >
-      <Icon name={icon} size={14} strokeWidth={2} />
-    </button>
-  );
-}
 
 interface PaneConfig {
   id: string;

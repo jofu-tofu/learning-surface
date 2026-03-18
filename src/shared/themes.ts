@@ -25,10 +25,6 @@ interface ThemeTokens {
   'surface-900': string;
 
   // Accent scale (focus rings, active states, links)
-  'accent-50': string;
-  'accent-100': string;
-  'accent-200': string;
-  'accent-300': string;
   'accent-400': string;
   'accent-500': string;
   'accent-600': string;
@@ -117,10 +113,6 @@ const MIDNIGHT_TOKENS: ThemeTokens = {
   'surface-800': '#1e293b',
   'surface-900': '#0f172a',
 
-  'accent-50': '#eff6ff',
-  'accent-100': '#dbeafe',
-  'accent-200': '#bfdbfe',
-  'accent-300': '#93c5fd',
   'accent-400': '#60a5fa',
   'accent-500': '#3b82f6',
   'accent-600': '#2563eb',
@@ -177,10 +169,6 @@ const LIGHT_TOKENS: ThemeTokens = {
   'surface-800': LIGHT_SURFACE['surface-100'],
   'surface-900': LIGHT_SURFACE['surface-50'],   // lightest background
 
-  'accent-50': '#1e3a5f',
-  'accent-100': '#1e40af',
-  'accent-200': '#1d4ed8',
-  'accent-300': '#2563eb',
   'accent-400': '#2563eb',
   'accent-500': '#3b82f6',
   'accent-600': '#3b82f6',
@@ -239,10 +227,6 @@ const GALAXY_TOKENS: ThemeTokens = {
   'surface-900': GALAXY_SURFACE['surface-900'],
 
   // Cyan/teal accent for contrast against purple
-  'accent-50': '#ecfeff',
-  'accent-100': '#cffafe',
-  'accent-200': '#a5f3fc',
-  'accent-300': '#67e8f9',
   'accent-400': '#22d3ee',
   'accent-500': '#06b6d4',
   'accent-600': '#0891b2',

@@ -8,9 +8,6 @@ import {
   NODE_HEIGHT,
   CATEGORY_COLORS,
   DEFAULT_COLORS,
-  SHAPE_STROKE_WIDTH,
-  RECT_CORNER_RADIUS,
-  ROUNDED_CORNER_RADIUS,
   EDGE_LABEL_PILL_RADIUS,
   EDGE_LABEL_TEXT_OFFSET_Y,
   EDGE_LABEL_FONT_SIZE,
@@ -20,12 +17,6 @@ import {
   INFO_ICON_MARGIN,
   INFO_ICON_RADIUS,
   INFO_ICON_FONT_SIZE,
-  ARROW_VIEWBOX,
-  ARROW_REF_X,
-  ARROW_REF_Y,
-  ARROW_WIDTH,
-  ARROW_HEIGHT,
-  ARROW_PATH,
   GROUP_LABEL_OFFSET_X,
   GROUP_LABEL_OFFSET_Y,
   GROUP_LABEL_FONT_SIZE,
@@ -44,10 +35,16 @@ import {
   NODE_LABEL_LINE_HEIGHT,
   type PositionedNode,
 } from './diagram-layout.js';
+import {
+  SHAPE_STROKE_WIDTH,
+  RECT_CORNER_RADIUS,
+  ROUNDED_CORNER_RADIUS,
+} from './diagram-constants.js';
 import { edgeLabelRect } from './overlap-resolution.js';
 import { useSanitizedId } from '../../hooks/useSanitizedId.js';
 import { useRendererLayout } from '../../hooks/useRendererLayout.js';
 import { SvgTooltip } from './shared/SvgTooltip.js';
+import { ArrowMarker } from './shared/ArrowMarker.js';
 
 
 
@@ -279,21 +276,7 @@ export function DiagramRenderer({ content, containerWidth, containerHeight }: Re
         style={svgStyle}
       >
         <defs>
-          <marker
-            id={`dg-arrow-${markerId}`}
-            viewBox={ARROW_VIEWBOX}
-            refX={ARROW_REF_X}
-            refY={ARROW_REF_Y}
-            markerWidth={ARROW_WIDTH}
-            markerHeight={ARROW_HEIGHT}
-            orient="auto-start-reverse"
-          >
-            <path
-              d={ARROW_PATH}
-              fill="var(--color-accent-400)"
-              fillOpacity={0.7}
-            />
-          </marker>
+          <ArrowMarker id={`dg-arrow-${markerId}`} opacity={0.7} />
         </defs>
 
         {/* Group background regions */}

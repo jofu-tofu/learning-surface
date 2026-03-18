@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef } from 'react';
 import type { ProviderInfo, ReasoningEffort } from '../../shared/providers.js';
 import { useClickOutside } from '../hooks/useClickOutside.js';
 import { focusRing, popoverPanel, menuItemActive, menuItemInactive } from '../utils/styles.js';
@@ -93,8 +93,7 @@ export function ProviderSelector({
   const [openMenu, setOpenMenu] = useState<DropdownId | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const closeMenu = useCallback(() => setOpenMenu(null), []);
-  useClickOutside(containerRef, closeMenu);
+  useClickOutside(containerRef, () => setOpenMenu(null));
 
   const toggleMenu = (id: DropdownId) => setOpenMenu(prev => prev === id ? null : id);
 
@@ -147,7 +146,7 @@ export function ProviderSelector({
           <DropdownMenu
             options={providerOptions}
             value={selectedProvider ?? ''}
-            onChange={(selectedValue) => { onProviderChange(selectedValue); closeMenu(); }}
+            onChange={(selectedValue) => { onProviderChange(selectedValue); setOpenMenu(null); }}
           />
         )}
       </div>
@@ -171,7 +170,7 @@ export function ProviderSelector({
           <DropdownMenu
             options={modelOptions}
             value={selectedModel ?? ''}
-            onChange={(selectedValue) => { onModelChange(selectedValue); closeMenu(); }}
+            onChange={(selectedValue) => { onModelChange(selectedValue); setOpenMenu(null); }}
           />
         )}
       </div>
@@ -195,7 +194,7 @@ export function ProviderSelector({
               <DropdownMenu
                 options={effortOptions}
                 value={selectedReasoningEffort ?? ''}
-                onChange={(selectedValue) => { onReasoningEffortChange(selectedValue as ReasoningEffort); closeMenu(); }}
+                onChange={(selectedValue) => { onReasoningEffortChange(selectedValue as ReasoningEffort); setOpenMenu(null); }}
               />
             )}
           </div>

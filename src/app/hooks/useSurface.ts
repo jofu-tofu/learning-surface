@@ -61,12 +61,13 @@ const WS_URL = typeof window !== 'undefined'
 
 export function useSurface(): UseSurfaceReturn {
   const [state, setState] = useState<SurfaceState>(INITIAL_SURFACE_STATE);
-  const { document, versions, currentVersion, chats, activeChatId, isDraftChat,
+  const { document, versions, currentVersion, chats, activeChatId,
           isProcessing, changedPanes, versionChangedPanes, changedSectionIds,
           flashSectionIds, activity, providerError } = state;
+  const isDraftChat = activeChatId === DRAFT_CHAT_ID;
   const {
     providers, selectedProvider, selectedModel, selectedReasoningEffort,
-    setProviders, setSelectedProvider, setSelectedModel, setSelectedReasoningEffort,
+    setSelectedProvider, setSelectedModel, setSelectedReasoningEffort,
     autoSelect: autoSelectProvider,
   } = useProviderSelection();
   const prevDocRef = useRef<LearningDocument | null>(null);
@@ -92,9 +93,6 @@ export function useSurface(): UseSurfaceReturn {
             switch (effect.type) {
               case 'auto-select-providers':
                 autoSelectProvider(effect.providers);
-                break;
-              case 'set-providers':
-                setProviders(effect.providers);
                 break;
               case 'reset-settle-timer':
                 clearTimeout(settleTimerRef.current);
@@ -131,7 +129,7 @@ export function useSurface(): UseSurfaceReturn {
 
       return reducerResult.state;
     });
-  }, [autoSelectProvider, setProviders]);
+  }, [autoSelectProvider]);
 
   const { connected, send } = useWebSocket({ url: WS_URL, onMessage });
   useEffect(() => { sendRef.current = send; }, [send]);
@@ -185,12 +183,11 @@ export function useSurface(): UseSurfaceReturn {
 
   const newChat = useCallback(() => {
     setState(prev => {
-      if (prev.isDraftChat) return prev; // already in draft mode
+      if (prev.activeChatId === DRAFT_CHAT_ID) return prev; // already in draft mode
       return {
         ...INITIAL_SURFACE_STATE,
         chats: prev.chats,
         activeChatId: DRAFT_CHAT_ID,
-        isDraftChat: true,
         providerError: null,
       };
     });

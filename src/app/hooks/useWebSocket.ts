@@ -28,8 +28,12 @@ export function useWebSocket(options: UseWebSocketOptions): {
       };
 
       ws.onmessage = (event: { data: string }) => {
-        const msg: WsMessage = JSON.parse(event.data);
-        onMessage(msg);
+        try {
+          const msg: WsMessage = JSON.parse(event.data);
+          onMessage(msg);
+        } catch {
+          // Malformed message from server — drop silently
+        }
       };
 
       ws.onclose = () => {

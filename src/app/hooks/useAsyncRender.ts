@@ -38,7 +38,7 @@ export function useAsyncRender(
     })();
 
     return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- caller controls deps; asyncRenderer intentionally excluded to allow inline functions
   }, dependencies);
 
   return { html, error, loading };

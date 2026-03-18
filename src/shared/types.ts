@@ -6,6 +6,7 @@ import type { ProviderInfo, ReasoningEffort } from './providers.js';
 export const CANVAS_TYPES = ['katex', 'code', 'diagram', 'timeline', 'proof', 'sequence'] as const;
 type CanvasType = (typeof CANVAS_TYPES)[number];
 
+/** Runtime canvas content — mirrors CanvasInputSchema in schemas.ts (same fields). */
 export interface CanvasContent {
   id: string;          // unique within section, for targeting (e.g. "architecture", "data-flow")
   type: CanvasType;

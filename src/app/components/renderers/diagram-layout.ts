@@ -12,16 +12,18 @@ import {
   FLOW_DIRECTION_BIAS,
   LABEL_SPREAD_FACTOR,
   controlPointOffset,
-  ARROW_VIEWBOX,
-  ARROW_REF_X,
-  ARROW_REF_Y,
-  ARROW_WIDTH,
-  ARROW_HEIGHT,
-  ARROW_PATH,
+  RECT_CORNER_RADIUS,
+  ROUNDED_CORNER_RADIUS,
+  SHAPE_STROKE_WIDTH,
+  ANIMATION_DURATION,
+  NODE_STAGGER_DELAY,
+  EDGE_BASE_DELAY,
+  EDGE_STAGGER_DELAY,
+  DIMMED_OPACITY,
 } from './diagram-constants.js';
+import { parseJsonData } from './shared/parse-utils.js';
 
-export { NODE_WIDTH, NODE_HEIGHT, EDGE_LABEL_TEXT_OFFSET_Y } from './diagram-constants.js';
-export { ARROW_VIEWBOX, ARROW_REF_X, ARROW_REF_Y, ARROW_WIDTH, ARROW_HEIGHT, ARROW_PATH } from './diagram-constants.js';
+export { NODE_WIDTH, NODE_HEIGHT, EDGE_LABEL_TEXT_OFFSET_Y, RECT_CORNER_RADIUS, ROUNDED_CORNER_RADIUS, SHAPE_STROKE_WIDTH } from './diagram-constants.js';
 
 // --- Data Shape ---
 
@@ -38,9 +40,6 @@ const SELF_LOOP_SIZE = 40;
 // --- Shape Constants ---
 
 const SHAPE_INSET = 1;
-export const RECT_CORNER_RADIUS = 4;
-export const ROUNDED_CORNER_RADIUS = 12;
-export const SHAPE_STROKE_WIDTH = 1.5;
 
 // --- Edge Label Constants ---
 
@@ -81,12 +80,6 @@ const TOOLTIP_Y_OFFSET = 8;
 export const TOOLTIP_FO_HEIGHT = 100;
 
 // --- Animation Constants ---
-
-const ANIMATION_DURATION = 0.4;
-const NODE_STAGGER_DELAY = 0.05;
-const EDGE_BASE_DELAY = 0.1;
-const EDGE_STAGGER_DELAY = 0.03;
-const DIMMED_OPACITY = 0.4;
 
 // --- Category Color Palette ---
 
@@ -391,19 +384,17 @@ function computeEndpointLabelPosition(
 // --- Parsing ---
 
 export function parseDiagramData(content: string): DiagramData | null {
-  try {
-    const parsedData = JSON.parse(content);
-    if (!Array.isArray(parsedData.nodes) || !Array.isArray(parsedData.edges)) return null;
-    for (const node of parsedData.nodes) {
+  return parseJsonData<DiagramData>(content, (parsedData) => {
+    const d = parsedData as Record<string, unknown>;
+    if (!Array.isArray(d.nodes) || !Array.isArray(d.edges)) return null;
+    for (const node of d.nodes as Record<string, unknown>[]) {
       if (typeof node.id !== 'string' || typeof node.label !== 'string') return null;
     }
-    for (const edge of parsedData.edges) {
+    for (const edge of d.edges as Record<string, unknown>[]) {
       if (typeof edge.from !== 'string' || typeof edge.to !== 'string') return null;
     }
     return parsedData as DiagramData;
-  } catch {
-    return null;
-  }
+  });
 }
 
 // --- Layout ---
@@ -602,18 +593,19 @@ interface GroupRect {
   height: number;
 }
 
-export function computeDiagramLayout(data: DiagramData): {
-  nodes: PositionedNode[];
-  edges: PositionedEdge[];
-  groups: GroupRect[];
-  width: number;
-  height: number;
-} {
-  const { nodes, edges, direction = 'TB' } = data;
-  if (nodes.length === 0) return { nodes: [], edges: [], groups: [], width: 0, height: 0 };
+// ---------------------------------------------------------------------------
+// computeDiagramLayout helper functions (private — implementation details)
+// ---------------------------------------------------------------------------
 
-  const isLR = direction === 'LR';
-
+/**
+ * Assign nodes to layers via topological sort, minimize edge crossings,
+ * and compute cumulative layer offsets along the flow axis.
+ */
+function assignToLayers(
+  nodes: DiagramNode[],
+  edges: DiagramEdge[],
+  isLR: boolean,
+): { layers: string[][]; layerMap: Map<string, number>; layerOffsets: number[] } {
   // Build incoming-edge map
   const incoming = new Map<string, Set<string>>();
   const nodeIds = new Set(nodes.map(node => node.id));
@@ -659,7 +651,6 @@ export function computeDiagramLayout(data: DiagramData): {
 
   // Minimize edge crossings by reordering nodes within each layer
   const orderedLayers = minimizeCrossings(layers, edges);
-  // Replace layer contents with optimized ordering
   for (let i = 0; i < layers.length; i++) {
     layers[i] = orderedLayers[i];
   }
@@ -675,12 +666,20 @@ export function computeDiagramLayout(data: DiagramData): {
     layerOffsets.push(layerOffsets[i - 1] + layerDimension + layerGaps[i - 1]);
   }
 
-  // Position nodes
-  const nodeMap = new Map(nodes.map(node => [node.id, node]));
-  const posMap = new Map<string, { x: number; y: number }>();
+  return { layers, layerMap, layerOffsets };
+}
 
-  // For TB: layers are rows (x varies within layer, y varies across layers)
-  // For LR: layers are columns (y varies within layer, x varies across layers)
+/**
+ * Position nodes within their assigned layers, computing x/y coordinates
+ * and the total SVG canvas dimensions.
+ */
+function positionNodesInLayers(
+  layers: string[][],
+  layerOffsets: number[],
+  isLR: boolean,
+  nodeMap: Map<string, DiagramNode>,
+): { positionedNodes: PositionedNode[]; posMap: Map<string, { x: number; y: number }>; totalWidth: number; totalHeight: number } {
+  const posMap = new Map<string, { x: number; y: number }>();
   const maxLayerSize = Math.max(...layers.map(layer => layer.length));
 
   let totalWidth: number;
@@ -726,7 +725,23 @@ export function computeDiagramLayout(data: DiagramData): {
     }
   }
 
-  // Compute edge paths with smart port selection
+  return { positionedNodes, posMap, totalWidth, totalHeight };
+}
+
+/**
+ * Compute SVG edge paths with smart port selection, overlap resolution,
+ * endpoint label positioning, and final bounds expansion.
+ */
+function computeEdgePaths(
+  edges: DiagramEdge[],
+  posMap: Map<string, { x: number; y: number }>,
+  positionedNodes: PositionedNode[],
+  layerMap: Map<string, number>,
+  direction: 'TB' | 'LR',
+  isLR: boolean,
+  totalWidth: number,
+  totalHeight: number,
+): { positionedEdges: PositionedEdge[]; finalWidth: number; finalHeight: number } {
   const positionedEdges: PositionedEdge[] = [];
   for (const edge of edges) {
     const from = posMap.get(edge.from);
@@ -827,7 +842,13 @@ export function computeDiagramLayout(data: DiagramData): {
     }
   }
 
-  // Compute group rects
+  return { positionedEdges, finalWidth, finalHeight };
+}
+
+/**
+ * Compute bounding rectangles for node groups (groups with fewer than 2 nodes are skipped).
+ */
+function computeGroupRects(positionedNodes: PositionedNode[]): GroupRect[] {
   const groupMap = new Map<string, PositionedNode[]>();
   for (const node of positionedNodes) {
     if (node.group) {
@@ -846,6 +867,40 @@ export function computeDiagramLayout(data: DiagramData): {
     const maxY = Math.max(...groupNodes.map(node => node.y + NODE_HEIGHT)) + GROUP_PADDING;
     groups.push({ group, x: minX, y: minY, width: maxX - minX, height: maxY - minY });
   }
+
+  return groups;
+}
+
+// ---------------------------------------------------------------------------
+// Main layout entry point
+// ---------------------------------------------------------------------------
+
+export function computeDiagramLayout(data: DiagramData): {
+  nodes: PositionedNode[];
+  edges: PositionedEdge[];
+  groups: GroupRect[];
+  width: number;
+  height: number;
+} {
+  const { nodes, edges, direction = 'TB' } = data;
+  if (nodes.length === 0) return { nodes: [], edges: [], groups: [], width: 0, height: 0 };
+
+  const isLR = direction === 'LR';
+  const nodeMap = new Map(nodes.map(node => [node.id, node]));
+
+  // Phase 1: Topological sort, crossing minimization, layer offsets
+  const { layers, layerMap, layerOffsets } = assignToLayers(nodes, edges, isLR);
+
+  // Phase 2: Position nodes within each layer
+  const { positionedNodes, posMap, totalWidth, totalHeight } =
+    positionNodesInLayers(layers, layerOffsets, isLR, nodeMap);
+
+  // Phase 3: Edge paths, overlap resolution, bounds expansion
+  const { positionedEdges, finalWidth, finalHeight } =
+    computeEdgePaths(edges, posMap, positionedNodes, layerMap, direction, isLR, totalWidth, totalHeight);
+
+  // Phase 4: Group bounding rectangles
+  const groups = computeGroupRects(positionedNodes);
 
   return { nodes: positionedNodes, edges: positionedEdges, groups, width: finalWidth, height: finalHeight };
 }

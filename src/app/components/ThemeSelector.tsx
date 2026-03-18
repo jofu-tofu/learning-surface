@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef } from 'react';
 import { THEMES, type ThemeId } from '../../shared/themes.js';
 import { useClickOutside } from '../hooks/useClickOutside.js';
 import { focusRing, popoverPanel, menuItemActive, menuItemInactive } from '../utils/styles.js';
@@ -13,8 +13,7 @@ export function ThemeSelector({ currentTheme, onThemeChange }: ThemeSelectorProp
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const close = useCallback(() => setOpen(false), []);
-  useClickOutside(containerRef, close);
+  useClickOutside(containerRef, () => setOpen(false));
 
   const activeLabel = THEMES.find(theme => theme.id === currentTheme)?.label ?? 'Theme';
 
@@ -38,7 +37,7 @@ export function ThemeSelector({ currentTheme, onThemeChange }: ThemeSelectorProp
             <button
               key={theme.id}
               type="button"
-              onClick={() => { onThemeChange(theme.id); close(); }}
+              onClick={() => { onThemeChange(theme.id); setOpen(false); }}
               className={`w-full text-left px-3 py-1.5 text-xs transition-colors cursor-pointer ${focusRing} ${
                 theme.id === currentTheme ? menuItemActive : menuItemInactive
               }`}

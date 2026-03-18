@@ -46,6 +46,14 @@ export function buildVersionMeta(
   };
 }
 
+/** Detect all pane and section changes between two documents. */
+export function detectAllChanges(before: LearningDocument, after: LearningDocument): { paneChanges: Set<string>; sectionChanges: Set<string> } {
+  return {
+    paneChanges: detectChangedPanes(before, after),
+    sectionChanges: detectChangedSections(before, after),
+  };
+}
+
 // === Imperative shell ===
 
 interface PromptRequest {
@@ -177,8 +185,7 @@ export async function handlePrompt(
 
   if (hasChanges) {
     // Compute which panes/sections changed for persistent metadata
-    const paneChanges = detectChangedPanes(currentDoc, finalDoc);
-    const sectionChanges = detectChangedSections(currentDoc, finalDoc);
+    const { paneChanges, sectionChanges } = detectAllChanges(currentDoc, finalDoc);
 
     // Ensure version is bumped for CLI mode
     if (finalDoc.version <= startVersion) {
@@ -186,9 +193,8 @@ export async function handlePrompt(
       documentService.write(filePath, finalDoc);
     }
 
-    const contentForVersion = documentService.readRaw(filePath) ?? '';
     await versionStore.createVersion(
-      contentForVersion,
+      finalContent,
       buildVersionMeta(
         text,
         finalDoc.summary ?? null,

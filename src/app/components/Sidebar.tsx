@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { listContainer, listItemBase, listItemActive, listItemInactive } from '../utils/styles.js';
+import { listContainer, listItemBase, listItemActive, listItemInactive, updatedBadge } from '../utils/styles.js';
 import { useChangedSectionIds, useFlashSectionIds } from '../hooks/SurfaceStatusContext.js';
 
 interface SidebarProps {
@@ -93,7 +93,7 @@ function SidebarItem({ sectionId, title, isActive, isChanged, isFlashing, stagge
       `} />
       <span className="truncate">{title}</span>
       {isChanged && (
-        <span className="ml-auto shrink-0 text-[9px] font-semibold uppercase tracking-wider text-accent-400/80 animate-[fade-in_0.3s_ease-out]">
+        <span className={`ml-auto shrink-0 text-accent-400/80 ${updatedBadge}`}>
           Updated
         </span>
       )}

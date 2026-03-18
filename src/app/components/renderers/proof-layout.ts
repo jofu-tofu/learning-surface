@@ -1,18 +1,17 @@
 import type { ProofData, ProofStep } from '../../../shared/schemas.js';
+import { parseJsonData } from './shared/parse-utils.js';
 
 // --- Parsing ---
 
 export function parseProofData(content: string): ProofData | null {
-  try {
-    const parsed = JSON.parse(content);
-    if (!Array.isArray(parsed.steps)) return null;
-    for (const step of parsed.steps) {
+  return parseJsonData<ProofData>(content, (parsed) => {
+    const d = parsed as Record<string, unknown>;
+    if (!Array.isArray(d.steps)) return null;
+    for (const step of d.steps as Record<string, unknown>[]) {
       if (typeof step.expression !== 'string' || typeof step.justification !== 'string') return null;
     }
     return parsed as ProofData;
-  } catch {
-    return null;
-  }
+  });
 }
 
 // --- KaTeX Rendering ---

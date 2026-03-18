@@ -5,6 +5,7 @@ import type { FileWatcherService, LearningDocument } from '../shared/types.js';
 import { parseSurface } from './surface-file.js';
 import { CURRENT_SURFACE } from './document-service.js';
 import { createChatLogger, nullLogger, type ChatLogger } from './logger.js';
+import { formatError } from './utils/ws-helpers.js';
 
 const DEFAULT_DOCUMENT: LearningDocument = {
   version: 1,
@@ -34,7 +35,7 @@ export function createFileWatcher(): FileWatcherService {
       doc = parseSurface(raw);
     } catch (err) {
       // Parse error — log but don't crash, don't call callbacks with undefined
-      log.error('Parse error', { error: String(err) });
+      log.error('Parse error', { error: formatError(err) });
       return;
     }
 

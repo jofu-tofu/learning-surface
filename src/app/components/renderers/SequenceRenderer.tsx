@@ -5,14 +5,7 @@ import { computeSvgFitStyle, mountStyle, staggerTransition } from './shared/svg-
 import { parseSequenceData, computeSequenceLayout, SEQUENCE_CONSTANTS } from './sequence-layout.js';
 import { useSanitizedId } from '../../hooks/useSanitizedId.js';
 import { useRendererLayout } from '../../hooks/useRendererLayout.js';
-import {
-  ARROW_VIEWBOX,
-  ARROW_REF_X,
-  ARROW_REF_Y,
-  ARROW_WIDTH,
-  ARROW_HEIGHT,
-  ARROW_PATH,
-} from './diagram-constants.js';
+import { ArrowMarker } from './shared/ArrowMarker.js';
 
 const {
   PARTICIPANT_WIDTH,
@@ -47,29 +40,9 @@ export function SequenceRenderer({ content, containerWidth, containerHeight }: R
       >
         <defs>
           {/* Solid arrow marker */}
-          <marker
-            id={markerId}
-            viewBox={ARROW_VIEWBOX}
-            refX={ARROW_REF_X}
-            refY={ARROW_REF_Y}
-            markerWidth={ARROW_WIDTH}
-            markerHeight={ARROW_HEIGHT}
-            orient="auto-start-reverse"
-          >
-            <path d={ARROW_PATH} fill="var(--color-accent-400)" />
-          </marker>
+          <ArrowMarker id={markerId} />
           {/* Dashed arrow marker (lower opacity) */}
-          <marker
-            id={markerIdDashed}
-            viewBox={ARROW_VIEWBOX}
-            refX={ARROW_REF_X}
-            refY={ARROW_REF_Y}
-            markerWidth={ARROW_WIDTH}
-            markerHeight={ARROW_HEIGHT}
-            orient="auto-start-reverse"
-          >
-            <path d={ARROW_PATH} fill="var(--color-accent-400)" fillOpacity={0.6} />
-          </marker>
+          <ArrowMarker id={markerIdDashed} opacity={0.6} />
         </defs>
 
         {/* Group fragments (behind everything) */}

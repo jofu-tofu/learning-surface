@@ -122,6 +122,7 @@ describe('DocumentService with FakeFileIO', () => {
 
       // Update only section A — section B should be untouched
       svc.applyDesignSurface('/doc.surface', {
+        summary: 'Update section A',
         sections: [{ id: 'section-a', explanation: 'Updated A' }],
       });
 

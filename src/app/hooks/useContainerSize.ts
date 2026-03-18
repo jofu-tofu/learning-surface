@@ -16,7 +16,6 @@ export function useContainerSize(): {
 } {
   const [size, setSize] = useState<ContainerSize>({ width: 0, height: 0 });
   const observerRef = useRef<ResizeObserver | null>(null);
-  const elementRef = useRef<HTMLElement | null>(null);
 
   // Clean up observer on unmount
   useEffect(() => {
@@ -31,8 +30,6 @@ export function useContainerSize(): {
       observerRef.current.disconnect();
       observerRef.current = null;
     }
-
-    elementRef.current = node;
 
     if (!node) return;
 

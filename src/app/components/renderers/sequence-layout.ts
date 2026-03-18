@@ -1,4 +1,5 @@
 import type { SequenceData, SequenceParticipant, SequenceMessage } from '../../../shared/schemas.js';
+import { parseJsonData } from './shared/parse-utils.js';
 
 // --- Layout Constants ---
 
@@ -60,20 +61,18 @@ interface SequenceLayout {
 // --- Parsing ---
 
 export function parseSequenceData(content: string): SequenceData | null {
-  try {
-    const parsed = JSON.parse(content);
-    if (!Array.isArray(parsed.participants)) return null;
-    if (!Array.isArray(parsed.messages)) return null;
-    for (const p of parsed.participants) {
+  return parseJsonData<SequenceData>(content, (parsed) => {
+    const d = parsed as Record<string, unknown>;
+    if (!Array.isArray(d.participants)) return null;
+    if (!Array.isArray(d.messages)) return null;
+    for (const p of d.participants as Record<string, unknown>[]) {
       if (typeof p.id !== 'string' || typeof p.label !== 'string') return null;
     }
-    for (const m of parsed.messages) {
+    for (const m of d.messages as Record<string, unknown>[]) {
       if (typeof m.from !== 'string' || typeof m.to !== 'string') return null;
     }
     return parsed as SequenceData;
-  } catch {
-    return null;
-  }
+  });
 }
 
 // --- Layout Computation ---

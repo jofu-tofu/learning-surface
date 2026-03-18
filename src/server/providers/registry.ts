@@ -1,6 +1,7 @@
 import type { Agent, ProviderInfo } from '../../shared/providers.js';
 import { createCliProvider } from './cli.js';
 import { createClaudeCodeProvider } from './claude-code.js';
+import { formatError } from '../utils/ws-helpers.js';
 
 const providers = new Map<string, Agent>();
 
@@ -45,7 +46,7 @@ export async function listProvidersWithStatus(): Promise<ProviderInfo[]> {
         const result = await provider.preflight(firstModel);
         status = { available: result.ok, error: result.error };
       } catch (err) {
-        status = { available: false, error: err instanceof Error ? err.message : String(err) };
+        status = { available: false, error: formatError(err) };
       }
       return {
         id: provider.config.id,

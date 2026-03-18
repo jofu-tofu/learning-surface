@@ -7,9 +7,8 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import { TOOL_DEFS, DesignSurfaceSchema, zodToJsonSchema } from '../shared/schemas.js';
 import type { LearningDocument, VersionStore } from '../shared/types.js';
-import { detectChangedPanes, detectChangedSections } from '../shared/detectChangedPanes.js';
 import { createDocumentService, type DocumentService } from './document-service.js';
-import { buildVersionMeta } from './prompt-handler.js';
+import { buildVersionMeta, detectAllChanges } from './prompt-handler.js';
 import { formatError } from './utils/ws-helpers.js';
 import { createChatLogger } from './logger.js';
 
@@ -52,8 +51,9 @@ export function createMcpServer(options: {
     if (!content || !doc) return;
 
     // Compute which panes/sections changed for persistent metadata
-    const paneChanges = batchStartDoc ? detectChangedPanes(batchStartDoc, doc) : new Set<string>();
-    const sectionChanges = batchStartDoc ? detectChangedSections(batchStartDoc, doc) : new Set<string>();
+    const { paneChanges, sectionChanges } = batchStartDoc
+      ? detectAllChanges(batchStartDoc, doc)
+      : { paneChanges: new Set<string>(), sectionChanges: new Set<string>() };
 
     await store.createVersion(
       content,

@@ -27,6 +27,7 @@ function FollowupsSlot({ section, onFollowupClick }: ContentSlotProps): React.Re
 }
 
 registerContentSlot('followups', {
+  id: 'followups',
   component: FollowupsSlot,
   order: 30,
   hasContent: (section) => (section.followups ?? []).length > 0,

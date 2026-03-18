@@ -13,9 +13,10 @@ import {
   buildSessionInitMessage,
   getVersions,
   ensureActiveChat,
+  formatError,
 } from './utils/ws-helpers.js';
 import type { ClientMessage, WsMessage, VersionStore } from '../shared/types.js';
-import { createChatLogger } from './logger.js';
+import { createChatLogger, nullLogger } from './logger.js';
 
 const MIME_TYPES: Record<string, string> = {
   '.html': 'text/html',
@@ -119,7 +120,7 @@ export async function startServer(options: {
 
       watcher.start(chatDir);
     });
-    switchLock = op.catch(() => {});
+    switchLock = op.catch((err) => console.error('switchToChat failed', { error: formatError(err) }));
     return op;
   }
 
@@ -165,8 +166,8 @@ export async function startServer(options: {
         await routeMessage(ws, clientMessage, { state, chatStore, broadcast, switchToChat });
       } catch (err) {
         const chatDir = state.activeChatId ? chatStore.getChatDir(state.activeChatId) : null;
-        const log = chatDir ? createChatLogger(chatDir) : null;
-        log?.error('Error handling client message', { error: String(err) });
+        const log = chatDir ? createChatLogger(chatDir) : nullLogger;
+        log.error('Error handling client message', { error: formatError(err) });
       }
     });
   });

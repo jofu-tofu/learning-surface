@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Icon } from '../Icon.js';
+import { contentCard } from '../../utils/styles.js';
 import { registerContentSlot, SlotHeading, type ContentSlotProps } from './registry.js';
 
 function ChecksSlot({ section }: ContentSlotProps): React.ReactElement {
@@ -23,7 +24,7 @@ function ChecksSlot({ section }: ContentSlotProps): React.ReactElement {
         return (
           <div
             key={check.id}
-            className={`rounded-xl border bg-surface-800/40 transition-colors ${revealed ? 'border-accent-500/30' : 'border-surface-700/60 hover:border-surface-600/80'}`}
+            className={`${contentCard} ${revealed ? 'border-accent-500/30' : 'border-surface-700/60 hover:border-surface-600/80'}`}
           >
             <button
               type="button"
@@ -56,6 +57,7 @@ function ChecksSlot({ section }: ContentSlotProps): React.ReactElement {
 }
 
 registerContentSlot('checks', {
+  id: 'checks',
   component: ChecksSlot,
   order: 20,
   hasContent: (section) => (section.checks ?? []).length > 0,

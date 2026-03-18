@@ -41,6 +41,20 @@ export const ARROW_WIDTH = 8;
 export const ARROW_HEIGHT = 6;
 export const ARROW_PATH = 'M 0 0 L 10 4 L 0 8 Z';
 
+// --- Shape Constants ---
+
+export const RECT_CORNER_RADIUS = 4;
+export const ROUNDED_CORNER_RADIUS = 12;
+export const SHAPE_STROKE_WIDTH = 1.5;
+
+// --- Animation Constants ---
+
+export const ANIMATION_DURATION = 0.4;
+export const NODE_STAGGER_DELAY = 0.05;
+export const EDGE_BASE_DELAY = 0.1;
+export const EDGE_STAGGER_DELAY = 0.03;
+export const DIMMED_OPACITY = 0.4;
+
 // --- Shared Bezier Helpers ---
 
 /** Compute Bezier control point offset from distance between endpoints. */

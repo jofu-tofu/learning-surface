@@ -83,27 +83,23 @@ function createSection(title: string): Section {
   };
 }
 
-// === Core Merge Logic ===
+// === Section Update Helpers ===
 
-function applySectionUpdate(
+function resolveOrCreateSection(
   doc: LearningDocument,
   update: SectionUpdateInput,
   errors: string[],
-): SectionResult {
-  // Resolve or create section
-  let section: Section | undefined;
-  let isNew = false;
-
+): { section: Section; isNew: boolean } | { errorResult: SectionResult } {
   if (update.id) {
-    section = findSectionById(doc, update.id);
+    const section = findSectionById(doc, update.id);
     if (!section) {
       const availableIds = doc.sections.map(section => section.id).join(', ');
       errors.push(`Section '${update.id}' not found. Available: [${availableIds}]`);
-      return { id: update.id, results: {} };
+      return { errorResult: { id: update.id, results: {} } };
     }
+    return { section, isNew: false };
   } else if (update.title) {
-    section = createSection(update.title);
-    isNew = true;
+    const section = createSection(update.title);
 
     // Auto-remove empty "Untitled" placeholder
     const untitledIndex = doc.sections.findIndex(section => section.id === 'untitled');
@@ -122,20 +118,21 @@ function applySectionUpdate(
     }
 
     doc.sections.push(section);
+    return { section, isNew: true };
   } else {
     errors.push("Section requires either 'id' (existing) or 'title' (new)");
-    return { id: '', results: {} };
+    return { errorResult: { id: '', results: {} } };
   }
+}
 
-  const result: SectionResult = { id: section.id, results: {} };
-
-  // Update title if specified on existing section
+function updateTitle(section: Section, update: SectionUpdateInput, isNew: boolean, result: SectionResult): void {
   if (update.title && !isNew) {
     section.title = update.title;
     result.results.title = true;
   }
+}
 
-  // Apply clear BEFORE other changes
+function clearFields(section: Section, update: SectionUpdateInput, result: SectionResult): void {
   if (update.clear && update.clear.length > 0) {
     for (const target of update.clear) {
       switch (target) {
@@ -158,55 +155,54 @@ function applySectionUpdate(
     }
     result.results.clear = true;
   }
+}
 
-  // Canvases: upsert by ID
-  if (update.canvases) {
-    const canvasResults: Record<string, CanvasResult> = {};
+function upsertCanvases(section: Section, update: SectionUpdateInput, errors: string[], result: SectionResult): void {
+  if (!update.canvases) return;
 
-    for (const canvasInput of update.canvases) {
-      // Validate structured content
-      const validationError = validateCanvasContent(canvasInput);
-      if (validationError) {
-        canvasResults[canvasInput.id] = { success: false, error: validationError };
-        errors.push(`Section '${section.id}' canvas '${canvasInput.id}': ${validationError}`);
-        continue;
-      }
+  const canvasResults: Record<string, CanvasResult> = {};
 
-      const existingIndex = section.canvases.findIndex(canvas => canvas.id === canvasInput.id);
-      const canvas: CanvasContent = {
-        id: canvasInput.id,
-        type: canvasInput.type,
-        content: canvasInput.content,
-        ...(canvasInput.language ? { language: canvasInput.language } : {}),
-      };
-
-      if (existingIndex >= 0) {
-        // Replace existing
-        section.canvases[existingIndex] = canvas;
-        canvasResults[canvasInput.id] = { success: true };
-      } else if (section.canvases.length < MAX_CANVASES) {
-        // Append new
-        section.canvases.push(canvas);
-        canvasResults[canvasInput.id] = { success: true };
-      } else {
-        // Cap exceeded
-        const existingIds = section.canvases.map(canvas => canvas.id).join(', ');
-        const capError = `Maximum ${MAX_CANVASES} canvases. Cannot add '${canvasInput.id}'. Existing: [${existingIds}]`;
-        canvasResults[canvasInput.id] = { success: false, error: capError };
-        errors.push(`Section '${section.id}': ${capError}`);
-      }
+  for (const canvasInput of update.canvases) {
+    const validationError = validateCanvasContent(canvasInput);
+    if (validationError) {
+      canvasResults[canvasInput.id] = { success: false, error: validationError };
+      errors.push(`Section '${section.id}' canvas '${canvasInput.id}': ${validationError}`);
+      continue;
     }
 
-    result.results.canvases = canvasResults;
+    const existingIndex = section.canvases.findIndex(canvas => canvas.id === canvasInput.id);
+    const canvas: CanvasContent = {
+      id: canvasInput.id,
+      type: canvasInput.type,
+      content: canvasInput.content,
+      ...(canvasInput.language ? { language: canvasInput.language } : {}),
+    };
+
+    if (existingIndex >= 0) {
+      section.canvases[existingIndex] = canvas;
+      canvasResults[canvasInput.id] = { success: true };
+    } else if (section.canvases.length < MAX_CANVASES) {
+      section.canvases.push(canvas);
+      canvasResults[canvasInput.id] = { success: true };
+    } else {
+      const existingIds = section.canvases.map(canvas => canvas.id).join(', ');
+      const capError = `Maximum ${MAX_CANVASES} canvases. Cannot add '${canvasInput.id}'. Existing: [${existingIds}]`;
+      canvasResults[canvasInput.id] = { success: false, error: capError };
+      errors.push(`Section '${section.id}': ${capError}`);
+    }
   }
 
-  // Explanation: replace
+  result.results.canvases = canvasResults;
+}
+
+function updateExplanation(section: Section, update: SectionUpdateInput, result: SectionResult): void {
   if (update.explanation !== undefined) {
     section.explanation = update.explanation;
     result.results.explanation = true;
   }
+}
 
-  // Deeper patterns: replace
+function updateDeeperPatterns(section: Section, update: SectionUpdateInput, result: SectionResult): void {
   if (update.deeperPatterns !== undefined) {
     section.deeperPatterns = update.deeperPatterns.map(dp => ({
       pattern: dp.pattern,
@@ -214,40 +210,66 @@ function applySectionUpdate(
     }));
     result.results.deeperPatterns = true;
   }
+}
 
-  // Checks: append
-  if (update.checks) {
-    if (!section.checks) section.checks = [];
-    const checkResults: Record<string, boolean> = {};
+function appendChecks(section: Section, update: SectionUpdateInput, result: SectionResult): void {
+  if (!update.checks) return;
 
-    for (const checkInput of update.checks) {
-      const id = `c${section.checks.length + 1}`;
-      const check: Check = {
-        id,
-        question: checkInput.question,
-        status: 'unanswered',
-        ...(checkInput.hints ? { hints: checkInput.hints } : {}),
-        answer: checkInput.answer,
-        ...(checkInput.answerExplanation ? { answerExplanation: checkInput.answerExplanation } : {}),
-      };
-      section.checks.push(check);
-      checkResults[id] = true;
-    }
+  if (!section.checks) section.checks = [];
+  const checkResults: Record<string, boolean> = {};
 
-    result.results.checks = checkResults;
+  for (const checkInput of update.checks) {
+    const id = `c${section.checks.length + 1}`;
+    const check: Check = {
+      id,
+      question: checkInput.question,
+      status: 'unanswered',
+      ...(checkInput.hints ? { hints: checkInput.hints } : {}),
+      answer: checkInput.answer,
+      ...(checkInput.answerExplanation ? { answerExplanation: checkInput.answerExplanation } : {}),
+    };
+    section.checks.push(check);
+    checkResults[id] = true;
   }
 
-  // Followups: replace
+  result.results.checks = checkResults;
+}
+
+function updateFollowups(section: Section, update: SectionUpdateInput, result: SectionResult): void {
   if (update.followups !== undefined) {
     section.followups = update.followups;
     result.results.followups = true;
   }
+}
 
-  // Active: set active section
+function setActiveSection(doc: LearningDocument, section: Section, update: SectionUpdateInput, result: SectionResult): void {
   if (update.active) {
     doc.activeSection = section.id;
     result.results.active = true;
   }
+}
+
+// === Core Merge Logic ===
+
+function applySectionUpdate(
+  doc: LearningDocument,
+  update: SectionUpdateInput,
+  errors: string[],
+): SectionResult {
+  const resolved = resolveOrCreateSection(doc, update, errors);
+  if ('errorResult' in resolved) return resolved.errorResult;
+
+  const { section, isNew } = resolved;
+  const result: SectionResult = { id: section.id, results: {} };
+
+  updateTitle(section, update, isNew, result);
+  clearFields(section, update, result);
+  upsertCanvases(section, update, errors, result);
+  updateExplanation(section, update, result);
+  updateDeeperPatterns(section, update, result);
+  appendChecks(section, update, result);
+  updateFollowups(section, update, result);
+  setActiveSection(doc, section, update, result);
 
   return result;
 }

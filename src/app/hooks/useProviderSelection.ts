@@ -6,7 +6,6 @@ interface UseProviderSelectionReturn {
   selectedProvider: string | null;
   selectedModel: string | null;
   selectedReasoningEffort: ReasoningEffort | null;
-  setProviders: (providers: ProviderInfo[]) => void;
   setSelectedProvider: (id: string) => void;
   setSelectedModel: (id: string) => void;
   setSelectedReasoningEffort: (effort: ReasoningEffort) => void;
@@ -61,7 +60,7 @@ export function useProviderSelection(): UseProviderSelectionReturn {
 
   return {
     providers, selectedProvider, selectedModel, selectedReasoningEffort,
-    setProviders, setSelectedProvider, setSelectedModel, setSelectedReasoningEffort,
+    setSelectedProvider, setSelectedModel, setSelectedReasoningEffort,
     autoSelect,
   };
 }

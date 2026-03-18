@@ -52,22 +52,19 @@ describe('reduceSurfaceMessage', () => {
       expect(result.state.chats).toEqual(chats);
       // No activeChatId in message → enters draft mode
       expect(result.state.activeChatId).toBe(DRAFT_CHAT_ID);
-      expect(result.state.isDraftChat).toBe(true);
     });
 
     it('enters draft mode when activeChatId is absent', () => {
-      const s = state({ activeChatId: 'c1', isDraftChat: false });
+      const s = state({ activeChatId: 'c1' });
       const result = reduceSurfaceMessage(s, sessionInit(), null);
 
-      expect(result.state.isDraftChat).toBe(true);
       expect(result.state.activeChatId).toBe(DRAFT_CHAT_ID);
     });
 
     it('exits draft mode when activeChatId is provided', () => {
-      const s = state({ activeChatId: DRAFT_CHAT_ID, isDraftChat: true });
+      const s = state({ activeChatId: DRAFT_CHAT_ID });
       const result = reduceSurfaceMessage(s, sessionInit({ activeChatId: 'c1' }), null);
 
-      expect(result.state.isDraftChat).toBe(false);
       expect(result.state.activeChatId).toBe('c1');
     });
 

@@ -28,12 +28,7 @@ const EMPTY: SurfaceStatusValue = {
 const SurfaceStatusContext = createContext<SurfaceStatusValue>(EMPTY);
 
 export function SurfaceStatusProvider({ children, ...value }: SurfaceStatusValue & { children: React.ReactNode }): React.ReactElement {
-  const memo = React.useMemo(
-    () => value,
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- identity of Sets changes per render; the provider sits at the root so this is fine
-    [value.isProcessing, value.flashPanes, value.versionChangedPanes, value.changedSectionIds, value.flashSectionIds, value.activity],
-  );
-  return <SurfaceStatusContext value={memo}>{children}</SurfaceStatusContext>;
+  return <SurfaceStatusContext value={value}>{children}</SurfaceStatusContext>;
 }
 
 export function useIsProcessing(): boolean {

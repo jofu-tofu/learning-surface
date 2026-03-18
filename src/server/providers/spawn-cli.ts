@@ -71,16 +71,6 @@ export async function spawnCli(
   await runCliProcess(command, args, label, spawnOptions, { log: true, logger });
 }
 
-/** Spawn a CLI subprocess, capture stdout and return it as a string. Rejects on non-zero exit. */
-export async function spawnCliCapture(
-  command: string,
-  args: string[],
-  label: string,
-  spawnOptions?: SpawnOptions,
-): Promise<string> {
-  return runCliProcess(command, args, label, spawnOptions);
-}
-
 /** Check if a CLI binary is available on PATH. */
 export function checkCliAvailable(command: string): Promise<PreflightResult> {
   return new Promise((resolve) => {

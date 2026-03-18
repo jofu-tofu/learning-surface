@@ -79,7 +79,7 @@ export type SequenceMessage = SequenceData['messages'][number];
 
 // === design_surface Schema ===
 
-const CanvasInputSchema = z.object({
+export const CanvasInputSchema = z.object({
   id: z.string(),
   type: z.enum(['katex', 'code', 'diagram', 'timeline', 'proof', 'sequence']),
   content: z.string().describe(
@@ -210,3 +210,36 @@ export function zodToJsonSchema(schema: z.ZodObject<z.ZodRawShape>): Record<stri
     ...(required.length > 0 ? { required } : {}),
   };
 }
+
+// === Zod Schema for .surface file validation ===
+
+export const CheckSchema = z.object({
+  id: z.string(),
+  question: z.string(),
+  status: z.enum(['unanswered', 'attempted', 'revealed']),
+  hints: z.array(z.string()).optional(),
+  answer: z.string(),
+  answerExplanation: z.string().optional(),
+});
+
+export const DeeperPatternSchema = z.object({
+  pattern: z.string(),
+  connection: z.string(),
+});
+
+export const SectionSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  canvases: z.array(CanvasInputSchema),
+  explanation: z.string().optional(),
+  deeperPatterns: z.array(DeeperPatternSchema).default([]),
+  checks: z.array(CheckSchema).optional(),
+  followups: z.array(z.string()).optional(),
+});
+
+export const SurfaceFileSchema = z.object({
+  version: z.number(),
+  activeSection: z.string(),
+  summary: z.string().optional(),
+  sections: z.array(SectionSchema),
+});

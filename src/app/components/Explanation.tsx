@@ -36,8 +36,8 @@ export function Explanation({ section, onFollowupClick }: ExplanationProps): Rea
 
   return (
     <div ref={refreshRef} className="explanation-pane space-y-6">
-      {section && activeSlots.map((slot, index) => (
-        <slot.component key={index} section={section} onFollowupClick={onFollowupClick} />
+      {section && activeSlots.map((slot) => (
+        <slot.component key={slot.id} section={section} {...(slot.id === 'followups' ? { onFollowupClick } : {})} />
       ))}
 
       {activeSlots.length === 0 && (

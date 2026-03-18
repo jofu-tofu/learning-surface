@@ -19,6 +19,7 @@ export function SlotHeading({ icon, children }: { icon: string; children: React.
 }
 
 interface ContentSlotEntry {
+  id: string;
   component: React.ComponentType<ContentSlotProps>;
   order: number;
   hasContent: (section: Section) => boolean;

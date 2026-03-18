@@ -16,6 +16,12 @@ export const sectionLabel = 'text-[10px] font-semibold uppercase tracking-widest
 /** Popover panel chrome shared by dropdown menus and branch popovers. */
 export const popoverPanel = 'absolute bottom-full left-1/2 -translate-x-1/2 mb-2 rounded-xl border border-surface-600/60 bg-surface-800 shadow-xl shadow-shadow-color';
 
+/** Rounded card chrome shared by content-slot items (checks, deeper-patterns, etc.). */
+export const contentCard = 'rounded-xl border bg-surface-800/40 transition-colors';
+
+/** "Updated" badge text style shared by PaneHeader and Sidebar. */
+export const updatedBadge = 'text-[9px] font-semibold uppercase tracking-wider animate-[fade-in_0.3s_ease-out]';
+
 /** Active/inactive styles for menu items inside popovers. */
-export const menuItemActive = 'text-accent-300 bg-accent-600/10';
+export const menuItemActive = 'text-accent-400 bg-accent-600/10';
 export const menuItemInactive = 'text-surface-300 hover:bg-surface-700/50 hover:text-surface-100';

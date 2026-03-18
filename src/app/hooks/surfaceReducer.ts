@@ -21,8 +21,6 @@ export interface SurfaceState {
   currentVersion: number;
   chats: Chat[];
   activeChatId: string | null;
-  /** True when the active "chat" is a local draft that hasn't been persisted yet. */
-  isDraftChat: boolean;
   isProcessing: boolean;
   changedPanes: Set<string>;
   /** Panes that changed in the current version compared to the previous version (persists until next version transition). */
@@ -41,7 +39,6 @@ export const INITIAL_SURFACE_STATE: SurfaceState = {
   currentVersion: 0,
   chats: [],
   activeChatId: null,
-  isDraftChat: false,
   isProcessing: false,
   changedPanes: new Set(),
   versionChangedPanes: new Set(),
@@ -55,7 +52,6 @@ export const INITIAL_SURFACE_STATE: SurfaceState = {
 
 type SurfaceEffect =
   | { type: 'auto-select-providers'; providers: ProviderInfo[] }
-  | { type: 'set-providers'; providers: ProviderInfo[] }
   | { type: 'reset-settle-timer' }
   | { type: 'schedule-flash-clear' }
   | { type: 'clear-settle-timer' }
@@ -99,7 +95,6 @@ export function reduceSurfaceMessage(
           versions: msg.versions,
           chats: msg.chats,
           activeChatId: hasActiveChat ? msg.activeChatId! : DRAFT_CHAT_ID,
-          isDraftChat: !hasActiveChat,
           isProcessing: false,
           activity: null,
           changedPanes: new Set(),
@@ -192,7 +187,6 @@ export function reduceSurfaceMessage(
           ...state,
           chats: msg.chats,
           activeChatId: msg.activeChatId ?? state.activeChatId,
-          isDraftChat: msg.activeChatId ? false : state.isDraftChat,
         },
         effects: [],
         prevDoc,
@@ -201,7 +195,7 @@ export function reduceSurfaceMessage(
     case 'provider-list':
       return {
         state,
-        effects: [{ type: 'set-providers', providers: msg.providers }],
+        effects: [{ type: 'auto-select-providers', providers: msg.providers }],
         prevDoc,
       };
 

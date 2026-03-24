@@ -1,11 +1,15 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import type { LearningDocument, VersionMeta, WsMessage, Chat, ClientMessage } from '../../shared/types.js';
-import { DRAFT_CHAT_ID } from '../../shared/types.js';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import type { LearningDocument, VersionMeta, WsMessage, Chat } from '../../shared/types.js';
 import type { ProviderInfo, ReasoningEffort } from '../../shared/providers.js';
-import { getVersionPath, getForwardPath } from '../../shared/version-tree.js';
 import { useWebSocket } from './useWebSocket.js';
 import { useProviderSelection } from './useProviderSelection.js';
 import { reduceSurfaceMessage, INITIAL_SURFACE_STATE, type SurfaceState, type ToolActivity } from './surfaceReducer.js';
+import { useDocumentActions } from './useDocumentActions.js';
+import { useChatActions } from './useChatActions.js';
+import { useProcessingState } from './useProcessingState.js';
+import { useChangeDetection } from './useChangeDetection.js';
+import { useStudyMode } from './useStudyMode.js';
+import { usePromptSubmission } from './usePromptSubmission.js';
 
 export type { ToolActivity } from './surfaceReducer.js';
 
@@ -53,6 +57,11 @@ interface UseSurfaceReturn {
   /** Error from provider preflight or runtime failure */
   providerError: string | null;
   clearProviderError: () => void;
+  /** Study mode state */
+  studyMode: boolean;
+  studyModeLocked: boolean;
+  setStudyMode: (enabled: boolean) => void;
+  submitPrediction: (sectionId: string, responses: Record<string, string>) => void;
 }
 
 const WS_URL = typeof window !== 'undefined'
@@ -61,10 +70,6 @@ const WS_URL = typeof window !== 'undefined'
 
 export function useSurface(): UseSurfaceReturn {
   const [state, setState] = useState<SurfaceState>(INITIAL_SURFACE_STATE);
-  const { document, versions, currentVersion, chats, activeChatId,
-          isProcessing, changedPanes, versionChangedPanes, changedSectionIds,
-          flashSectionIds, activity, providerError } = state;
-  const isDraftChat = activeChatId === DRAFT_CHAT_ID;
   const {
     providers, selectedProvider, selectedModel, selectedReasoningEffort,
     setSelectedProvider, setSelectedModel, setSelectedReasoningEffort,
@@ -73,8 +78,32 @@ export function useSurface(): UseSurfaceReturn {
   const prevDocRef = useRef<LearningDocument | null>(null);
   const settleTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const flashTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const pendingPromptRef = useRef<Omit<Extract<ClientMessage, { type: 'prompt' }>, 'type'> & { isDraft?: boolean } | null>(null);
   const sendRef = useRef<(data: unknown) => void>(() => {});
+
+  // --- Domain hooks (facades over shared SurfaceState) ---
+
+  const { document, versions, currentVersion, path, forwardPath, selectVersion, selectSection } =
+    useDocumentActions(state, setState, sendRef.current);
+
+  const { chats, activeChatId, isDraftChat, newChat, switchChat, deleteChat, renameChat } =
+    useChatActions(state, setState, sendRef.current);
+
+  const { isProcessing, activity } = useProcessingState(state);
+  const { changedPanes, versionChangedPanes, changedSectionIds, flashSectionIds } = useChangeDetection(state);
+  const { studyMode, studyModeLocked, setStudyMode } = useStudyMode(state, setState);
+
+  const { submitPrompt, submitPrediction, executePendingPromptEffect, clearPendingPrompt } =
+    usePromptSubmission(state, setState, sendRef.current, isDraftChat, {
+      selectedProvider, selectedModel, selectedReasoningEffort,
+    });
+
+  // Keep refs to pending-prompt callbacks so onMessage stays stable (no WS reconnects).
+  const pendingPromptRef = useRef(executePendingPromptEffect);
+  const clearPendingRef = useRef(clearPendingPrompt);
+  useEffect(() => { pendingPromptRef.current = executePendingPromptEffect; }, [executePendingPromptEffect]);
+  useEffect(() => { clearPendingRef.current = clearPendingPrompt; }, [clearPendingPrompt]);
+
+  // --- Effect executor (cross-cutting: timers + pending prompt) ---
 
   const onMessage = useCallback((msg: WsMessage) => {
     setState(prevState => {
@@ -108,14 +137,10 @@ export function useSurface(): UseSurfaceReturn {
                 clearTimeout(settleTimerRef.current);
                 break;
               case 'send-pending-prompt':
-                if (pendingPromptRef.current) {
-                  const { isDraft, ...promptData } = pendingPromptRef.current;
-                  sendRef.current({ type: isDraft ? 'new-chat-with-prompt' : 'prompt', ...promptData });
-                  pendingPromptRef.current = null;
-                }
+                pendingPromptRef.current();
                 break;
               case 'clear-pending-prompt':
-                pendingPromptRef.current = null;
+                clearPendingRef.current();
                 break;
             }
           }
@@ -134,77 +159,6 @@ export function useSurface(): UseSurfaceReturn {
   const { connected, send } = useWebSocket({ url: WS_URL, onMessage });
   useEffect(() => { sendRef.current = send; }, [send]);
 
-  const path = useMemo(() => getVersionPath(currentVersion, versions), [currentVersion, versions]);
-  const forwardPath = useMemo(() => getForwardPath(currentVersion, versions), [currentVersion, versions]);
-
-  const submitPrompt = useCallback((text: string) => {
-    setState(prevState => ({ ...prevState, isProcessing: true, providerError: null }));
-
-    const msgType = isDraftChat ? 'new-chat-with-prompt' : 'prompt';
-
-    if (!selectedProvider || !selectedModel) {
-      send({
-        type: msgType,
-        text,
-        fromVersion: isDraftChat ? undefined : currentVersion,
-        provider: selectedProvider,
-        model: selectedModel,
-        reasoningEffort: selectedReasoningEffort ?? undefined,
-      } as ClientMessage);
-      return;
-    }
-
-    // Store prompt for after preflight succeeds
-    pendingPromptRef.current = {
-      text,
-      fromVersion: isDraftChat ? undefined : currentVersion,
-      provider: selectedProvider,
-      model: selectedModel,
-      reasoningEffort: selectedReasoningEffort ?? undefined,
-      isDraft: isDraftChat,
-    };
-
-    // Run preflight check before sending the prompt
-    send({ type: 'preflight', provider: selectedProvider, model: selectedModel });
-  }, [send, currentVersion, selectedProvider, selectedModel, selectedReasoningEffort, isDraftChat]);
-
-  const selectVersion = useCallback((version: number) => {
-    setState(prevState => ({ ...prevState, currentVersion: version }));
-    send({ type: 'select-version', version });
-  }, [send]);
-
-  const selectSection = useCallback((sectionId: string) => {
-    setState(prevState => ({
-      ...prevState,
-      document: prevState.document ? { ...prevState.document, activeSection: sectionId } : prevState.document,
-    }));
-    send({ type: 'select-section', sectionId });
-  }, [send]);
-
-  const newChat = useCallback(() => {
-    setState(prev => {
-      if (prev.activeChatId === DRAFT_CHAT_ID) return prev; // already in draft mode
-      return {
-        ...INITIAL_SURFACE_STATE,
-        chats: prev.chats,
-        activeChatId: DRAFT_CHAT_ID,
-        providerError: null,
-      };
-    });
-  }, []);
-
-  const switchChat = useCallback((chatId: string) => {
-    send({ type: 'switch-chat', chatId });
-  }, [send]);
-
-  const deleteChat = useCallback((chatId: string) => {
-    send({ type: 'delete-chat', chatId });
-  }, [send]);
-
-  const renameChat = useCallback((chatId: string, title: string) => {
-    send({ type: 'rename-chat', chatId, title });
-  }, [send]);
-
   const clearProviderError = useCallback(() => setState(prevState => ({ ...prevState, providerError: null })), []);
 
   return {
@@ -215,6 +169,7 @@ export function useSurface(): UseSurfaceReturn {
     isProcessing, changedPanes, versionChangedPanes, changedSectionIds, flashSectionIds, activity,
     providers, selectedProvider, selectedModel, selectedReasoningEffort,
     setSelectedProvider, setSelectedModel, setSelectedReasoningEffort,
-    providerError, clearProviderError,
+    providerError: state.providerError, clearProviderError,
+    studyMode, studyModeLocked, setStudyMode, submitPrediction,
   };
 }

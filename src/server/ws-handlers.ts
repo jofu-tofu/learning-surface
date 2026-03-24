@@ -6,9 +6,9 @@ import { getProvider as getProviderFromRegistry, listProviders } from './provide
 import type {
   ClientMessage,
   LearningDocument,
-  VersionStore,
   WsMessage,
 } from '../shared/types.js';
+import type { VersionStore } from './types.js';
 import type { ChatStore } from './chat-store.js';
 import {
   sendMessage,
@@ -25,6 +25,11 @@ export interface SessionState {
   activeChatId: string | null;
   activeVersionStore: VersionStore | null;
   latestDocument: LearningDocument | null;
+  /** Last provider/model used, for auto-triggering explain phase after prediction submission. */
+  lastProvider?: string;
+  lastModel?: string;
+  /** Mode for the current chat session. */
+  mode?: 'study' | 'answer';
 }
 
 interface HandlerDeps {
@@ -55,23 +60,32 @@ async function broadcastSessionState(deps: {
   }));
 }
 
+/** Create a new chat and switch to it.  Returns the new chat ID. */
+async function createChat(
+  deps: Pick<HandlerDeps, 'chatStore' | 'switchToChat'>,
+): Promise<string> {
+  const { chatStore, switchToChat } = deps;
+  const chat = chatStore.createChat();
+  await chatStore.save();
+  await switchToChat(chat.id);
+  return chat.id;
+}
+
 /** Create a new chat, switch to it, and broadcast the updated state. */
 async function createAndInitChat(
   ws: WebSocket,
   deps: Pick<HandlerDeps, 'chatStore' | 'switchToChat' | 'broadcast'>,
 ): Promise<void> {
-  const { chatStore, switchToChat, broadcast } = deps;
-  const chat = chatStore.createChat();
-  await chatStore.save();
-  await switchToChat(chat.id);
+  const { chatStore, broadcast } = deps;
+  const chatId = await createChat(deps);
 
-  broadcast(buildChatListMessage(chatStore.listChats(), chat.id));
+  broadcast(buildChatListMessage(chatStore.listChats(), chatId));
 
   sendMessage(ws, buildSessionInitMessage({
-    sessionDir: chatStore.getChatDir(chat.id),
+    sessionDir: chatStore.getChatDir(chatId),
     versions: [],
     chats: chatStore.listChats(),
-    activeChatId: chat.id,
+    activeChatId: chatId,
   }));
 }
 
@@ -99,7 +113,10 @@ export async function routeMessage(
     }
 
     case 'new-chat-with-prompt': {
-      await createAndInitChat(ws, deps);
+      // Create the chat but DON'T send session-init (which resets isProcessing).
+      // Only broadcast chat-list so the sidebar updates while the prompt processes.
+      const chatId = await createChat(deps);
+      broadcast(buildChatListMessage(chatStore.listChats(), chatId));
 
       // Then process the prompt in the new chat
       const promptMsg: ClientMessage = {
@@ -109,6 +126,7 @@ export async function routeMessage(
         model: msg.model,
         reasoningEffort: msg.reasoningEffort,
         fromVersion: msg.fromVersion,
+        predictionMode: msg.predictionMode,
       };
       await routeMessage(ws, promptMsg, deps);
       return;
@@ -190,6 +208,11 @@ export async function routeMessage(
       const versionLogSuffix = msg.fromVersion ? ` (from v${msg.fromVersion})` : '';
       log.info(`Prompt received${versionLogSuffix}`, { text, providerId: providerId ?? 'none', modelId: modelId ?? 'none', reasoningEffort: reasoningEffort ?? 'default' });
 
+      // Track provider/model/mode for auto-triggering explain phase
+      if (providerId) state.lastProvider = providerId;
+      if (modelId) state.lastModel = modelId;
+      if (msg.predictionMode) state.mode = msg.predictionMode;
+
       if (!providerId || !modelId) {
         log.info('No provider/model selected — waiting for REPL to call MCP tools');
         return;
@@ -209,6 +232,7 @@ export async function routeMessage(
           chatDir: chatDir!,
           latestDocument: state.latestDocument,
           versionStore: state.activeVersionStore,
+          mode: state.mode ?? 'answer',
           onProgress(toolName, step) {
             broadcast({ type: 'tool-progress', toolName, step });
           },
@@ -219,6 +243,73 @@ export async function routeMessage(
         const errorMessage = formatError(err);
         log.error('Provider error', { error: errorMessage, providerId, modelId, text });
         broadcast({ type: 'provider-error', error: errorMessage });
+      }
+      return;
+    }
+
+    case 'submit-prediction': {
+      if (!state.activeChatId || !state.activeVersionStore) {
+        sendMessage(ws, { type: 'provider-error', error: 'No active chat' });
+        return;
+      }
+
+      const chatDir = chatStore.getChatDir(state.activeChatId);
+      const log = createChatLogger(chatDir);
+      const filePath = documentService.filePath(chatDir);
+      const doc = documentService.read(filePath);
+      if (!doc) {
+        sendMessage(ws, { type: 'provider-error', error: 'No document found' });
+        return;
+      }
+
+      // Find the target section
+      const section = doc.sections.find(s => s.id === msg.sectionId);
+      if (!section?.predictionScaffold) {
+        sendMessage(ws, { type: 'provider-error', error: `Section '${msg.sectionId}' has no prediction scaffold` });
+        return;
+      }
+
+      // Write learner responses into claims
+      for (const claim of section.predictionScaffold.claims) {
+        if (msg.responses[claim.id] !== undefined) {
+          claim.value = msg.responses[claim.id];
+        }
+      }
+
+      // Update phase to explain
+      section.phase = 'explain';
+
+      // Bump version and write
+      doc.version++;
+      documentService.write(filePath, doc);
+
+      // Create a version snapshot with source: 'learner'
+      const content = documentService.readRaw(filePath) ?? '';
+      await state.activeVersionStore.createVersion(content, {
+        prompt: null,
+        summary: 'Predictions submitted',
+        timestamp: new Date().toISOString(),
+        source: 'learner',
+        changedPanes: ['prediction'],
+        changedSectionIds: [msg.sectionId],
+      });
+
+      state.latestDocument = doc;
+      log.info('Prediction submitted', { sectionId: msg.sectionId, responses: msg.responses });
+
+      // Re-write to trigger watcher with updated version list
+      documentService.write(filePath, doc);
+
+      // Auto-trigger explain phase if we have a provider
+      if (state.lastProvider && state.lastModel) {
+        const explainMsg: ClientMessage = {
+          type: 'prompt',
+          text: 'Generate explanation addressing the learner\'s predictions',
+          provider: state.lastProvider,
+          model: state.lastModel,
+          predictionMode: 'study',
+        };
+        await routeMessage(ws, explainMsg, deps);
       }
       return;
     }

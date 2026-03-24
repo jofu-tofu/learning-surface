@@ -270,6 +270,77 @@ describe('ws-handlers other routes', () => {
     expect(sessionInit).toBeDefined();
   });
 
+  // --- new-chat-with-prompt ---
+
+  it('new-chat-with-prompt must NOT send session-init (preserves isProcessing on client)', async () => {
+    const { ws, send, broadcast } = setup({
+      toolCalls: [{ toolName: 'design_surface', params: { summary: 'Trees', sections: [{ id: 'intro', explanation: 'A tree is...' }] } }],
+    });
+
+    await send({
+      type: 'new-chat-with-prompt',
+      text: 'explain binary trees',
+      provider: 'fake',
+      model: 'fake-model',
+      predictionMode: 'answer',
+    });
+
+    // Must NOT send session-init to the requesting client (that resets isProcessing)
+    const sessionInit = ws.sent.find(m => m.type === 'session-init');
+    expect(sessionInit).toBeUndefined();
+
+    // Must NOT broadcast session-init either
+    const sessionBroadcast = broadcast.mock.calls.find(
+      ([m]) => (m as WsMessage).type === 'session-init',
+    );
+    expect(sessionBroadcast).toBeUndefined();
+  });
+
+  it('new-chat-with-prompt creates chat, broadcasts chat-list, and processes prompt', async () => {
+    const { ws, send, deps, broadcast } = setup({
+      toolCalls: [{ toolName: 'design_surface', params: { summary: 'Trees', sections: [{ id: 'intro', explanation: 'A tree is...' }] } }],
+    });
+
+    await send({
+      type: 'new-chat-with-prompt',
+      text: 'explain binary trees',
+      provider: 'fake',
+      model: 'fake-model',
+      predictionMode: 'answer',
+    });
+
+    // Creates and switches to a new chat
+    expect(deps.switchToChat).toHaveBeenCalled();
+
+    // Broadcasts chat-list (sidebar update)
+    const chatListBroadcast = broadcast.mock.calls.find(
+      ([m]) => (m as WsMessage).type === 'chat-list',
+    );
+    expect(chatListBroadcast).toBeDefined();
+
+    // Prompt is processed: prompt-complete is sent
+    const complete = ws.sent.find(m => m.type === 'prompt-complete');
+    expect(complete).toBeDefined();
+  });
+
+  it('new-chat-with-prompt forwards predictionMode to the prompt handler', async () => {
+    const { ws, send, state } = setup({
+      toolCalls: [{ toolName: 'design_surface', params: { summary: 'Trees', sections: [{ id: 'intro', explanation: 'A tree is...' }] } }],
+    });
+
+    await send({
+      type: 'new-chat-with-prompt',
+      text: 'explain binary trees',
+      provider: 'fake',
+      model: 'fake-model',
+      predictionMode: 'study',
+    });
+
+    expect(state.mode).toBe('study');
+    const complete = ws.sent.find(m => m.type === 'prompt-complete');
+    expect(complete).toBeDefined();
+  });
+
   // --- switch-chat ---
 
   it('switch-chat with valid id calls switchToChat and broadcasts', async () => {

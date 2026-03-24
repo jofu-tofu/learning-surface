@@ -1,6 +1,7 @@
 import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import reactHooks from 'eslint-plugin-react-hooks';
+import stableWsCallback from './eslint-rules/stable-websocket-callback.js';
 
 export default tseslint.config(
   { ignores: ['dist/'] },
@@ -13,6 +14,19 @@ export default tseslint.config(
   {
     files: ['src/app/**/*.{ts,tsx}'],
     ...reactHooks.configs.flat['recommended-latest'],
+  },
+
+  // Project-specific: prevent unstable onMessage → WebSocket reconnect loops
+  {
+    files: ['src/app/**/*.{ts,tsx}'],
+    plugins: {
+      'project': { rules: { 'stable-websocket-callback': stableWsCallback } },
+    },
+    rules: {
+      'project/stable-websocket-callback': ['error', {
+        stableIdentifiers: ['autoSelectProvider'],
+      }],
+    },
   },
 
   // Frontend: warn on console usage

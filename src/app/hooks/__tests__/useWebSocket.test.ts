@@ -72,6 +72,44 @@ describe('useWebSocket', () => {
     });
   });
 
+  it('does not reconnect when onMessage reference is stable', () => {
+    const onMessage = vi.fn();
+    const { rerender } = renderHook(() =>
+      useWebSocket({ url: 'ws://localhost:3000', onMessage }),
+    );
+
+    expect(MockWebSocket.instances).toHaveLength(1);
+    const ws = MockWebSocket.instances[0];
+    ws.simulateOpen();
+
+    // Re-render several times with the SAME onMessage reference
+    rerender();
+    rerender();
+    rerender();
+
+    // Should still be the same single WebSocket — no reconnections
+    expect(MockWebSocket.instances).toHaveLength(1);
+    expect(ws.closed).toBe(false);
+  });
+
+  it('reconnects when onMessage reference changes', () => {
+    let handler = vi.fn();
+    const { rerender } = renderHook(() =>
+      useWebSocket({ url: 'ws://localhost:3000', onMessage: handler }),
+    );
+
+    expect(MockWebSocket.instances).toHaveLength(1);
+    const ws1 = MockWebSocket.instances[0];
+    ws1.simulateOpen();
+
+    // Change the onMessage reference — this should cause a reconnection
+    handler = vi.fn();
+    rerender();
+
+    expect(MockWebSocket.instances).toHaveLength(2);
+    expect(ws1.closed).toBe(true);
+  });
+
   it('disconnects on unmount', () => {
     const onMessage = vi.fn();
     const { unmount } = renderHook(() =>

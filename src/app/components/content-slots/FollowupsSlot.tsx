@@ -1,5 +1,5 @@
 import React from 'react';
-import { useIsProcessing } from '../../hooks/SurfaceStatusContext.js';
+import { useIsProcessing } from '../../hooks/ProcessingContext.js';
 import { focusRing } from '../../utils/styles.js';
 import { registerContentSlot, SlotHeading, type ContentSlotProps } from './registry.js';
 

@@ -23,9 +23,9 @@ This replaces the previous 12-tool approach. The single tool definition IS the p
 |------|------|
 | `index.ts` | Server factory — wires HTTP + WebSocket, watcher, chat store; serves static files in production |
 | `cli.ts` | CLI entry point — resolves session dir, port, and clientDir; calls `startServer()` |
-| `ws-handlers.ts` | Message routing with `HandlerDeps` DI |
+| `ws-handlers.ts` | Message routing with `HandlerDeps` DI. Includes `submit-prediction` handler for prediction claims |
 | `prompt-handler.ts` | AI orchestration — pure functions + `handlePrompt` imperative shell |
-| `system-prompt.ts` | Single source of truth for all AI system prompts and teaching principles |
+| `system-prompt.ts` | Single source of truth for all AI system prompts and teaching principles. Includes study mode system prompts |
 | `document-service.ts` | Document I/O with injectable `FileIO`; uses `CURRENT_SURFACE` constant |
 | `surface-file.ts` | `.surface` JSON parse/serialize — replaces markdown.ts and blocks/ |
 | `tool-handlers.ts` | Pure surface transform — `applyDesignSurface(doc, params)` returns `{ doc, results }` |
@@ -35,6 +35,7 @@ This replaces the previous 12-tool approach. The single tool definition IS the p
 | `context.ts` | `createContextCompiler()` factory — returns a `ContextCompiler` with `.compile()` method |
 | `mcp-server.ts` | MCP server over stdio — batch versioning with 2s debounce |
 | `watcher.ts` | chokidar watches `current.surface`, notifies via callbacks |
+| `types.ts` | Server-only behavioral interfaces (`VersionStore`, `ContextCompiler`, `FileWatcherService`, `SurfaceContext`) |
 
 ## Conventions
 
@@ -42,6 +43,8 @@ This replaces the previous 12-tool approach. The single tool definition IS the p
 - `mcp-server.ts` batches rapid tool calls into a single version snapshot (2s debounce). Call `flushVersionBatch()` in tests to force flush.
 - Context compilation sends the **active section's state** + section list (enriched with `{ id, title, canvasIds }`) + recent prompt history to the AI — not the full document.
 - System prompt uses a single `design_surface` tool description — no auto-generated block format spec.
+- `schemas.ts` exports `getPhaseToolDefs(phase)` for phase-indexed tool schema selection (predict vs explain phase gets different tool definitions).
+- `SessionState` includes `lastProvider`, `lastModel`, and `mode` fields.
 
 ---
 ## Context Maintenance

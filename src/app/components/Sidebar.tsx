@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { listContainer, listItemBase, listItemActive, listItemInactive, updatedBadge } from '../utils/styles.js';
-import { useChangedSectionIds, useFlashSectionIds } from '../hooks/SurfaceStatusContext.js';
+import { useChangedSectionIds, useFlashSectionIds } from '../hooks/ChangeDetectionContext.js';
 
 interface SidebarProps {
   sections: Array<{ id: string; title: string }>;

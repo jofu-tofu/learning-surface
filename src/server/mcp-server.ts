@@ -6,7 +6,8 @@ import {
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import { TOOL_DEFS, DesignSurfaceSchema, zodToJsonSchema } from '../shared/schemas.js';
-import type { LearningDocument, VersionStore } from '../shared/types.js';
+import type { LearningDocument } from '../shared/types.js';
+import type { VersionStore } from './types.js';
 import { createDocumentService, type DocumentService } from './document-service.js';
 import { buildVersionMeta, detectAllChanges } from './prompt-handler.js';
 import { formatError } from './utils/ws-helpers.js';

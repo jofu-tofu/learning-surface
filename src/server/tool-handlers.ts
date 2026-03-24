@@ -1,4 +1,4 @@
-import type { LearningDocument, Section, CanvasContent, Check } from '../shared/types.js';
+import type { LearningDocument, Section, CanvasContent, Check, PredictionScaffold, PredictionClaim } from '../shared/types.js';
 import {
   type DesignSurfaceInput,
   type SectionUpdateInput,
@@ -39,6 +39,7 @@ interface SectionResult {
     deeperPatterns?: boolean;
     checks?: Record<string, boolean>;
     followups?: boolean;
+    predictionScaffold?: boolean;
     clear?: boolean;
     active?: boolean;
   };
@@ -151,6 +152,10 @@ function clearFields(section: Section, update: SectionUpdateInput, result: Secti
         case 'followups':
           delete section.followups;
           break;
+        case 'predictionScaffold':
+          delete section.predictionScaffold;
+          delete section.phase;
+          break;
       }
     }
     result.results.clear = true;
@@ -198,6 +203,12 @@ function upsertCanvases(section: Section, update: SectionUpdateInput, errors: st
 function updateExplanation(section: Section, update: SectionUpdateInput, result: SectionResult): void {
   if (update.explanation !== undefined) {
     section.explanation = update.explanation;
+    // Auto-transition from predict → explain when the AI writes explanation content.
+    // This ensures the UI switches from the Prediction pane to the Explanation pane
+    // only when there's actual content to show.
+    if (section.phase === 'predict') {
+      section.phase = 'explain';
+    }
     result.results.explanation = true;
   }
 }
@@ -242,6 +253,30 @@ function updateFollowups(section: Section, update: SectionUpdateInput, result: S
   }
 }
 
+function updatePredictionScaffold(section: Section, update: SectionUpdateInput, result: SectionResult): void {
+  // The predict-phase schema uses 'predictionScaffold' — it arrives on the update object via the AI tool call
+  const scaffoldInput = (update as Record<string, unknown>).predictionScaffold as
+    { question: string; claims: Array<{ id: string; prompt: string; type: 'choice' | 'fill-blank' | 'free-text'; options?: string[] }> } | undefined;
+  if (!scaffoldInput) return;
+
+  const claims: PredictionClaim[] = scaffoldInput.claims.map(c => ({
+    id: c.id,
+    prompt: c.prompt,
+    type: c.type,
+    ...(c.options ? { options: c.options } : {}),
+    value: null, // always null when AI creates scaffold — learner fills in later
+  }));
+
+  const scaffold: PredictionScaffold = {
+    question: scaffoldInput.question,
+    claims,
+  };
+
+  section.predictionScaffold = scaffold;
+  section.phase = 'predict';
+  result.results.predictionScaffold = true;
+}
+
 function setActiveSection(doc: LearningDocument, section: Section, update: SectionUpdateInput, result: SectionResult): void {
   if (update.active) {
     doc.activeSection = section.id;
@@ -269,6 +304,7 @@ function applySectionUpdate(
   updateDeeperPatterns(section, update, result);
   appendChecks(section, update, result);
   updateFollowups(section, update, result);
+  updatePredictionScaffold(section, update, result);
   setActiveSection(doc, section, update, result);
 
   return result;

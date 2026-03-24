@@ -5,6 +5,10 @@ import {
   DiagramDataSchema,
   TimelineDataSchema,
   ProofDataSchema,
+  PredictionClaimInputSchema,
+  PredictionScaffoldInputSchema,
+  PredictionClaimSchema,
+  PredictionScaffoldSchema,
   zodToJsonSchema,
 } from '../../shared/schemas.js';
 
@@ -85,6 +89,64 @@ describe('zodToJsonSchema', () => {
     const AllOptional = z.object({ a: z.string().optional(), b: z.number().optional() });
     expect(zodToJsonSchema(AllOptional).required).toBeUndefined();
   });
+});
+
+// ---------------------------------------------------------------------------
+// Prediction Schemas
+// ---------------------------------------------------------------------------
+
+describe('PredictionClaimInputSchema', () => {
+  rejectsAll(PredictionClaimInputSchema, [
+    ['missing id', { prompt: 'What happens?', type: 'choice' }],
+    ['missing prompt', { id: 'c1', type: 'choice' }],
+    ['missing type', { id: 'c1', prompt: 'What happens?' }],
+    ['invalid type value', { id: 'c1', prompt: 'What happens?', type: 'essay' }],
+  ]);
+});
+
+describe('PredictionClaimSchema', () => {
+  rejectsAll(PredictionClaimSchema, [
+    ['missing value field', { id: 'c1', prompt: 'What happens?', type: 'choice' }],
+  ]);
+
+  it('accepts claim with null value', () => {
+    const result = PredictionClaimSchema.safeParse({
+      id: 'c1',
+      prompt: 'What happens?',
+      type: 'choice',
+      value: null,
+    });
+    expect(result.success).toBe(true);
+  });
+});
+
+describe('PredictionScaffoldInputSchema', () => {
+  rejectsAll(PredictionScaffoldInputSchema, [
+    ['missing question', { claims: [{ id: 'c1', prompt: 'X?', type: 'choice' }] }],
+  ]);
+});
+
+describe('PredictionScaffoldSchema', () => {
+  it('accepts scaffold with null values in claims', () => {
+    const result = PredictionScaffoldSchema.safeParse({
+      question: 'Predict the output',
+      claims: [
+        { id: 'c1', prompt: 'What happens?', type: 'choice', value: null },
+        { id: 'c2', prompt: 'Why?', type: 'free-text', value: null },
+      ],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  rejectsAll(PredictionScaffoldSchema, [
+    [
+      'claim with non-null non-string value',
+      {
+        question: 'Predict the output',
+        claims: [{ id: 'c1', prompt: 'X?', type: 'choice', value: 42 }],
+      },
+    ],
+  ]);
 });
 
 describe('zodToJsonSchema snapshot', () => {

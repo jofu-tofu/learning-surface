@@ -53,7 +53,12 @@ function runCliProcess(
       if (code === 0) {
         resolve(stdout.trim());
       } else {
-        const snippet = stderrOutput.trim().slice(0, 500);
+        // Extract a meaningful error from stderr: prefer lines starting with ERROR:
+        // over the raw banner/prompt dump. Strip ANSI escape codes for clean display.
+        const clean = stderrOutput.replace(/\x1b\[[0-9;]*m/g, '').trim();
+        const lines = clean.split('\n');
+        const errorLine = lines.find(l => /^\s*ERROR:/i.test(l));
+        const snippet = errorLine?.trim() ?? clean.slice(0, 300);
         reject(new Error(`[${label}] exited with code ${code}${snippet ? `: ${snippet}` : ''}`));
       }
     });

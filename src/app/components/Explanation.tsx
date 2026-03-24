@@ -12,18 +12,16 @@ import { EmptyState } from './EmptyState.js';
 import { ProcessingState } from './ProcessingState.js';
 import { Icon } from './Icon.js';
 import { useContentRefresh } from '../hooks/useContentRefresh.js';
-import { useIsProcessing } from '../hooks/SurfaceStatusContext.js';
-
-interface ExplanationProps {
-  section: Section | undefined;
-  onFollowupClick?: (question: string) => void;
-}
+import { useIsProcessing } from '../hooks/ProcessingContext.js';
+import { useSurfaceActions } from './panes/SurfaceActionsContext.js';
+import type { SecondPaneProps } from './panes/registry.js';
 
 const explanationEmptyIcon = (
   <Icon name="document" className="w-10 h-10" size={40} strokeWidth={1.5} />
 );
 
-export function Explanation({ section, onFollowupClick }: ExplanationProps): React.ReactElement {
+export function Explanation({ section }: SecondPaneProps): React.ReactElement {
+  const { submitPrompt } = useSurfaceActions();
   const slots = getContentSlots();
   const activeSlots = section ? slots.filter(slot => slot.hasContent(section)) : [];
   const isProcessing = useIsProcessing();
@@ -37,7 +35,7 @@ export function Explanation({ section, onFollowupClick }: ExplanationProps): Rea
   return (
     <div ref={refreshRef} className="explanation-pane space-y-6">
       {section && activeSlots.map((slot) => (
-        <slot.component key={slot.id} section={section} {...(slot.id === 'followups' ? { onFollowupClick } : {})} />
+        <slot.component key={slot.id} section={section} {...(slot.id === 'followups' ? { onFollowupClick: submitPrompt } : {})} />
       ))}
 
       {activeSlots.length === 0 && (

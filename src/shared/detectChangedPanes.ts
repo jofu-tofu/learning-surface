@@ -10,6 +10,8 @@ const CONTENT_KEY_TO_PANE: Record<string, string> = {
   deeperPatterns: 'explanation',  // grouped: deeper patterns render inside explanation pane
   checks: 'explanation',      // grouped: checks render inside explanation pane
   followups: 'explanation',   // grouped: followups render inside explanation pane
+  predictionScaffold: 'prediction',  // prediction scaffold maps to its own pane
+  phase: 'prediction',              // phase changes affect the prediction pane
 };
 
 function contentKeyToPane(key: string): string {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { useActivity } from '../hooks/SurfaceStatusContext.js';
+import { useActivity } from '../hooks/ProcessingContext.js';
 
 interface ProcessingStateProps {
   message: string;

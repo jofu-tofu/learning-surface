@@ -84,6 +84,7 @@ exports[`zodToJsonSchema snapshot > DesignSurfaceSchema produces stable JSON Sch
                 "deeperPatterns",
                 "checks",
                 "followups",
+                "predictionScaffold",
               ],
               "type": "string",
             },

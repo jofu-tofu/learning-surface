@@ -5,7 +5,7 @@ interface PromptPreviewProps {
   prompt: string | null;
 }
 
-export function PromptPreview({ prompt }: PromptPreviewProps): React.ReactElement | null {
+export const PromptPreview = React.memo(function PromptPreview({ prompt }: PromptPreviewProps): React.ReactElement | null {
   if (!prompt) return null;
 
   return (
@@ -20,4 +20,4 @@ export function PromptPreview({ prompt }: PromptPreviewProps): React.ReactElemen
       </div>
     </div>
   );
-}
+});

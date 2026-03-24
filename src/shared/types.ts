@@ -28,6 +28,19 @@ export interface DeeperPattern {
   connection: string;      // how this topic relates to it — bridges from known to new
 }
 
+export interface PredictionClaim {
+  id: string;
+  prompt: string;
+  type: 'choice' | 'fill-blank' | 'free-text';
+  options?: string[];      // for choice type
+  value: string | null;    // null until learner fills it in
+}
+
+export interface PredictionScaffold {
+  question: string;
+  claims: PredictionClaim[];
+}
+
 export interface Section {
   id: string; // slug derived from title
   title: string;
@@ -36,6 +49,8 @@ export interface Section {
   deeperPatterns: DeeperPattern[];
   checks?: Check[];
   followups?: string[];
+  phase?: 'predict' | 'explain';
+  predictionScaffold?: PredictionScaffold;
 }
 
 export interface LearningDocument {
@@ -57,23 +72,10 @@ export interface VersionMeta {
   prompt: string | null;
   summary?: string | null; // AI-generated short label for this version
   timestamp: string;
-  source: 'ai' | 'user-edit';
+  source: 'ai' | 'user-edit' | 'learner';
   parent?: number; // for branching
   changedPanes?: string[]; // panes that changed vs previous version (e.g. 'canvas', 'explanation', 'sections')
   changedSectionIds?: string[]; // section IDs that were added or modified vs previous version
-}
-
-// === Context Types ===
-
-export interface SurfaceContext {
-  session: {
-    topic: string;
-    version: number;
-    activeSection: string;
-  };
-  surface: Record<string, unknown>;
-  sections: Array<{ id: string; title: string; canvasIds: string[] }>;
-  promptHistory: string[];
 }
 
 // === Chat Types ===
@@ -102,11 +104,13 @@ export type ClientMessage =
   | { type: 'new-chat' }
   | { type: 'switch-chat'; chatId: string }
   | { type: 'delete-chat'; chatId: string }
+  | { type: 'delete-chats'; chatIds: string[] }
   | { type: 'rename-chat'; chatId: string; title: string }
   | { type: 'select-version'; version: number }
   | { type: 'select-section'; sectionId: string }
-  | { type: 'prompt'; text: string; provider?: string; model?: string; reasoningEffort?: ReasoningEffort; fromVersion?: number }
-  | { type: 'new-chat-with-prompt'; text: string; provider?: string; model?: string; reasoningEffort?: ReasoningEffort; fromVersion?: number }
+  | { type: 'prompt'; text: string; provider?: string; model?: string; reasoningEffort?: ReasoningEffort; fromVersion?: number; predictionMode?: 'study' | 'answer' }
+  | { type: 'new-chat-with-prompt'; text: string; provider?: string; model?: string; reasoningEffort?: ReasoningEffort; fromVersion?: number; predictionMode?: 'study' | 'answer' }
+  | { type: 'submit-prediction'; sectionId: string; responses: Record<string, string> }
   | { type: 'preflight'; provider: string; model: string }
   | { type: 'get-providers' };
 
@@ -180,23 +184,3 @@ export type WsMessage =
   | WsToolProgress
   | WsPromptComplete;
 
-// === Module Interface Contracts ===
-
-export interface VersionStore {
-  init(sessionDir: string): Promise<void>;
-  createVersion(content: string, meta: Omit<VersionMeta, 'version'>): Promise<number>;
-  getVersion(version: number): Promise<string>;
-  getCurrentVersion(): Promise<number>;
-  listVersions(): Promise<VersionMeta[]>;
-  getDiff(fromVersion: number, toVersion: number): Promise<string>;
-}
-
-export interface ContextCompiler {
-  compile(doc: LearningDocument, sessionDir: string): Promise<SurfaceContext>;
-}
-
-export interface FileWatcherService {
-  onDocumentChange(callback: (doc: LearningDocument) => void): void;
-  start(sessionDir: string): void;
-  stop(): void;
-}

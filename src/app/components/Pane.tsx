@@ -1,6 +1,6 @@
 import React from 'react';
 import { PaneHeader } from './PaneHeader.js';
-import { usePaneFlash } from '../hooks/SurfaceStatusContext.js';
+import { usePaneFlash } from '../hooks/ChangeDetectionContext.js';
 
 interface PaneProps {
   id: string;
@@ -12,7 +12,7 @@ interface PaneProps {
   actions?: React.ReactNode;
 }
 
-export function Pane({ id, title, className, scrollRef, children, style, actions }: PaneProps): React.ReactElement {
+export const Pane = React.memo(function Pane({ id, title, className, scrollRef, children, style, actions }: PaneProps): React.ReactElement {
   const flash = usePaneFlash(id);
   return (
     <div data-testid={`pane-${id}`} style={style} className={`flex flex-col min-w-0 ${flash ? 'pane-updated' : ''} ${className ?? ''}`}>
@@ -20,4 +20,4 @@ export function Pane({ id, title, className, scrollRef, children, style, actions
       <div ref={scrollRef} className="flex-1 overflow-auto p-6">{children}</div>
     </div>
   );
-}
+});

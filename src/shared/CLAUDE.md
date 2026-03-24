@@ -4,11 +4,11 @@ Data contracts and shared abstractions consumed by both server and app.
 
 ## Conventions
 
-- `schemas.ts` defines the Zod schema for the `design_surface` tool parameters. `types.ts` defines data model interfaces (`LearningDocument`, `Section`, `CanvasContent`, `Check`, `DeeperPattern`, etc.) and behavioral interfaces (`VersionStore`, `ContextCompiler`, `FileWatcherService`) independently — they are not derived from Zod via `z.infer<>`.
+- `schemas.ts` defines the Zod schema for the `design_surface` tool parameters. `types.ts` defines data model interfaces (`LearningDocument`, `Section`, `CanvasContent`, `Check`, `DeeperPattern`, `PredictionClaim`, `PredictionScaffold`, etc.) independently — they are not derived from Zod via `z.infer<>`. Behavioral interfaces (`VersionStore`, `ContextCompiler`, `FileWatcherService`, `SurfaceContext`) live in `src/server/types.ts`.
 - `schemas.ts` contains the `design_surface` tool definition with Zod schema and `zodToJsonSchema()` for MCP SDK integration.
 - `providers.ts` defines Zod schemas for provider data contracts (`ProviderConfigSchema`, `ModelConfigSchema`, `PreflightResultSchema`, `ProviderToolCallSchema`, `ToolCallResultSchema`, `ToolDefinitionSchema`, `ProviderInfoSchema`) with types derived via `z.infer<>`. The `Agent` interface (strategy pattern, has methods) stays as a plain TypeScript interface.
 - `detectChangedPanes.ts` uses `CONTENT_KEY_TO_PANE` map to group Section keys into pane IDs. Unmapped keys default to their own name — this is intentional so new content types are automatically detected without editing the map. Only add explicit mappings when multiple keys should trigger the same pane flash.
-- `SurfaceContext.surface` is `Record<string, unknown>` (not typed) because the only consumer is the AI via JSON serialization — TypeScript narrowing adds no value.
+- `SurfaceContext` (defined in `src/server/types.ts`) has `surface` as `Record<string, unknown>` because the only consumer is the AI via JSON serialization. It also includes `mode` (study/answer) and `phase` (predict/explain) fields.
 
 ## `.surface` JSON Format
 
@@ -25,17 +25,17 @@ The data contract between all modules. Documents are stored as `.surface` JSON f
 | File | Role |
 |------|------|
 | `schemas.ts` | Zod schema for `design_surface` tool, JSON schema conversion |
-| `types.ts` | Data model interfaces (`LearningDocument`, `Section`, `CanvasContent`), behavioral interface contracts, utility functions (`sortChatsByRecent`, `getActiveSection`) |
+| `types.ts` | Data model interfaces (`LearningDocument`, `Section`, `CanvasContent`), utility functions (`sortChatsByRecent`, `getActiveSection`) |
 | `providers.ts` | Zod schemas + `z.infer<>` types for provider data contracts; `Agent` interface |
 | `version-tree.ts` | Pure tree traversal for version history (parent chain, children, forward path) |
 | `slugify.ts` | Title -> URL-safe slug |
-| `themes.ts` | Theme definitions (`THEMES`, `ThemeId`), OKLCH surface scale generator, `applyTheme()`/`getStoredTheme()` runtime helpers |
+| `phase.ts` | Pure phase resolver — `resolvePhase(section, mode)` derives phase from data |
 
 ## Gotchas
 
 - **Schema changes require integration test verification.** When adding or modifying Zod schemas in `providers.ts` or `schemas.ts`, run `INTEGRATION_TEST=1 npm test` (add `OPENAI_API_KEY` for API round-trip) to validate schemas against real provider responses. The integration tests in `server/__tests__/provider-integration.test.ts` catch schema drift — fields that don't match what the actual APIs return, hallucinated enum values, or missing required properties.
 - `CANVAS_TYPES` in `types.ts` is the canonical source for canvas type values.
-- `SurfaceContext.surface` sections are enriched with `{ id, title, canvasIds }` for AI context.
+- `SurfaceContext.surface` sections are enriched with `{ id, title, canvasIds }` for AI context (see `src/server/types.ts`).
 
 ---
 ## Context Maintenance

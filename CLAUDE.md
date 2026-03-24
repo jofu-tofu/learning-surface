@@ -2,6 +2,37 @@
 
 A comprehension engine that transforms AI output into a multi-pane learning surface. Not a chat UI, not a note-taking app — a pedagogy layer between AI and the learner, controlled via semantic MCP tools.
 
+## Learning Philosophy
+
+Learning is not the accumulation of information but the continuous revision of internal models. The mind generates predictions, encounters mismatches, and updates its structure accordingly. Progress depends less on exposure and more on the quality and frequency of these **prediction–error–revision** cycles.
+
+Techniques like summarizing or practicing are only useful insofar as they force **active generation**, reveal **errors**, and require **explicit model revision**. Without revision, errors are inert; without errors, models do not change.
+
+Effective learning is the deliberate acceleration of this loop:
+
+1. **Commit** to a belief
+2. **Confront** its failure
+3. **Refine** the underlying model
+4. **Test** across variation
+
+True understanding emerges when knowledge becomes structured, transferable, and compressible — when it no longer depends on specific examples but captures the deeper invariants of a domain.
+
+**The role of this app is not to provide answers, but to surface the learner's current model, introduce precise friction, and guide iterative restructuring over time.**
+
+### Current state vs. target
+
+The current implementation — structured explanations, canvases, comprehension checks, deeper patterns — is a **first step**. It delivers well-organized answers that the learner must actively interpret. This is necessary groundwork: the multi-pane surface, the canvas types, the section model all exist to support richer interactions.
+
+But delivering answers still places the revision burden entirely on the learner. The target is an app that **actively invokes the feedback loop** rather than waiting for the learner to self-test:
+
+- **Surface the learner's model.** Before explaining, elicit what the learner currently believes. Make their mental model visible and committal so errors become detectable.
+- **Introduce precise friction.** Present targeted challenges, counterexamples, and edge cases that expose specific gaps — not generic quiz questions, but friction calibrated to the learner's current understanding.
+- **Guide revision, not just correction.** When errors surface, don't just provide the right answer. Show *why* the old model failed and *what structural change* makes the new model better.
+- **Test across variation.** After revision, present the concept in new contexts to confirm the updated model transfers. Understanding that only works on the original example isn't understanding.
+- **Track model evolution.** Maintain a representation of what the learner has committed to, where they've been wrong, and how their model has changed — making the learning process itself visible.
+
+Every feature decision should be evaluated against: **does this accelerate the prediction–error–revision loop, or does it just deliver more information?**
+
 ## Commands
 
 | Command | Purpose |
@@ -34,11 +65,12 @@ src/
     providers/         # AI provider abstraction (CLI via codex exec, API via OpenAI SDK)
     utils/             # WebSocket helpers, version meta reader
   app/                 # React frontend — multi-pane tutoring surface
-    components/        # CanvasGrid, Canvas, Explanation, Sidebar, SidebarPanel, ChatList, Breadcrumb, ChatBar, ProviderSelector, PromptPreview, ActivityStatus, BranchPopover, PaneHeader, ErrorBanner, EmptyState, Icon, VersionDot, ThemeSelector
+    components/        # AppHeader, ContentArea, PaneLayout, FullscreenOverlay, VersionTimeline, CanvasGrid, Canvas, Explanation, Prediction, Sidebar, SidebarPanel, ChatList, Breadcrumb, ChatBar, ProviderSelector, PromptPreview, ActivityStatus, BranchPopover, PaneHeader, ErrorBanner, EmptyState, Icon, VersionDot, ThemeSelector
       renderers/       # Registry-based visual renderers (KaTeX, Code, Diagram, Timeline, Proof, Sequence) + pure layout modules (diagram-layout, timeline-layout, proof-layout, sequence-layout)
       content-slots/   # Registry-based content slots for Explanation pane (ExplanationSlot, DeeperPatternsSlot, ChecksSlot, FollowupsSlot)
-    hooks/             # useSurface (central state), surfaceReducer (pure state machine), SurfaceStatusContext, useWebSocket, useMarkdown, useAsyncRender, useProviderSelection, useClickOutside, useContainerSize
-    utils/             # versionLabel, styles, formatTime, detectChangedPanes
+      panes/           # Registry-based second-pane mapping (phase → component). SurfaceActionsContext for pane action injection
+    hooks/             # useSurface (composition root), surfaceReducer (pure state machine), domain hooks (useDocumentActions, useChatActions, useProcessingState, useChangeDetection, useStudyMode, usePromptSubmission), ProcessingContext, ChangeDetectionContext, useWebSocket, useMarkdown, useAsyncRender, useProviderSelection, useClickOutside, useContainerSize
+    utils/             # versionLabel, styles, formatTime, detectChangedPanes, themes
   test/                # Test data builders, mock factories, test fixtures
 ```
 
@@ -64,7 +96,9 @@ These shape every implementation decision — violating them means the code is w
 
 ## Roadmap (not yet built)
 
-Cross-session concept linking, PDF side-by-side viewer, spaced repetition scheduling, flashcard generation, concept graph, progressive disclosure within panes, user-editable explanations, timeline branching UX.
+**Feedback loop activation** (partially implemented): Prediction elicitation before explanation (bounded two-phase loop), interactive prediction scaffold with multi-claim submission UX, study/answer mode toggle. Remaining: learner model tracking across sessions, variation testing after revision.
+
+**Existing backlog:** Cross-session concept linking, PDF side-by-side viewer, spaced repetition scheduling, concept graph, progressive disclosure within panes, user-editable explanations, timeline branching UX.
 
 ## Context Tree
 

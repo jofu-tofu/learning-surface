@@ -24,11 +24,14 @@ export function useProviderSelection(): UseProviderSelectionReturn {
     if (providerList.length > 0) {
       setSelectedProviderState((prev) => {
         if (prev) return prev;
-        // Prefer the first available provider; fall back to the first provider
-        const firstAvailable = providerList.find(p => p.status?.available !== false) ?? providerList[0];
-        const firstModel = firstAvailable.models[0];
-        setSelectedModelState((previousModelId) => previousModelId ?? firstModel?.id ?? null);
-        setSelectedReasoningEffortState((previousEffort) => previousEffort ?? firstModel?.defaultEffort ?? null);
+        // Prefer a provider with a 5.4 model; fall back to first available
+        const available = providerList.filter(p => p.status?.available !== false);
+        const with54 = available.find(p => p.models.some(m => /5\.4/.test(m.id)));
+        const firstAvailable = with54 ?? available[0] ?? providerList[0];
+        const model54 = firstAvailable.models.find(m => /5\.4/.test(m.id));
+        const firstModel = model54 ?? firstAvailable.models[0];
+        setSelectedModelState(firstModel?.id ?? null);
+        setSelectedReasoningEffortState('low');
         return firstAvailable.id;
       });
     }

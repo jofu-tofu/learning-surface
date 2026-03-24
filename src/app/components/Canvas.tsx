@@ -5,7 +5,7 @@ import { EmptyState } from './EmptyState.js';
 import { ProcessingState } from './ProcessingState.js';
 import { Icon } from './Icon.js';
 import { useContainerSize } from '../hooks/useContainerSize.js';
-import { useIsProcessing } from '../hooks/SurfaceStatusContext.js';
+import { useIsProcessing } from '../hooks/ProcessingContext.js';
 
 interface CanvasProps {
   content: CanvasContent | null;
@@ -16,7 +16,7 @@ const canvasEmptyIcon = (
 );
 
 /* eslint-disable react-hooks/static-components -- getRenderer is a registry lookup, not component creation */
-export function Canvas({ content }: CanvasProps): React.ReactElement {
+export const Canvas = React.memo(function Canvas({ content }: CanvasProps): React.ReactElement {
   const { ref, size } = useContainerSize();
   const isProcessing = useIsProcessing();
 
@@ -46,5 +46,5 @@ export function Canvas({ content }: CanvasProps): React.ReactElement {
       />
     </div>
   );
-}
+});
 /* eslint-enable react-hooks/static-components */

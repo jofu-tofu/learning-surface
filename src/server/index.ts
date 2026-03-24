@@ -15,7 +15,8 @@ import {
   ensureActiveChat,
   formatError,
 } from './utils/ws-helpers.js';
-import type { ClientMessage, WsMessage, VersionStore } from '../shared/types.js';
+import type { ClientMessage, WsMessage } from '../shared/types.js';
+import type { VersionStore } from './types.js';
 import { createChatLogger, nullLogger } from './logger.js';
 
 const MIME_TYPES: Record<string, string> = {

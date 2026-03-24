@@ -1,7 +1,8 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { watch, type FSWatcher } from 'chokidar';
-import type { FileWatcherService, LearningDocument } from '../shared/types.js';
+import type { LearningDocument } from '../shared/types.js';
+import type { FileWatcherService } from './types.js';
 import { parseSurface } from './surface-file.js';
 import { CURRENT_SURFACE } from './document-service.js';
 import { createChatLogger, nullLogger, type ChatLogger } from './logger.js';

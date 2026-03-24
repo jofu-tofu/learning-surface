@@ -1,8 +1,8 @@
 import type { WebSocket } from 'ws';
-import type { WsMessage, WsSessionInit, WsChatList, VersionMeta, Chat } from '../../shared/types.js';
+import type { WsMessage, WsSessionInit, WsChatList, VersionMeta, Chat, LearningDocument } from '../../shared/types.js';
 import { sortChatsByRecent } from '../../shared/types.js';
 import type { ProviderInfo } from '../../shared/providers.js';
-import type { LearningDocument, VersionStore } from '../../shared/types.js';
+import type { VersionStore } from '../types.js';
 import type { ChatStore } from '../chat-store.js';
 
 /** Send a typed WsMessage over a WebSocket connection. */

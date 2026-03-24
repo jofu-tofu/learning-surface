@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { THEMES, type ThemeId } from '../../shared/themes.js';
+import { THEMES, type ThemeId } from '../utils/themes.js';
 import { useClickOutside } from '../hooks/useClickOutside.js';
 import { focusRing, popoverPanel, menuItemActive, menuItemInactive } from '../utils/styles.js';
 import { Icon } from './Icon.js';

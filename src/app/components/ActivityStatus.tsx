@@ -1,5 +1,5 @@
 import React from 'react';
-import { useIsProcessing, useActivity } from '../hooks/SurfaceStatusContext.js';
+import { useIsProcessing, useActivity } from '../hooks/ProcessingContext.js';
 
 const isDev = import.meta.env.DEV;
 

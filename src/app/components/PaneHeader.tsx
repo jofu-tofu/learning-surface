@@ -1,6 +1,7 @@
 import React from 'react';
 import { sectionHeading, updatedBadge } from '../utils/styles.js';
-import { usePaneChanged, useIsProcessing } from '../hooks/SurfaceStatusContext.js';
+import { usePaneChanged } from '../hooks/ChangeDetectionContext.js';
+import { useIsProcessing } from '../hooks/ProcessingContext.js';
 
 interface PaneHeaderProps {
   paneId: string;
@@ -8,7 +9,7 @@ interface PaneHeaderProps {
   actions?: React.ReactNode;
 }
 
-export function PaneHeader({ paneId, title, actions }: PaneHeaderProps): React.ReactElement {
+export const PaneHeader = React.memo(function PaneHeader({ paneId, title, actions }: PaneHeaderProps): React.ReactElement {
   const changed = usePaneChanged(paneId);
   const isProcessing = useIsProcessing();
 
@@ -30,4 +31,4 @@ export function PaneHeader({ paneId, title, actions }: PaneHeaderProps): React.R
       )}
     </div>
   );
-}
+});

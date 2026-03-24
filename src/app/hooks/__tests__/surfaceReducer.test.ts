@@ -256,6 +256,14 @@ describe('reduceSurfaceMessage', () => {
       expect(result.state.isProcessing).toBe(false);
       expect(result.state.activity).toBeNull();
     });
+
+    it('resets studyModeLocked so user can retry', () => {
+      const s = state({ isProcessing: true, studyModeLocked: true });
+      const msg: WsMessage = { type: 'provider-error', error: 'Rate limited' };
+      const result = reduceSurfaceMessage(s, msg, null);
+
+      expect(result.state.studyModeLocked).toBe(false);
+    });
   });
 
   // ═══════════════════════════════════════════════════════════════════
@@ -313,6 +321,14 @@ describe('reduceSurfaceMessage', () => {
       expect(result.effects).toContainEqual({ type: 'clear-pending-prompt' });
     });
 
+    it('resets studyModeLocked on failure so user can retry', () => {
+      const s = state({ isProcessing: true, studyModeLocked: true });
+      const msg: WsMessage = { type: 'preflight-result', ok: false, error: 'Provider unavailable' };
+      const result = reduceSurfaceMessage(s, msg, null);
+
+      expect(result.state.studyModeLocked).toBe(false);
+    });
+
     it('uses fallback error when error is undefined on failure', () => {
       const msg: WsMessage = { type: 'preflight-result', ok: false };
       const result = reduceSurfaceMessage(state(), msg, null);
@@ -333,6 +349,14 @@ describe('reduceSurfaceMessage', () => {
       expect(result.state.isProcessing).toBe(false);
       expect(result.state.activity).toBeNull();
       expect(result.effects).toContainEqual({ type: 'clear-settle-timer' });
+    });
+
+    it('resets studyModeLocked so user can continue after explain phase', () => {
+      const s = state({ isProcessing: true, studyModeLocked: true, studyMode: true });
+      const msg: WsMessage = { type: 'prompt-complete' };
+      const result = reduceSurfaceMessage(s, msg, null);
+
+      expect(result.state.studyModeLocked).toBe(false);
     });
   });
 

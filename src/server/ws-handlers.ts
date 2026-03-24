@@ -162,6 +162,28 @@ export async function routeMessage(
       return;
     }
 
+    case 'delete-chats': {
+      if (msg.chatIds.length === 0) return;
+
+      const wasActiveDeleted = msg.chatIds.includes(state.activeChatId ?? '');
+      for (const chatId of msg.chatIds) {
+        await chatStore.deleteChat(chatId);
+      }
+
+      if (wasActiveDeleted) {
+        await ensureActiveChat(chatStore, switchToChat);
+        if (chatStore.listChats().length === 0) {
+          state.activeChatId = null;
+          state.activeVersionStore = null;
+          state.latestDocument = null;
+        }
+        await broadcastSessionState({ state, chatStore, broadcast });
+      } else {
+        broadcast(buildChatListMessage(chatStore.listChats(), state.activeChatId));
+      }
+      return;
+    }
+
     case 'rename-chat': {
       const chat = chatStore.getChat(msg.chatId);
       if (!chat) return;
@@ -276,8 +298,9 @@ export async function routeMessage(
         }
       }
 
-      // Update phase to explain
-      section.phase = 'explain';
+      // Keep phase as 'predict' — the UI shows submitted predictions in read-only mode
+      // while the AI generates the explanation. Phase transitions to 'explain' when the
+      // AI's design_surface call actually writes explanation content (see tool-handlers.ts).
 
       // Bump version and write
       doc.version++;
@@ -310,6 +333,9 @@ export async function routeMessage(
           predictionMode: 'study',
         };
         await routeMessage(ws, explainMsg, deps);
+      } else {
+        // No provider available to auto-trigger — notify client that processing is done
+        sendMessage(ws, { type: 'prompt-complete' });
       }
       return;
     }

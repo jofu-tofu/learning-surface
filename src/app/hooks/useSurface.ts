@@ -33,6 +33,7 @@ interface UseSurfaceReturn {
   newChat: () => void;
   switchChat: (chatId: string) => void;
   deleteChat: (chatId: string) => void;
+  deleteChats: (chatIds: string[]) => void;
   renameChat: (chatId: string, title: string) => void;
   /** True from prompt submission until updates settle */
   isProcessing: boolean;
@@ -85,7 +86,7 @@ export function useSurface(): UseSurfaceReturn {
   const { document, versions, currentVersion, path, forwardPath, selectVersion, selectSection } =
     useDocumentActions(state, setState, sendRef.current);
 
-  const { chats, activeChatId, isDraftChat, newChat, switchChat, deleteChat, renameChat } =
+  const { chats, activeChatId, isDraftChat, newChat, switchChat, deleteChat, deleteChats, renameChat } =
     useChatActions(state, setState, sendRef.current);
 
   const { isProcessing, activity } = useProcessingState(state);
@@ -165,7 +166,7 @@ export function useSurface(): UseSurfaceReturn {
     document, versions, currentVersion, path, forwardPath,
     connected, chats, activeChatId, isDraftChat,
     submitPrompt, selectVersion, selectSection,
-    newChat, switchChat, deleteChat, renameChat,
+    newChat, switchChat, deleteChat, deleteChats, renameChat,
     isProcessing, changedPanes, versionChangedPanes, changedSectionIds, flashSectionIds, activity,
     providers, selectedProvider, selectedModel, selectedReasoningEffort,
     setSelectedProvider, setSelectedModel, setSelectedReasoningEffort,

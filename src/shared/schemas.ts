@@ -104,6 +104,23 @@ const DeeperPatternInputSchema = z.object({
   connection: z.string().describe('1-2 sentences explaining how this topic uses or relates to the pattern — bridge from what the learner likely already knows to the new material.'),
 });
 
+// === Prediction Schemas ===
+
+export const PredictionClaimInputSchema = z.object({
+  id: z.string(),
+  prompt: z.string().describe('The question or statement the learner must commit to.'),
+  type: z.enum(['choice', 'fill-blank', 'free-text']),
+  options: z.array(z.string()).optional().describe('Options for choice type claims.'),
+});
+
+export const PredictionScaffoldInputSchema = z.object({
+  question: z.string().describe('Framing question that sets up the prediction exercise.'),
+  claims: z.array(PredictionClaimInputSchema).describe('2-4 structured claims the learner must commit to.'),
+});
+
+// === Section Update Schemas (phase-indexed) ===
+
+/** Full section update schema — used in explain phase and answer mode. */
 const SectionUpdateSchema = z.object({
   id: z.string().optional(),
   title: z.string().optional(),
@@ -113,8 +130,22 @@ const SectionUpdateSchema = z.object({
   deeperPatterns: z.array(DeeperPatternInputSchema).optional(),
   checks: z.array(CheckInputSchema).optional(),
   followups: z.array(z.string()).optional(),
-  clear: z.array(z.enum(['canvases', 'explanation', 'deeperPatterns', 'checks', 'followups'])).optional(),
+  clear: z.array(z.enum(['canvases', 'explanation', 'deeperPatterns', 'checks', 'followups', 'predictionScaffold'])).optional(),
 });
+
+/** Predict-phase section update — includes predictionScaffold, excludes explanation/checks/followups. */
+export const PredictSectionUpdateSchema = z.object({
+  id: z.string().optional(),
+  title: z.string().optional(),
+  active: z.boolean().optional(),
+  canvases: z.array(CanvasInputSchema).optional(),
+  predictionScaffold: PredictionScaffoldInputSchema,
+  deeperPatterns: z.array(DeeperPatternInputSchema).optional(),
+  clear: z.array(z.enum(['canvases', 'deeperPatterns', 'predictionScaffold'])).optional(),
+});
+
+/** Explain-phase section update — same as full schema (no predictionScaffold). */
+export const ExplainSectionUpdateSchema = SectionUpdateSchema;
 
 export const DesignSurfaceSchema = z.object({
   summary: z.string().describe(
@@ -125,9 +156,22 @@ export const DesignSurfaceSchema = z.object({
   clearAll: z.boolean().optional(),
 });
 
+/** Predict-phase design_surface schema — sections use PredictSectionUpdateSchema. */
+export const PredictDesignSurfaceSchema = z.object({
+  summary: z.string().describe(
+    'Short label for this version of the surface (3-8 words). Summarizes what changed or what the learner is exploring. Used as the breadcrumb label in the timeline and as the chat title for the first version.',
+  ),
+  sections: z.array(PredictSectionUpdateSchema).optional(),
+  removeSection: z.string().optional(),
+  clearAll: z.boolean().optional(),
+});
+
 export type DesignSurfaceInput = z.infer<typeof DesignSurfaceSchema>;
 export type SectionUpdateInput = z.infer<typeof SectionUpdateSchema>;
+export type PredictSectionUpdateInput = z.infer<typeof PredictSectionUpdateSchema>;
 export type CanvasInput = z.infer<typeof CanvasInputSchema>;
+export type PredictionClaimInput = z.infer<typeof PredictionClaimInputSchema>;
+export type PredictionScaffoldInput = z.infer<typeof PredictionScaffoldInputSchema>;
 
 
 // === Tool Definitions ===
@@ -148,6 +192,20 @@ export const TOOL_DEFS = [
     schema: DesignSurfaceSchema,
   },
 ] as const satisfies readonly ToolDefinitionEntry[];
+
+const PREDICT_TOOL_DEFS: ToolDefinitionEntry[] = [
+  {
+    name: 'design_surface',
+    label: 'Designing surface',
+    description: 'Declarative batch tool for prediction phase: create sections, set canvases for visual context, and provide a prediction scaffold. Each section entry targets by id (existing) or creates by title (new). The predictionScaffold is REQUIRED — it contains the framing question and structured claims the learner must commit to. Canvases show the setup (not the answer). No explanation, checks, or followups in this phase.',
+    schema: PredictDesignSurfaceSchema,
+  },
+];
+
+/** Get tool definitions for the given phase. Predict phase uses a restricted schema. */
+export function getPhaseToolDefs(phase: 'predict' | 'explain'): readonly ToolDefinitionEntry[] {
+  return phase === 'predict' ? PREDICT_TOOL_DEFS : TOOL_DEFS;
+}
 
 
 
@@ -227,6 +285,19 @@ export const DeeperPatternSchema = z.object({
   connection: z.string(),
 });
 
+export const PredictionClaimSchema = z.object({
+  id: z.string(),
+  prompt: z.string(),
+  type: z.enum(['choice', 'fill-blank', 'free-text']),
+  options: z.array(z.string()).optional(),
+  value: z.string().nullable(),
+});
+
+export const PredictionScaffoldSchema = z.object({
+  question: z.string(),
+  claims: z.array(PredictionClaimSchema),
+});
+
 export const SectionSchema = z.object({
   id: z.string(),
   title: z.string(),
@@ -235,6 +306,8 @@ export const SectionSchema = z.object({
   deeperPatterns: z.array(DeeperPatternSchema).default([]),
   checks: z.array(CheckSchema).optional(),
   followups: z.array(z.string()).optional(),
+  phase: z.enum(['predict', 'explain']).optional(),
+  predictionScaffold: PredictionScaffoldSchema.optional(),
 });
 
 export const SurfaceFileSchema = z.object({

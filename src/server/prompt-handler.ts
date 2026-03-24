@@ -1,18 +1,25 @@
 import { createContextCompiler } from './context.js';
 import { createDocumentService, type DocumentService } from './document-service.js';
 import { getProvider as getProviderFromRegistry } from './providers/registry.js';
-import { zodToJsonSchema, TOOL_DEFS } from '../shared/schemas.js';
-import { SYSTEM_PROMPT } from './system-prompt.js';
+import { zodToJsonSchema, TOOL_DEFS, getPhaseToolDefs } from '../shared/schemas.js';
+import { SYSTEM_PROMPT, STUDY_MODE_PREDICT_INSTRUCTIONS, STUDY_MODE_EXPLAIN_INSTRUCTIONS } from './system-prompt.js';
 import type { Agent, ToolDefinition, ReasoningEffort } from '../shared/providers.js';
-import type { ContextCompiler, LearningDocument, SurfaceContext, VersionStore } from '../shared/types.js';
+import type { LearningDocument } from '../shared/types.js';
+import type { ContextCompiler, SurfaceContext, VersionStore } from './types.js';
 import { detectChangedPanes, detectChangedSections } from '../shared/detectChangedPanes.js';
 import { createChatLogger } from './logger.js';
 
 // === Pure constants and functions (functional core) ===
 
-/** Pure: build the full system prompt from a context object. */
-function buildSystemPrompt(context: SurfaceContext): string {
-  return SYSTEM_PROMPT + JSON.stringify(context, null, 2);
+/** Pure: build the full system prompt from a context object, with study mode addendum when applicable. */
+export function buildSystemPrompt(context: SurfaceContext): string {
+  let prompt = SYSTEM_PROMPT;
+  if (context.mode === 'study' && context.phase === 'predict') {
+    prompt += STUDY_MODE_PREDICT_INSTRUCTIONS;
+  } else if (context.mode === 'study' && context.phase === 'explain') {
+    prompt += STUDY_MODE_EXPLAIN_INSTRUCTIONS;
+  }
+  return prompt + JSON.stringify(context, null, 2);
 }
 
 /** Pure: determine whether changes warrant creating a version snapshot. */
@@ -56,7 +63,7 @@ export function detectAllChanges(before: LearningDocument, after: LearningDocume
 
 // === Imperative shell ===
 
-interface PromptRequest {
+export interface PromptRequest {
   text: string;
   providerId: string;
   modelId: string;
@@ -64,6 +71,8 @@ interface PromptRequest {
   chatDir: string;
   latestDocument: LearningDocument | null;
   versionStore: VersionStore;
+  /** Study or answer mode — controls phase-indexed tool schema and system prompt addendum. */
+  mode?: 'study' | 'answer';
   /** Called on each processing phase/tool call for frontend progress feedback. */
   onProgress?: (toolName: string, step: number) => void;
 }
@@ -92,7 +101,7 @@ export async function handlePrompt(
   request: PromptRequest,
   deps: PromptDeps = defaultDeps,
 ): Promise<PromptResult> {
-  const { text, providerId, modelId, reasoningEffort, chatDir, versionStore } = request;
+  const { text, providerId, modelId, reasoningEffort, chatDir, versionStore, mode = 'answer' } = request;
   const { documentService, contextCompiler, getProvider } = deps;
 
   const provider = getProvider(providerId);
@@ -101,17 +110,17 @@ export async function handlePrompt(
   }
 
   const log = createChatLogger(chatDir);
-  log.info('Prompt received', { text, providerId, modelId, reasoningEffort, providerType: provider.config.type });
+  log.info('Prompt received', { text, providerId, modelId, reasoningEffort, mode, providerType: provider.config.type });
 
   const filePath = documentService.filePath(chatDir);
   const currentDoc = documentService.ensureExists(filePath);
 
-  // Build context-aware system prompt
-  const context = await contextCompiler.compile(currentDoc, chatDir);
+  // Build context-aware system prompt with mode
+  const context = await contextCompiler.compile(currentDoc, chatDir, mode);
   const systemPrompt = buildSystemPrompt(context);
 
-  // Single tool set — no planning stage
-  const toolDefs = [...TOOL_DEFS];
+  // Phase-indexed tool set
+  const toolDefs = [...getPhaseToolDefs(context.phase)];
   const providerTools: ToolDefinition[] = toolDefs.map((def) => ({
     name: def.name,
     description: def.description,

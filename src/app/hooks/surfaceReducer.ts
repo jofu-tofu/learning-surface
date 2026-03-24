@@ -31,6 +31,10 @@ export interface SurfaceState {
   flashSectionIds: Set<string>;
   activity: ToolActivity | null;
   providerError: string | null;
+  /** Whether the current chat is in study mode (feedback loop active). */
+  studyMode: boolean;
+  /** Whether study mode is locked (after first prompt submitted in study mode). */
+  studyModeLocked: boolean;
 }
 
 export const INITIAL_SURFACE_STATE: SurfaceState = {
@@ -46,6 +50,8 @@ export const INITIAL_SURFACE_STATE: SurfaceState = {
   flashSectionIds: new Set(),
   activity: null,
   providerError: null,
+  studyMode: false,
+  studyModeLocked: false,
 };
 
 // === Described side effects (executed by the hook shell) ===
@@ -206,6 +212,7 @@ export function reduceSurfaceMessage(
           providerError: msg.error,
           isProcessing: false,
           activity: null,
+          studyModeLocked: false,
         },
         effects: [],
         prevDoc,
@@ -239,6 +246,7 @@ export function reduceSurfaceMessage(
               providerError: msg.error ?? 'Provider is unavailable',
               isProcessing: false,
               activity: null,
+              studyModeLocked: false,
             },
         effects,
         prevDoc,
@@ -251,6 +259,7 @@ export function reduceSurfaceMessage(
           ...state,
           isProcessing: false,
           activity: null,
+          studyModeLocked: false,
         },
         effects: [{ type: 'clear-settle-timer' }],
         prevDoc,

@@ -419,6 +419,55 @@ describe('ws-handlers other routes', () => {
     expect(sessionBroadcast).toBeUndefined();
   });
 
+  // --- delete-chats (batch) ---
+
+  it('delete-chats with empty array is a no-op', async () => {
+    const { send, deps, broadcast } = setup();
+
+    const deleteSpy = vi.spyOn(deps.chatStore, 'deleteChat');
+    await send({ type: 'delete-chats', chatIds: [] });
+
+    expect(deleteSpy).not.toHaveBeenCalled();
+    expect(broadcast).not.toHaveBeenCalled();
+  });
+
+  it('delete-chats including active chat clears state and broadcasts session-init', async () => {
+    const { send, deps, state, broadcast } = setup();
+    state.activeChatId = 'c1';
+
+    vi.spyOn(deps.chatStore, 'deleteChat').mockResolvedValue(undefined);
+    vi.spyOn(deps.chatStore, 'listChats').mockReturnValue([]);
+
+    await send({ type: 'delete-chats', chatIds: ['c1'] });
+
+    expect(state.activeChatId).toBeNull();
+    expect(state.activeVersionStore).toBeNull();
+    expect(state.latestDocument).toBeNull();
+
+    const sessionBroadcast = broadcast.mock.calls.find(
+      ([m]) => (m as WsMessage).type === 'session-init',
+    );
+    expect(sessionBroadcast).toBeDefined();
+  });
+
+  it('delete-chats of non-active chats broadcasts chat-list', async () => {
+    const { send, deps, state, broadcast } = setup();
+    state.activeChatId = 'other';
+
+    const deleteSpy = vi.spyOn(deps.chatStore, 'deleteChat');
+    await send({ type: 'delete-chats', chatIds: ['c1'] });
+
+    expect(deleteSpy).toHaveBeenCalledWith('c1');
+    const chatListBroadcast = broadcast.mock.calls.find(
+      ([m]) => (m as WsMessage).type === 'chat-list',
+    );
+    expect(chatListBroadcast).toBeDefined();
+    const sessionBroadcast = broadcast.mock.calls.find(
+      ([m]) => (m as WsMessage).type === 'session-init',
+    );
+    expect(sessionBroadcast).toBeUndefined();
+  });
+
   // --- rename-chat ---
 
   it('rename-chat with valid id updates title and broadcasts chat-list', async () => {
@@ -533,5 +582,163 @@ describe('ws-handlers other routes', () => {
       type: 'provider-list',
       providers,
     });
+  });
+});
+
+describe('ws-handlers submit-prediction', () => {
+  /** Build a doc in predict phase with a prediction scaffold. */
+  function predictPhaseDoc() {
+    return JSON.stringify({
+      version: 2,
+      activeSection: 'tcp-handshake',
+      sections: [{
+        id: 'tcp-handshake',
+        title: 'TCP Handshake',
+        canvases: [],
+        deeperPatterns: [{ pattern: 'Handshakes', connection: 'Both sides agree.' }],
+        phase: 'predict',
+        predictionScaffold: {
+          question: 'What happens next?',
+          claims: [
+            { id: 'c1', prompt: 'Who sends the next packet?', type: 'choice', options: ['Client', 'Server'], value: null },
+            { id: 'c2', prompt: 'The flag is ___', type: 'fill-blank', value: null },
+          ],
+        },
+      }],
+    });
+  }
+
+  it('does not set section.phase to explain prematurely', async () => {
+    const io = fakeFileIO(new Map([
+      ['/chat/current.surface', predictPhaseDoc()],
+    ]));
+    const documentService = createDocumentService(io);
+    const store = spyVersionStore();
+
+    const state: SessionState = {
+      activeChatId: 'c1',
+      activeVersionStore: store,
+      latestDocument: null,
+      // No lastProvider/lastModel → auto-trigger won't fire
+    };
+
+    const ws = fakeWs();
+    const broadcast = vi.fn<(msg: WsMessage) => void>();
+
+    await routeMessage(ws as unknown as import('ws').WebSocket, {
+      type: 'submit-prediction',
+      sectionId: 'tcp-handshake',
+      responses: { c1: 'Client', c2: 'ACK' },
+    }, {
+      state,
+      chatStore: fakeChatStore(),
+      broadcast,
+      switchToChat: vi.fn(),
+      documentService,
+    });
+
+    // Read the doc that was written to disk
+    const raw = io.files.get('/chat/current.surface')!;
+    const doc = JSON.parse(raw);
+    const section = doc.sections[0];
+
+    // Claims should be filled
+    expect(section.predictionScaffold.claims[0].value).toBe('Client');
+    expect(section.predictionScaffold.claims[1].value).toBe('ACK');
+
+    // Phase should still be 'predict' (NOT 'explain')
+    expect(section.phase).toBe('predict');
+  });
+
+  it('sends prompt-complete when auto-trigger cannot fire (no lastProvider)', async () => {
+    const io = fakeFileIO(new Map([
+      ['/chat/current.surface', predictPhaseDoc()],
+    ]));
+    const documentService = createDocumentService(io);
+    const store = spyVersionStore();
+
+    const state: SessionState = {
+      activeChatId: 'c1',
+      activeVersionStore: store,
+      latestDocument: null,
+      // No lastProvider/lastModel → auto-trigger won't fire
+    };
+
+    const ws = fakeWs();
+
+    await routeMessage(ws as unknown as import('ws').WebSocket, {
+      type: 'submit-prediction',
+      sectionId: 'tcp-handshake',
+      responses: { c1: 'Client', c2: 'ACK' },
+    }, {
+      state,
+      chatStore: fakeChatStore(),
+      broadcast: vi.fn(),
+      switchToChat: vi.fn(),
+      documentService,
+    });
+
+    // Should send prompt-complete so the client doesn't get stuck in processing state
+    const complete = ws.sent.find(m => m.type === 'prompt-complete');
+    expect(complete).toBeDefined();
+  });
+
+  it('auto-triggers explain phase prompt when lastProvider and lastModel are set', async () => {
+    const io = fakeFileIO(new Map([
+      ['/chat/current.surface', predictPhaseDoc()],
+    ]));
+    const documentService = createDocumentService(io);
+    const store = spyVersionStore();
+    const provider = fakeAgent([{
+      toolName: 'design_surface',
+      params: {
+        summary: 'TCP explained',
+        sections: [{
+          id: 'tcp-handshake',
+          explanation: 'The client completes the handshake with an ACK.',
+          checks: [{ question: 'Why three packets?', answer: 'Both sides need confirmation.' }],
+        }],
+      },
+    }]);
+
+    const state: SessionState = {
+      activeChatId: 'c1',
+      activeVersionStore: store,
+      latestDocument: null,
+      lastProvider: 'fake',
+      lastModel: 'fake-model',
+      mode: 'study',
+    };
+
+    const ws = fakeWs();
+
+    await routeMessage(ws as unknown as import('ws').WebSocket, {
+      type: 'submit-prediction',
+      sectionId: 'tcp-handshake',
+      responses: { c1: 'Client', c2: 'ACK' },
+    }, {
+      state,
+      chatStore: fakeChatStore(),
+      broadcast: vi.fn(),
+      switchToChat: vi.fn(),
+      documentService,
+      getProvider: (id: string) => id === 'fake' ? provider : undefined,
+      onPrompt: ((req: Parameters<typeof handlePrompt>[0]) =>
+        handlePrompt(req, {
+          documentService,
+          contextCompiler: fakeContextCompiler(),
+          getProvider: (id: string) => id === 'fake' ? provider : undefined,
+        })) as typeof handlePrompt,
+    });
+
+    // prompt-complete should be sent after the auto-triggered explain phase
+    const complete = ws.sent.find(m => m.type === 'prompt-complete');
+    expect(complete).toBeDefined();
+
+    // The doc on disk should now have explanation content
+    const raw = io.files.get('/chat/current.surface')!;
+    const doc = JSON.parse(raw);
+    const section = doc.sections.find((s: { id: string }) => s.id === 'tcp-handshake');
+    expect(section.explanation).toBe('The client completes the handshake with an ACK.');
   });
 });

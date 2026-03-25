@@ -1,8 +1,10 @@
-import type { LearningDocument, VersionMeta, WsMessage, Chat } from '../../shared/types.js';
-import { DRAFT_CHAT_ID } from '../../shared/types.js';
+import type { LearningDocument } from '../../shared/document.js';
+import type { WsMessage } from '../../shared/messages.js';
+import type { SurfaceSession } from '../../shared/session.js';
+import { DRAFT_CHAT_ID } from '../../shared/session.js';
 import type { ProviderInfo } from '../../shared/providers.js';
 import { getToolLabel } from '../../shared/tool-labels.js';
-import { detectChangedPanes, detectChangedSections } from '../../shared/detectChangedPanes.js';
+import { detectChangedPanes } from '../../shared/detectChangedPanes.js';
 
 export interface ToolActivity {
   /** Human-readable label (e.g. "Building diagram") */
@@ -15,26 +17,19 @@ export interface ToolActivity {
 
 // === Pure state shape ===
 
-export interface SurfaceState {
-  document: LearningDocument | null;
-  versions: VersionMeta[];
-  currentVersion: number;
-  chats: Chat[];
-  activeChatId: string | null;
+/**
+ * Full client-side state. Extends the server-owned SurfaceSession
+ * (document, versions, chats) with UI-only transient fields
+ * (processing indicators, flash animations, etc.).
+ */
+export interface SurfaceState extends SurfaceSession {
+  // --- UI-only transient state (not persisted by the server) ---
   isProcessing: boolean;
   changedPanes: Set<string>;
   /** Panes that changed in the current version compared to the previous version (persists until next version transition). */
   versionChangedPanes: Set<string>;
-  /** Section IDs that were added or modified in the current version (persists until next version transition). */
-  changedSectionIds: Set<string>;
-  /** Section IDs that changed in the most recent streaming update (1.2s flash lifetime, like changedPanes). */
-  flashSectionIds: Set<string>;
   activity: ToolActivity | null;
   providerError: string | null;
-  /** Whether the current chat is in study mode (feedback loop active). */
-  studyMode: boolean;
-  /** Whether study mode is locked (after first prompt submitted in study mode). */
-  studyModeLocked: boolean;
 }
 
 export const INITIAL_SURFACE_STATE: SurfaceState = {
@@ -46,12 +41,8 @@ export const INITIAL_SURFACE_STATE: SurfaceState = {
   isProcessing: false,
   changedPanes: new Set(),
   versionChangedPanes: new Set(),
-  changedSectionIds: new Set(),
-  flashSectionIds: new Set(),
   activity: null,
   providerError: null,
-  studyMode: false,
-  studyModeLocked: false,
 };
 
 // === Described side effects (executed by the hook shell) ===
@@ -105,8 +96,6 @@ export function reduceSurfaceMessage(
           activity: null,
           changedPanes: new Set(),
           versionChangedPanes: new Set(currentMeta?.changedPanes ?? []),
-          changedSectionIds: new Set(currentMeta?.changedSectionIds ?? []),
-          flashSectionIds: new Set(),
           providerError: state.providerError,
         },
         effects: msg.providers
@@ -127,28 +116,20 @@ export function reduceSurfaceMessage(
 
       const next = msg.document;
       let changedPanes = state.changedPanes;
-      let { versionChangedPanes, changedSectionIds } = state;
-      let flashSectionIds = state.flashSectionIds;
+      let { versionChangedPanes } = state;
       const newEffects: SurfaceEffect[] = [{ type: 'reset-settle-timer' }];
 
       if (prevDoc) {
         const changed = detectChangedPanes(prevDoc, next);
-        const changedSects = detectChangedSections(prevDoc, next);
 
-        if (changed.size > 0 || changedSects.size > 0) {
-          newEffects.push({ type: 'schedule-flash-clear' });
-        }
         if (changed.size > 0) {
+          newEffects.push({ type: 'schedule-flash-clear' });
           changedPanes = changed;
         }
-        if (changedSects.size > 0) {
-          flashSectionIds = changedSects;
-        }
 
-        // On version transition, capture which panes/sections changed vs the previous version
+        // On version transition, capture which panes changed vs the previous version
         if (next.version !== state.currentVersion) {
           versionChangedPanes = detectChangedPanes(prevDoc, next);
-          changedSectionIds = detectChangedSections(prevDoc, next);
         }
       }
 
@@ -160,8 +141,6 @@ export function reduceSurfaceMessage(
           versions: msg.versions ?? state.versions,
           changedPanes,
           versionChangedPanes,
-          changedSectionIds,
-          flashSectionIds,
         },
         effects: newEffects,
         prevDoc: next,
@@ -180,7 +159,6 @@ export function reduceSurfaceMessage(
           currentVersion: targetVersion,
           versions: allVersions,
           versionChangedPanes: new Set(targetMeta?.changedPanes ?? []),
-          changedSectionIds: new Set(targetMeta?.changedSectionIds ?? []),
         },
         effects: [],
         prevDoc,
@@ -212,7 +190,6 @@ export function reduceSurfaceMessage(
           providerError: msg.error,
           isProcessing: false,
           activity: null,
-          studyModeLocked: false,
         },
         effects: [],
         prevDoc,
@@ -246,7 +223,6 @@ export function reduceSurfaceMessage(
               providerError: msg.error ?? 'Provider is unavailable',
               isProcessing: false,
               activity: null,
-              studyModeLocked: false,
             },
         effects,
         prevDoc,
@@ -259,7 +235,6 @@ export function reduceSurfaceMessage(
           ...state,
           isProcessing: false,
           activity: null,
-          studyModeLocked: false,
         },
         effects: [{ type: 'clear-settle-timer' }],
         prevDoc,

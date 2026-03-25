@@ -1,6 +1,8 @@
 import type { WebSocket } from 'ws';
-import type { WsMessage, WsSessionInit, WsChatList, VersionMeta, Chat, LearningDocument } from '../../shared/types.js';
-import { sortChatsByRecent } from '../../shared/types.js';
+import type { LearningDocument } from '../../shared/document.js';
+import type { WsMessage, WsSessionInit, WsChatList } from '../../shared/messages.js';
+import type { VersionMeta, Chat } from '../../shared/session.js';
+import { sortChatsByRecent } from '../../shared/session.js';
 import type { ProviderInfo } from '../../shared/providers.js';
 import type { VersionStore } from '../types.js';
 import type { ChatStore } from '../chat-store.js';

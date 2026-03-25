@@ -1,8 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useWebSocket } from '../useWebSocket.js';
-import type { WsMessage } from '../../../shared/types.js';
-
+import type { WsMessage } from '../../../shared/messages.js';
 // Mock WebSocket
 class MockWebSocket {
   static instances: MockWebSocket[] = [];

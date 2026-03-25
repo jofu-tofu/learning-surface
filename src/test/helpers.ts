@@ -1,18 +1,10 @@
 import { vi } from 'vitest';
-import {
-  getActiveSection,
-  type CanvasContent,
-  type Check,
-  type LearningDocument,
-  type Section,
-  type VersionMeta,
-} from '../shared/types.js';
+import type { CanvasContent, LearningDocument, Block, TextBlock, InteractiveBlock, FeedbackBlock, DeeperPatternsBlock, SuggestionsBlock } from '../shared/document.js';
+import { type VersionMeta } from '../shared/session.js';
 import type { VersionStore } from '../server/types.js';
 export type { VersionStore };
 import type { DesignSurfaceInput } from '../shared/schemas.js';
-import { slugify } from '../shared/slugify.js';
 import { serializeSurface } from '../server/surface-file.js';
-import { META_KEYS } from '../shared/detectChangedPanes.js';
 
 // === Builders ===
 
@@ -25,33 +17,11 @@ export function buildCanvasContent(overrides: Partial<CanvasContent> = {}): Canv
   };
 }
 
-export function buildCheck(overrides: Partial<Check> = {}): Check {
-  return {
-    id: 'c1',
-    question: 'Why does this work?',
-    status: 'unanswered',
-    answer: 'Because of X.',
-    ...overrides,
-  };
-}
-
-export function buildSection(overrides: Partial<Section> = {}): Section {
-  const title = overrides.title ?? 'Test Section';
-  return {
-    id: slugify(title),
-    title,
-    canvases: [],
-    deeperPatterns: [],
-    ...overrides,
-  };
-}
-
 export function buildDocument(overrides: Partial<LearningDocument> = {}): LearningDocument {
-  const sections = overrides.sections ?? [buildSection()];
   return {
     version: 1,
-    activeSection: sections[0].id,
-    sections,
+    canvases: [],
+    blocks: [],
     ...overrides,
   };
 }
@@ -67,109 +37,57 @@ export function buildVersionMeta(overrides: Partial<VersionMeta> = {}): VersionM
   };
 }
 
-// === Study Mode Builders ===
+// === Block Builders ===
 
-/** Realistic predict-phase design_surface params with predictionScaffold. */
-export function buildPredictToolCall(overrides?: {
-  summary?: string;
-  sectionTitle?: string;
-  claims?: Array<{ id: string; prompt: string; type: 'choice' | 'fill-blank' | 'free-text'; options?: string[] }>;
-}): Record<string, unknown> {
-  const claims = overrides?.claims ?? [
-    { id: 'c1', prompt: 'Who sends the next packet?', type: 'choice' as const, options: ['Client', 'Server', 'Either'] },
-    { id: 'c2', prompt: 'The flag on the final packet is ___', type: 'fill-blank' as const },
-    { id: 'c3', prompt: 'Why is a third packet needed?', type: 'free-text' as const },
-  ];
-
+export function buildTextBlock(overrides: Partial<TextBlock> = {}): TextBlock {
   return {
-    summary: overrides?.summary ?? 'TCP three-way handshake',
-    sections: [{
-      title: overrides?.sectionTitle ?? 'TCP Handshake',
-      active: true,
-      canvases: [{
-        id: 'setup-seq',
-        type: 'sequence',
-        content: JSON.stringify({
-          participants: [{ id: 'client', label: 'Client' }, { id: 'server', label: 'Server' }],
-          messages: [
-            { from: 'client', to: 'server', label: 'SYN' },
-            { from: 'server', to: 'client', label: 'SYN-ACK' },
-          ],
-        }),
-      }],
-      deeperPatterns: [
-        { pattern: 'Handshake protocols', connection: 'Both parties must agree before data flows.' },
-        { pattern: 'State machines', connection: 'Each side transitions through CLOSED→SYN_SENT→ESTABLISHED.' },
-      ],
-      predictionScaffold: {
-        question: 'What happens next in the TCP handshake?',
-        claims,
-      },
-    }],
+    id: overrides.id ?? 'b1',
+    type: 'text',
+    content: overrides.content ?? 'Some text content.',
   };
 }
 
-/** Realistic explain-phase design_surface params targeting existing section. */
-export function buildExplainToolCall(sectionId: string, overrides?: {
-  summary?: string;
-  explanation?: string;
-  clearScaffold?: boolean;
-}): DesignSurfaceInput {
-  const clearScaffold = overrides?.clearScaffold ?? true;
+export function buildInteractiveBlock(overrides: Partial<InteractiveBlock> = {}): InteractiveBlock {
   return {
-    summary: overrides?.summary ?? 'TCP handshake explained',
-    sections: [{
-      id: sectionId,
-      ...(clearScaffold ? { clear: ['predictionScaffold' as const] } : {}),
-      canvases: [{
-        id: 'full-seq',
-        type: 'sequence',
-        content: JSON.stringify({
-          participants: [{ id: 'client', label: 'Client' }, { id: 'server', label: 'Server' }],
-          messages: [
-            { from: 'client', to: 'server', label: 'SYN' },
-            { from: 'server', to: 'client', label: 'SYN-ACK' },
-            { from: 'client', to: 'server', label: 'ACK' },
-          ],
-        }),
-      }],
-      explanation: overrides?.explanation ?? 'The client completes the handshake by sending an ACK.',
-      deeperPatterns: [
-        { pattern: 'Handshake protocols', connection: 'Mutual agreement before data exchange.' },
-        { pattern: 'State machines', connection: 'CLOSED→SYN_SENT→ESTABLISHED on client side.' },
-      ],
-      checks: [{ question: 'Why can\'t TCP use a two-way handshake?', answer: 'Both sides need confirmation.' }],
-      followups: ['How does TCP handle connection teardown?'],
-    }],
+    id: overrides.id ?? 'b1',
+    type: 'interactive',
+    prompt: overrides.prompt ?? 'What do you think happens?',
+    response: overrides.response ?? null,
   };
 }
 
-/** Simulate learner filling prediction claims (what submit-prediction does). */
-export function fillPredictionClaims(
-  doc: LearningDocument,
-  sectionId: string,
-  values: Record<string, string>,
-): LearningDocument {
-  const cloned = structuredClone(doc);
-  const section = cloned.sections.find(s => s.id === sectionId);
-  if (!section) throw new Error(`Section '${sectionId}' not found`);
-  if (!section.predictionScaffold) throw new Error(`Section '${sectionId}' has no predictionScaffold`);
+export function buildFeedbackBlock(overrides: Partial<FeedbackBlock> = {}): FeedbackBlock {
+  return {
+    id: overrides.id ?? 'b1',
+    type: 'feedback',
+    targetBlockId: overrides.targetBlockId ?? 'b1',
+    correct: overrides.correct ?? true,
+    content: overrides.content ?? 'Good answer!',
+  };
+}
 
-  for (const [claimId, value] of Object.entries(values)) {
-    const claim = section.predictionScaffold.claims.find(c => c.id === claimId);
-    if (!claim) throw new Error(`Claim '${claimId}' not found in section '${sectionId}'`);
-    claim.value = value;
-  }
+export function buildDeeperPatternsBlock(overrides: Partial<DeeperPatternsBlock> = {}): DeeperPatternsBlock {
+  return {
+    id: overrides.id ?? 'b1',
+    type: 'deeper-patterns',
+    patterns: overrides.patterns ?? [{ pattern: 'Feedback loops', connection: 'This topic uses feedback.' }],
+  };
+}
 
-  return cloned;
+export function buildSuggestionsBlock(overrides: Partial<SuggestionsBlock> = {}): SuggestionsBlock {
+  return {
+    id: overrides.id ?? 'b1',
+    type: 'suggestions',
+    items: overrides.items ?? ['What about X?', 'Tell me about Y'],
+  };
 }
 
 // === Fixture .surface Strings ===
 
 // Generated from builders — stays in sync with format changes automatically.
 export const MINIMAL_DOC = serializeSurface(buildDocument({
-  sections: [buildSection({ title: 'Introduction', explanation: 'This is the introduction.' })],
-  activeSection: 'introduction',
+  canvases: [],
+  blocks: [{ id: 'b1', type: 'text', content: 'This is the introduction.' }],
 }));
 
 // === Test Doubles ===
@@ -246,20 +164,12 @@ export function fakeAgent(
 export function fakeContextCompiler(): ContextCompiler {
   return {
     async compile(doc) {
-      const active = getActiveSection(doc);
-      const surface: Record<string, unknown> = {};
-      if (active) {
-        for (const [key, value] of Object.entries(active)) {
-          if (META_KEYS.has(key)) continue;
-          surface[key] = value ?? null;
-        }
-      }
       return {
-        session: { topic: 'test', version: doc.version, activeSection: doc.activeSection },
-        mode: 'answer' as const,
-        phase: 'explain' as const,
-        surface,
-        sections: doc.sections.map(section => ({ id: section.id, title: section.title, canvasIds: section.canvases.map(canvas => canvas.id) })),
+        session: { topic: 'test', version: doc.version },
+        surface: {
+          canvases: doc.canvases,
+          blocks: doc.blocks,
+        },
         promptHistory: [],
       };
     },

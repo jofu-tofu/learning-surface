@@ -1,5 +1,4 @@
-import type { VersionMeta } from './types.js';
-
+import type { VersionMeta } from './session.js';
 /** Walk parent pointers from a version back to root, return path in root-first order */
 export function getVersionPath(version: number, versions: VersionMeta[]): VersionMeta[] {
   const versionMap = new Map(versions.map((meta) => [meta.version, meta]));

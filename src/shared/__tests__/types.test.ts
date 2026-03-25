@@ -1,17 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { sortChatsByRecent, getActiveSection } from '../types.js';
-import type { Chat, LearningDocument } from '../types.js';
-
+import { sortChatsByRecent } from '../session.js';
+import type { Chat } from '../session.js';
 function makeChat(id: string, updatedAt: string): Chat {
   return { id, title: `Chat ${id}`, createdAt: '2025-01-01T00:00:00Z', updatedAt };
-}
-
-function makeDoc(activeSection: string, sectionIds: string[]): LearningDocument {
-  return {
-    version: 1,
-    activeSection,
-    sections: sectionIds.map(id => ({ id, title: id, canvases: [], deeperPatterns: [] })),
-  };
 }
 
 describe('sortChatsByRecent', () => {
@@ -37,20 +28,5 @@ describe('sortChatsByRecent', () => {
     const b = makeChat('b', '2025-01-01T00:00:00Z');
     const result = sortChatsByRecent([a, b]);
     expect(result).toHaveLength(2);
-  });
-});
-
-describe('getActiveSection', () => {
-  it('returns undefined when no section matches activeSection', () => {
-    expect(getActiveSection(makeDoc('missing', ['a', 'b']))).toBeUndefined();
-  });
-
-  it('returns undefined for empty sections array', () => {
-    expect(getActiveSection(makeDoc('any', []))).toBeUndefined();
-  });
-
-  it('returns the matching section', () => {
-    const doc = makeDoc('b', ['a', 'b', 'c']);
-    expect(getActiveSection(doc)?.id).toBe('b');
   });
 });

@@ -1,5 +1,5 @@
 import { useCallback, useRef } from 'react';
-import type { ClientMessage } from '../../shared/types.js';
+import type { ClientMessage } from '../../shared/messages.js';
 import type { ReasoningEffort } from '../../shared/providers.js';
 import type { SurfaceState } from './surfaceReducer.js';
 
@@ -14,7 +14,7 @@ interface ProviderState {
 
 interface PromptSubmission {
   submitPrompt: (text: string) => void;
-  submitPrediction: (sectionId: string, responses: Record<string, string>) => void;
+  submitResponses: (responses: Record<string, string>) => void;
   executePendingPromptEffect: () => void;
   clearPendingPrompt: () => void;
 }
@@ -34,10 +34,7 @@ export function usePromptSubmission(
       ...prevState,
       isProcessing: true,
       providerError: null,
-      studyModeLocked: prevState.studyMode ? true : prevState.studyModeLocked,
     }));
-
-    const predictionMode = state.studyMode ? 'study' as const : 'answer' as const;
 
     if (!selectedProvider || !selectedModel) {
       send({
@@ -47,7 +44,6 @@ export function usePromptSubmission(
         provider: selectedProvider,
         model: selectedModel,
         reasoningEffort: selectedReasoningEffort ?? undefined,
-        predictionMode,
       } as ClientMessage);
       return;
     }
@@ -58,16 +54,15 @@ export function usePromptSubmission(
       provider: selectedProvider,
       model: selectedModel,
       reasoningEffort: selectedReasoningEffort ?? undefined,
-      predictionMode,
       isDraft: isDraftChat,
     };
 
     send({ type: 'preflight', provider: selectedProvider, model: selectedModel });
-  }, [setState, send, state.studyMode, state.currentVersion, selectedProvider, selectedModel, selectedReasoningEffort, isDraftChat]);
+  }, [setState, send, state.currentVersion, selectedProvider, selectedModel, selectedReasoningEffort, isDraftChat]);
 
-  const submitPrediction = useCallback((sectionId: string, responses: Record<string, string>) => {
+  const submitResponses = useCallback((responses: Record<string, string>) => {
     setState(prevState => ({ ...prevState, isProcessing: true, providerError: null }));
-    send({ type: 'submit-prediction', sectionId, responses } as ClientMessage);
+    send({ type: 'submit-responses', responses } as ClientMessage);
   }, [setState, send]);
 
   const executePendingPromptEffect = useCallback(() => {
@@ -82,5 +77,5 @@ export function usePromptSubmission(
     pendingPromptRef.current = null;
   }, []);
 
-  return { submitPrompt, submitPrediction, executePendingPromptEffect, clearPendingPrompt };
+  return { submitPrompt, submitResponses, executePendingPromptEffect, clearPendingPrompt };
 }

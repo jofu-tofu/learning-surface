@@ -40,60 +40,47 @@ describe('parseSurface + serializeSurface round-trip', () => {
   it('round-trips a minimal document', () => {
     const doc = {
       version: 1,
-      activeSection: 'intro',
-      sections: [{
-        id: 'intro',
-        title: 'Introduction',
-        canvases: [],
-        deeperPatterns: [],
-        explanation: 'Hello world',
-      }],
+      canvases: [],
+      blocks: [{ id: 'b1', type: 'text' as const, content: 'Hello world' }],
     };
     const serialized = serializeSurface(doc);
     const parsed = parseSurface(serialized);
     expect(parsed.version).toBe(1);
-    expect(parsed.activeSection).toBe('intro');
-    expect(parsed.sections[0].explanation).toBe('Hello world');
+    expect(parsed.blocks[0]).toMatchObject({ type: 'text', content: 'Hello world' });
   });
 
   it('round-trips a document with structured canvas', () => {
     const doc = {
       version: 2,
-      activeSection: 'main',
-      sections: [{
-        id: 'main',
-        title: 'Main',
-        canvases: [{
-          id: 'diagram-1',
-          type: 'diagram' as const,
-          content: JSON.stringify({ nodes: [{ id: 'a', label: 'A' }], edges: [] }),
-        }],
-        deeperPatterns: [],
+      canvases: [{
+        id: 'diagram-1',
+        type: 'diagram' as const,
+        content: JSON.stringify({ nodes: [{ id: 'a', label: 'A' }], edges: [] }),
       }],
+      blocks: [],
     };
     const serialized = serializeSurface(doc);
     const parsed = parseSurface(serialized);
-    expect(parsed.sections[0].canvases[0].id).toBe('diagram-1');
-    expect(parsed.sections[0].canvases[0].type).toBe('diagram');
+    expect(parsed.canvases[0].id).toBe('diagram-1');
+    expect(parsed.canvases[0].type).toBe('diagram');
   });
 
-  it('round-trips a document with checks and followups', () => {
+  it('round-trips a document with all block types', () => {
     const doc = {
       version: 1,
-      activeSection: 's1',
-      sections: [{
-        id: 's1',
-        title: 'Section 1',
-        canvases: [],
-        deeperPatterns: [],
-        checks: [{ id: 'c1', question: 'Why?', status: 'unanswered' as const, answer: 'Because.' }],
-        followups: ['What about X?', 'Tell me about Y'],
-      }],
+      canvases: [],
+      blocks: [
+        { id: 'b1', type: 'text' as const, content: 'Hello' },
+        { id: 'b2', type: 'interactive' as const, prompt: 'Why?', response: null },
+        { id: 'b3', type: 'feedback' as const, targetBlockId: 'b2', correct: true, content: 'Because.' },
+        { id: 'b4', type: 'deeper-patterns' as const, patterns: [{ pattern: 'P', connection: 'C' }] },
+        { id: 'b5', type: 'suggestions' as const, items: ['Next?'] },
+      ],
     };
     const serialized = serializeSurface(doc);
     const parsed = parseSurface(serialized);
-    expect(parsed.sections[0].checks![0].question).toBe('Why?');
-    expect(parsed.sections[0].followups).toEqual(['What about X?', 'Tell me about Y']);
+    expect(parsed.blocks).toHaveLength(5);
+    expect(parsed.blocks[2]).toMatchObject({ type: 'feedback', correct: true });
   });
 
   it('parseSurface throws on completely invalid JSON', () => {

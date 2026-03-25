@@ -3,7 +3,7 @@ import { routeMessage, type SessionState } from '../ws-handlers.js';
 import { handlePrompt } from '../prompt-handler.js';
 import { createDocumentService } from '../document-service.js';
 import type { ChatStore } from '../chat-store.js';
-import type { ClientMessage, WsMessage, WsProviderError } from '../../shared/types.js';
+import type { ClientMessage, WsMessage, WsProviderError } from '../../shared/messages.js';
 import {
   MINIMAL_DOC,
   fakeFileIO,
@@ -96,7 +96,7 @@ function setup(opts: {
 describe('ws-handlers prompt flow', () => {
   it('sends prompt-complete after successful prompt', async () => {
     const { ws, send } = setup({
-      toolCalls: [{ toolName: 'design_surface', params: { summary: 'Explaining something', sections: [{ id: 'introduction', explanation: 'Hello' }] } }],
+      toolCalls: [{ toolName: 'design_surface', params: { summary: 'Explaining something', blocks: [{ type: 'text', content: 'Hello' }] } }],
     });
 
     await send({
@@ -148,10 +148,10 @@ describe('ws-handlers prompt flow', () => {
 
   it('multi-turn: second prompt gets prompt-complete after first', async () => {
     const { ws, send, promptDeps } = setup({
-      toolCalls: [{ toolName: 'design_surface', params: { summary: 'TCP transport protocol', sections: [{ id: 'introduction', explanation: 'TCP is a transport protocol.' }] } }],
+      toolCalls: [{ toolName: 'design_surface', params: { summary: 'TCP transport protocol', blocks: [{ type: 'text', content: 'TCP is a transport protocol.' }] } }],
     });
 
-    // First prompt: AI adds an explanation
+    // First prompt: AI adds text
     await send({
       type: 'prompt',
       text: 'teach me TCP',
@@ -161,10 +161,10 @@ describe('ws-handlers prompt flow', () => {
 
     expect(ws.sent.filter(m => m.type === 'prompt-complete')).toHaveLength(1);
 
-    // Second prompt: swap provider to one that replaces explanation
+    // Second prompt: swap provider to one that replaces blocks
     promptDeps.getProvider = (id: string) =>
       id === 'fake'
-        ? fakeAgent([{ toolName: 'design_surface', params: { summary: 'TCP three-way handshake', sections: [{ id: 'introduction', explanation: 'TCP uses a three-way handshake.' }] } }])
+        ? fakeAgent([{ toolName: 'design_surface', params: { summary: 'TCP three-way handshake', blocks: [{ type: 'text', content: 'TCP uses a three-way handshake.' }] } }])
         : undefined;
 
     await send({
@@ -208,8 +208,8 @@ describe('ws-handlers prompt flow', () => {
   it('broadcasts tool-progress for each tool call during prompt', async () => {
     const { broadcast, send } = setup({
       toolCalls: [
-        { toolName: 'design_surface', params: { summary: 'Teaching intro', sections: [{ id: 'introduction', canvases: [{ id: 'v', type: 'code', content: 'graph LR' }] }] } },
-        { toolName: 'design_surface', params: { summary: 'Teaching intro', sections: [{ id: 'introduction', explanation: 'Hello' }] } },
+        { toolName: 'design_surface', params: { summary: 'Teaching intro', canvases: [{ id: 'v', type: 'code', content: 'graph LR' }] } },
+        { toolName: 'design_surface', params: { summary: 'Teaching intro', blocks: [{ type: 'text', content: 'Hello' }] } },
       ],
     });
 
@@ -224,7 +224,7 @@ describe('ws-handlers prompt flow', () => {
       .map(([m]) => m as WsMessage)
       .filter(m => m.type === 'tool-progress');
 
-    // thinking + 2 tool calls = 3 progress messages (no planning stage)
+    // thinking + 2 tool calls = 3 progress messages
     expect(progressCalls).toHaveLength(3);
     expect(progressCalls[0]).toMatchObject({ type: 'tool-progress', toolName: 'thinking', step: 0 });
     expect(progressCalls[1]).toMatchObject({ type: 'tool-progress', toolName: 'design_surface', step: 1 });
@@ -245,7 +245,6 @@ describe('ws-handlers prompt flow', () => {
       .map(([m]) => m as WsMessage)
       .filter(m => m.type === 'tool-progress');
 
-    // Only thinking (no planning stage)
     expect(progressCalls).toHaveLength(1);
     expect(progressCalls[0]).toMatchObject({ toolName: 'thinking', step: 0 });
   });
@@ -274,7 +273,7 @@ describe('ws-handlers other routes', () => {
 
   it('new-chat-with-prompt must NOT send session-init (preserves isProcessing on client)', async () => {
     const { ws, send, broadcast } = setup({
-      toolCalls: [{ toolName: 'design_surface', params: { summary: 'Trees', sections: [{ id: 'intro', explanation: 'A tree is...' }] } }],
+      toolCalls: [{ toolName: 'design_surface', params: { summary: 'Trees', blocks: [{ type: 'text', content: 'A tree is...' }] } }],
     });
 
     await send({
@@ -282,7 +281,6 @@ describe('ws-handlers other routes', () => {
       text: 'explain binary trees',
       provider: 'fake',
       model: 'fake-model',
-      predictionMode: 'answer',
     });
 
     // Must NOT send session-init to the requesting client (that resets isProcessing)
@@ -298,7 +296,7 @@ describe('ws-handlers other routes', () => {
 
   it('new-chat-with-prompt creates chat, broadcasts chat-list, and processes prompt', async () => {
     const { ws, send, deps, broadcast } = setup({
-      toolCalls: [{ toolName: 'design_surface', params: { summary: 'Trees', sections: [{ id: 'intro', explanation: 'A tree is...' }] } }],
+      toolCalls: [{ toolName: 'design_surface', params: { summary: 'Trees', blocks: [{ type: 'text', content: 'A tree is...' }] } }],
     });
 
     await send({
@@ -306,7 +304,6 @@ describe('ws-handlers other routes', () => {
       text: 'explain binary trees',
       provider: 'fake',
       model: 'fake-model',
-      predictionMode: 'answer',
     });
 
     // Creates and switches to a new chat
@@ -319,24 +316,6 @@ describe('ws-handlers other routes', () => {
     expect(chatListBroadcast).toBeDefined();
 
     // Prompt is processed: prompt-complete is sent
-    const complete = ws.sent.find(m => m.type === 'prompt-complete');
-    expect(complete).toBeDefined();
-  });
-
-  it('new-chat-with-prompt forwards predictionMode to the prompt handler', async () => {
-    const { ws, send, state } = setup({
-      toolCalls: [{ toolName: 'design_surface', params: { summary: 'Trees', sections: [{ id: 'intro', explanation: 'A tree is...' }] } }],
-    });
-
-    await send({
-      type: 'new-chat-with-prompt',
-      text: 'explain binary trees',
-      provider: 'fake',
-      model: 'fake-model',
-      predictionMode: 'study',
-    });
-
-    expect(state.mode).toBe('study');
     const complete = ws.sent.find(m => m.type === 'prompt-complete');
     expect(complete).toBeDefined();
   });
@@ -371,7 +350,6 @@ describe('ws-handlers other routes', () => {
     await send({ type: 'delete-chat', chatId: 'c1' });
 
     expect(deleteSpy).toHaveBeenCalledWith('c1');
-    // ensureActiveChat + broadcastSessionState results in session-init broadcast
     const sessionBroadcast = broadcast.mock.calls.find(
       ([m]) => (m as WsMessage).type === 'session-init',
     );
@@ -382,7 +360,6 @@ describe('ws-handlers other routes', () => {
     const { send, deps, state, broadcast } = setup();
     state.activeChatId = 'c1';
 
-    // After deletion, no chats remain
     vi.spyOn(deps.chatStore, 'deleteChat').mockResolvedValue(undefined);
     vi.spyOn(deps.chatStore, 'listChats').mockReturnValue([]);
 
@@ -396,7 +373,7 @@ describe('ws-handlers other routes', () => {
       ([m]) => (m as WsMessage).type === 'session-init',
     );
     expect(sessionBroadcast).toBeDefined();
-    const msg = sessionBroadcast![0] as import('../../shared/types.js').WsSessionInit;
+    const msg = sessionBroadcast![0] as import('../../shared/messages.js').WsSessionInit;
     expect(msg.activeChatId).toBeUndefined();
   });
 
@@ -412,7 +389,6 @@ describe('ws-handlers other routes', () => {
       ([m]) => (m as WsMessage).type === 'chat-list',
     );
     expect(chatListBroadcast).toBeDefined();
-    // Should NOT broadcast full session-init
     const sessionBroadcast = broadcast.mock.calls.find(
       ([m]) => (m as WsMessage).type === 'session-init',
     );
@@ -585,32 +561,23 @@ describe('ws-handlers other routes', () => {
   });
 });
 
-describe('ws-handlers submit-prediction', () => {
-  /** Build a doc in predict phase with a prediction scaffold. */
-  function predictPhaseDoc() {
+describe('ws-handlers submit-responses', () => {
+  /** Build a doc with interactive blocks. */
+  function interactiveDoc() {
     return JSON.stringify({
       version: 2,
-      activeSection: 'tcp-handshake',
-      sections: [{
-        id: 'tcp-handshake',
-        title: 'TCP Handshake',
-        canvases: [],
-        deeperPatterns: [{ pattern: 'Handshakes', connection: 'Both sides agree.' }],
-        phase: 'predict',
-        predictionScaffold: {
-          question: 'What happens next?',
-          claims: [
-            { id: 'c1', prompt: 'Who sends the next packet?', type: 'choice', options: ['Client', 'Server'], value: null },
-            { id: 'c2', prompt: 'The flag is ___', type: 'fill-blank', value: null },
-          ],
-        },
-      }],
+      canvases: [],
+      blocks: [
+        { id: 'b1', type: 'interactive', prompt: 'Who sends the next packet?', response: null },
+        { id: 'b2', type: 'interactive', prompt: 'The flag is ___', response: null },
+        { id: 'b3', type: 'text', content: 'Some context.' },
+      ],
     });
   }
 
-  it('does not set section.phase to explain prematurely', async () => {
+  it('writes learner responses into matching interactive blocks', async () => {
     const io = fakeFileIO(new Map([
-      ['/chat/current.surface', predictPhaseDoc()],
+      ['/chat/current.surface', interactiveDoc()],
     ]));
     const documentService = createDocumentService(io);
     const store = spyVersionStore();
@@ -626,9 +593,8 @@ describe('ws-handlers submit-prediction', () => {
     const broadcast = vi.fn<(msg: WsMessage) => void>();
 
     await routeMessage(ws as unknown as import('ws').WebSocket, {
-      type: 'submit-prediction',
-      sectionId: 'tcp-handshake',
-      responses: { c1: 'Client', c2: 'ACK' },
+      type: 'submit-responses',
+      responses: { b1: 'Client', b2: 'ACK' },
     }, {
       state,
       chatStore: fakeChatStore(),
@@ -640,19 +606,17 @@ describe('ws-handlers submit-prediction', () => {
     // Read the doc that was written to disk
     const raw = io.files.get('/chat/current.surface')!;
     const doc = JSON.parse(raw);
-    const section = doc.sections[0];
 
-    // Claims should be filled
-    expect(section.predictionScaffold.claims[0].value).toBe('Client');
-    expect(section.predictionScaffold.claims[1].value).toBe('ACK');
-
-    // Phase should still be 'predict' (NOT 'explain')
-    expect(section.phase).toBe('predict');
+    // Responses should be filled
+    expect(doc.blocks[0].response).toBe('Client');
+    expect(doc.blocks[1].response).toBe('ACK');
+    // Non-interactive block untouched
+    expect(doc.blocks[2].type).toBe('text');
   });
 
   it('sends prompt-complete when auto-trigger cannot fire (no lastProvider)', async () => {
     const io = fakeFileIO(new Map([
-      ['/chat/current.surface', predictPhaseDoc()],
+      ['/chat/current.surface', interactiveDoc()],
     ]));
     const documentService = createDocumentService(io);
     const store = spyVersionStore();
@@ -661,15 +625,13 @@ describe('ws-handlers submit-prediction', () => {
       activeChatId: 'c1',
       activeVersionStore: store,
       latestDocument: null,
-      // No lastProvider/lastModel → auto-trigger won't fire
     };
 
     const ws = fakeWs();
 
     await routeMessage(ws as unknown as import('ws').WebSocket, {
-      type: 'submit-prediction',
-      sectionId: 'tcp-handshake',
-      responses: { c1: 'Client', c2: 'ACK' },
+      type: 'submit-responses',
+      responses: { b1: 'Client', b2: 'ACK' },
     }, {
       state,
       chatStore: fakeChatStore(),
@@ -678,26 +640,24 @@ describe('ws-handlers submit-prediction', () => {
       documentService,
     });
 
-    // Should send prompt-complete so the client doesn't get stuck in processing state
     const complete = ws.sent.find(m => m.type === 'prompt-complete');
     expect(complete).toBeDefined();
   });
 
-  it('auto-triggers explain phase prompt when lastProvider and lastModel are set', async () => {
+  it('auto-triggers AI feedback when lastProvider and lastModel are set', async () => {
     const io = fakeFileIO(new Map([
-      ['/chat/current.surface', predictPhaseDoc()],
+      ['/chat/current.surface', interactiveDoc()],
     ]));
     const documentService = createDocumentService(io);
     const store = spyVersionStore();
     const provider = fakeAgent([{
       toolName: 'design_surface',
       params: {
-        summary: 'TCP explained',
-        sections: [{
-          id: 'tcp-handshake',
-          explanation: 'The client completes the handshake with an ACK.',
-          checks: [{ question: 'Why three packets?', answer: 'Both sides need confirmation.' }],
-        }],
+        summary: 'Feedback on answers',
+        blocks: [
+          { type: 'feedback', targetBlockId: 'b1', correct: true, content: 'Correct!' },
+          { type: 'text', content: 'The client completes the handshake with an ACK.' },
+        ],
       },
     }]);
 
@@ -707,15 +667,13 @@ describe('ws-handlers submit-prediction', () => {
       latestDocument: null,
       lastProvider: 'fake',
       lastModel: 'fake-model',
-      mode: 'study',
     };
 
     const ws = fakeWs();
 
     await routeMessage(ws as unknown as import('ws').WebSocket, {
-      type: 'submit-prediction',
-      sectionId: 'tcp-handshake',
-      responses: { c1: 'Client', c2: 'ACK' },
+      type: 'submit-responses',
+      responses: { b1: 'Client', b2: 'ACK' },
     }, {
       state,
       chatStore: fakeChatStore(),
@@ -731,14 +689,47 @@ describe('ws-handlers submit-prediction', () => {
         })) as typeof handlePrompt,
     });
 
-    // prompt-complete should be sent after the auto-triggered explain phase
+    // prompt-complete should be sent after the auto-triggered feedback
     const complete = ws.sent.find(m => m.type === 'prompt-complete');
     expect(complete).toBeDefined();
 
-    // The doc on disk should now have explanation content
+    // The doc on disk should now have feedback content
     const raw = io.files.get('/chat/current.surface')!;
     const doc = JSON.parse(raw);
-    const section = doc.sections.find((s: { id: string }) => s.id === 'tcp-handshake');
-    expect(section.explanation).toBe('The client completes the handshake with an ACK.');
+    const feedbackBlock = doc.blocks.find((b: { type: string }) => b.type === 'feedback');
+    expect(feedbackBlock).toBeDefined();
+    expect(feedbackBlock.content).toBe('Correct!');
+  });
+
+  it('creates version with source: learner', async () => {
+    const io = fakeFileIO(new Map([
+      ['/chat/current.surface', interactiveDoc()],
+    ]));
+    const documentService = createDocumentService(io);
+    const store = spyVersionStore();
+
+    const state: SessionState = {
+      activeChatId: 'c1',
+      activeVersionStore: store,
+      latestDocument: null,
+    };
+
+    const ws = fakeWs();
+
+    await routeMessage(ws as unknown as import('ws').WebSocket, {
+      type: 'submit-responses',
+      responses: { b1: 'Client' },
+    }, {
+      state,
+      chatStore: fakeChatStore(),
+      broadcast: vi.fn(),
+      switchToChat: vi.fn(),
+      documentService,
+    });
+
+    expect(store.createVersion).toHaveBeenCalledTimes(1);
+    const meta = store.createVersion.mock.calls[0][1];
+    expect(meta.source).toBe('learner');
+    expect(meta.changedPanes).toContain('blocks');
   });
 });

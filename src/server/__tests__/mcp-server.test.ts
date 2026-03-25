@@ -19,9 +19,9 @@ describe('MCP Server', () => {
       expect(result.success).toBe(false);
     });
 
-    it('design_surface schema rejects invalid section structure', () => {
+    it('design_surface schema rejects invalid blocks structure', () => {
       const schema = toolSchemaMap.get('design_surface')!;
-      const result = schema.safeParse({ sections: 'not-array' });
+      const result = schema.safeParse({ summary: 'test', blocks: 'not-array' });
       expect(result.success).toBe(false);
     });
   });
@@ -64,7 +64,7 @@ describe('MCP Server', () => {
     it('stop() flushes any pending batch', async () => {
       await client.callTool({
         name: 'design_surface',
-        arguments: { summary: 'Stopping soon', sections: [{ id: 'introduction', explanation: 'Stopping soon.' }] },
+        arguments: { summary: 'Stopping soon', blocks: [{ type: 'text', content: 'Stopping soon.' }] },
       });
       expect(store.createVersion).not.toHaveBeenCalled();
 
@@ -72,18 +72,17 @@ describe('MCP Server', () => {
       expect(store.createVersion).toHaveBeenCalledTimes(1);
     });
 
-    it('persists changedPanes and changedSectionIds in version metadata', async () => {
+    it('persists changedPanes in version metadata', async () => {
       await client.callTool({
         name: 'design_surface',
-        arguments: { summary: 'Changed explanation', sections: [{ id: 'introduction', explanation: 'Changed explanation.' }] },
+        arguments: { summary: 'Changed blocks', blocks: [{ type: 'text', content: 'Changed content.' }] },
       });
 
       await mcpServer.flushVersionBatch();
       expect(store.createVersion).toHaveBeenCalledTimes(1);
 
       const meta = store.createVersion.mock.calls[0][1];
-      expect(meta.changedPanes).toContain('explanation');
-      expect(meta.changedSectionIds).toContain('introduction');
+      expect(meta.changedPanes).toContain('blocks');
     });
   });
 
@@ -127,7 +126,7 @@ describe('MCP Server', () => {
     it('invalid params rejected by Zod schema', async () => {
       const result = await client.callTool({
         name: 'design_surface',
-        arguments: { sections: 'not-an-array' },
+        arguments: { blocks: 'not-an-array' },
       });
       expect(result.isError).toBe(true);
       const text = (result.content as Array<{ text: string }>)[0].text;
@@ -137,7 +136,7 @@ describe('MCP Server', () => {
     it('valid design_surface call succeeds', async () => {
       const result = await client.callTool({
         name: 'design_surface',
-        arguments: { summary: 'Updated text', sections: [{ id: 'introduction', explanation: 'Updated text.' }] },
+        arguments: { summary: 'Updated text', blocks: [{ type: 'text', content: 'Updated text.' }] },
       });
       expect(result.isError).toBeUndefined();
       const text = (result.content as Array<{ text: string }>)[0].text;

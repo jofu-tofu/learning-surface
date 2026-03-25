@@ -2,13 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
 import {
   DesignSurfaceSchema,
+  BlockInputSchema,
   DiagramDataSchema,
   TimelineDataSchema,
   ProofDataSchema,
-  PredictionClaimInputSchema,
-  PredictionScaffoldInputSchema,
-  PredictionClaimSchema,
-  PredictionScaffoldSchema,
   zodToJsonSchema,
 } from '../../shared/schemas.js';
 
@@ -31,18 +28,70 @@ describe('DesignSurfaceSchema', () => {
     expect(DesignSurfaceSchema.safeParse({}).success).toBe(false);
   });
 
-  it('accepts valid input with summary', () => {
+  it('accepts valid input with summary and blocks', () => {
     const result = DesignSurfaceSchema.safeParse({
       summary: 'Test topic',
-      sections: [{ title: 'Test', explanation: 'Hello' }],
+      blocks: [{ type: 'text', content: 'Hello' }],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts clear field', () => {
+    const result = DesignSurfaceSchema.safeParse({
+      summary: 'Clear test',
+      clear: ['canvases', 'blocks'],
     });
     expect(result.success).toBe(true);
   });
 
   rejectsAll(DesignSurfaceSchema, [
-    ['sections not an array', { sections: 'not-array' }],
-    ['clearAll not boolean', { clearAll: 'yes' }],
-    ['removeSection not string', { removeSection: 42 }],
+    ['blocks not an array', { summary: 'X', blocks: 'not-array' }],
+    ['invalid clear value', { summary: 'X', clear: ['invalid'] }],
+  ]);
+});
+
+// ---------------------------------------------------------------------------
+// BlockInputSchema
+// ---------------------------------------------------------------------------
+
+describe('BlockInputSchema', () => {
+  it('accepts text block', () => {
+    expect(BlockInputSchema.safeParse({ type: 'text', content: 'Hello' }).success).toBe(true);
+  });
+
+  it('accepts interactive block', () => {
+    expect(BlockInputSchema.safeParse({ type: 'interactive', prompt: 'Why?' }).success).toBe(true);
+  });
+
+  it('accepts feedback block with null correct', () => {
+    expect(BlockInputSchema.safeParse({
+      type: 'feedback',
+      targetBlockId: 'b1',
+      correct: null,
+      content: 'Interesting answer',
+    }).success).toBe(true);
+  });
+
+  it('accepts deeper-patterns block', () => {
+    expect(BlockInputSchema.safeParse({
+      type: 'deeper-patterns',
+      patterns: [{ pattern: 'P', connection: 'C' }],
+    }).success).toBe(true);
+  });
+
+  it('accepts suggestions block', () => {
+    expect(BlockInputSchema.safeParse({
+      type: 'suggestions',
+      items: ['Next question'],
+    }).success).toBe(true);
+  });
+
+  rejectsAll(BlockInputSchema, [
+    ['unknown block type', { type: 'unknown', content: 'x' }],
+    ['text block missing content', { type: 'text' }],
+    ['interactive block missing prompt', { type: 'interactive' }],
+    ['feedback block missing targetBlockId', { type: 'feedback', correct: true, content: 'x' }],
+    ['feedback block missing content', { type: 'feedback', targetBlockId: 'b1', correct: true }],
   ]);
 });
 
@@ -89,64 +138,32 @@ describe('zodToJsonSchema', () => {
     const AllOptional = z.object({ a: z.string().optional(), b: z.number().optional() });
     expect(zodToJsonSchema(AllOptional).required).toBeUndefined();
   });
-});
 
-// ---------------------------------------------------------------------------
-// Prediction Schemas
-// ---------------------------------------------------------------------------
-
-describe('PredictionClaimInputSchema', () => {
-  rejectsAll(PredictionClaimInputSchema, [
-    ['missing id', { prompt: 'What happens?', type: 'choice' }],
-    ['missing prompt', { id: 'c1', type: 'choice' }],
-    ['missing type', { id: 'c1', prompt: 'What happens?' }],
-    ['invalid type value', { id: 'c1', prompt: 'What happens?', type: 'essay' }],
-  ]);
-});
-
-describe('PredictionClaimSchema', () => {
-  rejectsAll(PredictionClaimSchema, [
-    ['missing value field', { id: 'c1', prompt: 'What happens?', type: 'choice' }],
-  ]);
-
-  it('accepts claim with null value', () => {
-    const result = PredictionClaimSchema.safeParse({
-      id: 'c1',
-      prompt: 'What happens?',
-      type: 'choice',
-      value: null,
-    });
-    expect(result.success).toBe(true);
-  });
-});
-
-describe('PredictionScaffoldInputSchema', () => {
-  rejectsAll(PredictionScaffoldInputSchema, [
-    ['missing question', { claims: [{ id: 'c1', prompt: 'X?', type: 'choice' }] }],
-  ]);
-});
-
-describe('PredictionScaffoldSchema', () => {
-  it('accepts scaffold with null values in claims', () => {
-    const result = PredictionScaffoldSchema.safeParse({
-      question: 'Predict the output',
-      claims: [
-        { id: 'c1', prompt: 'What happens?', type: 'choice', value: null },
-        { id: 'c2', prompt: 'Why?', type: 'free-text', value: null },
-      ],
-    });
-    expect(result.success).toBe(true);
+  it('converts ZodDiscriminatedUnion to oneOf', () => {
+    const Union = z.discriminatedUnion('type', [
+      z.object({ type: z.literal('a'), value: z.string() }),
+      z.object({ type: z.literal('b'), count: z.number() }),
+    ]);
+    const Wrapper = z.object({ items: z.array(Union) });
+    const schema = zodToJsonSchema(Wrapper) as { properties: { items: { items: Record<string, unknown> } } };
+    const itemsSchema = schema.properties.items.items;
+    expect(itemsSchema).toHaveProperty('oneOf');
+    expect((itemsSchema as { oneOf: unknown[] }).oneOf).toHaveLength(2);
   });
 
-  rejectsAll(PredictionScaffoldSchema, [
-    [
-      'claim with non-null non-string value',
-      {
-        question: 'Predict the output',
-        claims: [{ id: 'c1', prompt: 'X?', type: 'choice', value: 42 }],
-      },
-    ],
-  ]);
+  it('converts ZodNullable to oneOf with null', () => {
+    const Schema = z.object({ flag: z.boolean().nullable() });
+    const result = zodToJsonSchema(Schema) as { properties: { flag: Record<string, unknown> } };
+    expect(result.properties.flag).toEqual({
+      oneOf: [{ type: 'boolean' }, { type: 'null' }],
+    });
+  });
+
+  it('converts ZodLiteral to const', () => {
+    const Schema = z.object({ kind: z.literal('fixed') });
+    const result = zodToJsonSchema(Schema) as { properties: { kind: Record<string, unknown> } };
+    expect(result.properties.kind).toEqual({ type: 'string', const: 'fixed' });
+  });
 });
 
 describe('zodToJsonSchema snapshot', () => {

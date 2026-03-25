@@ -1,7 +1,6 @@
 import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { VersionMeta } from '../../shared/types.js';
-
+import type { VersionMeta } from '../../shared/session.js';
 /** Read all version meta files from a session directory, sorted by version. */
 export async function readAllVersionMetas(dir: string): Promise<VersionMeta[]> {
   const files = await readdir(dir);

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createDocumentService, BLANK_DOC } from '../document-service.js';
-import { fakeFileIO, MINIMAL_DOC, buildDocument, buildSection, buildCanvasContent, buildCheck } from '../../test/helpers.js';
+import { fakeFileIO, MINIMAL_DOC, buildDocument, buildCanvasContent } from '../../test/helpers.js';
 import { serializeSurface } from '../surface-file.js';
 
 describe('DocumentService with FakeFileIO', () => {
@@ -32,7 +32,8 @@ describe('DocumentService with FakeFileIO', () => {
       const svc = createDocumentService(io);
       const doc = svc.ensureExists('/new/current.surface');
       expect(doc.version).toBe(BLANK_DOC.version);
-      expect(doc.sections).toHaveLength(1);
+      expect(doc.canvases).toHaveLength(0);
+      expect(doc.blocks).toHaveLength(0);
       expect(io.files.has('/new/current.surface')).toBe(true);
     });
 
@@ -41,7 +42,6 @@ describe('DocumentService with FakeFileIO', () => {
       const svc = createDocumentService(io);
       const doc = svc.ensureExists('/existing.surface');
       expect(doc.version).toBe(1);
-      expect(doc.activeSection).toBe('introduction');
     });
   });
 
@@ -49,7 +49,7 @@ describe('DocumentService with FakeFileIO', () => {
     it('throws when file does not exist', () => {
       const io = fakeFileIO();
       const svc = createDocumentService(io);
-      expect(() => svc.applyDesignSurface('/missing.surface', { summary: 'test', sections: [{ id: 'x' }] })).toThrow('ENOENT');
+      expect(() => svc.applyDesignSurface('/missing.surface', { summary: 'test' })).toThrow('ENOENT');
     });
 
     it('sets explicit version when provided', () => {
@@ -57,7 +57,7 @@ describe('DocumentService with FakeFileIO', () => {
       const svc = createDocumentService(io);
       const { doc: updated } = svc.applyDesignSurface(
         '/doc.surface',
-        { summary: 'test', sections: [{ id: 'introduction', explanation: 'New' }] },
+        { summary: 'test', blocks: [{ type: 'text', content: 'New' }] },
         42,
       );
       expect(updated.version).toBe(42);
@@ -68,7 +68,7 @@ describe('DocumentService with FakeFileIO', () => {
       const svc = createDocumentService(io);
       const { doc: updated } = svc.applyDesignSurface(
         '/doc.surface',
-        { summary: 'test', sections: [{ id: 'introduction', explanation: 'New' }] },
+        { summary: 'test', blocks: [{ type: 'text', content: 'New' }] },
       );
       expect(updated.version).toBe(1);
     });
@@ -76,9 +76,11 @@ describe('DocumentService with FakeFileIO', () => {
     it('round-trips: applied change is readable back from the in-memory fs', () => {
       const io = fakeFileIO(new Map([['/doc.surface', MINIMAL_DOC]]));
       const svc = createDocumentService(io);
-      svc.applyDesignSurface('/doc.surface', { summary: 'test', sections: [{ id: 'introduction', explanation: 'Updated' }] });
+      svc.applyDesignSurface('/doc.surface', { summary: 'test', blocks: [{ type: 'text', content: 'Updated' }] });
       const readBack = svc.read('/doc.surface');
-      expect(readBack!.sections[0].explanation).toBe('Updated');
+      const textBlock = readBack!.blocks.find(b => b.type === 'text');
+      expect(textBlock).toBeDefined();
+      expect(textBlock!.type === 'text' && textBlock!.content).toBe('Updated');
     });
   });
 
@@ -93,68 +95,52 @@ describe('DocumentService with FakeFileIO', () => {
     });
   });
 
-  describe('multi-section round-trip', () => {
-    it('updating one section preserves untouched section through serialize → parse → apply → serialize → parse', () => {
-      const multiSectionDoc = serializeSurface(buildDocument({
-        activeSection: 'section-a',
-        sections: [
-          buildSection({
-            title: 'Section A',
-            canvases: [buildCanvasContent({ id: 'diag-a', type: 'code', content: 'graph A' })],
-            explanation: 'Explanation A',
-            deeperPatterns: [{ pattern: 'Pattern A', connection: 'Connection A' }],
-            checks: [buildCheck({ id: 'c1', question: 'Q1' })],
-            followups: ['Follow A'],
-          }),
-          buildSection({
-            title: 'Section B',
-            canvases: [buildCanvasContent({ id: 'diag-b', type: 'code', content: 'graph B' })],
-            explanation: 'Explanation B',
-            deeperPatterns: [{ pattern: 'Pattern B', connection: 'Connection B' }],
-            checks: [buildCheck({ id: 'c1', question: 'Q2' })],
-            followups: ['Follow B'],
-          }),
+  describe('flat model round-trip', () => {
+    it('canvases and blocks survive serialize → parse → apply → serialize → parse', () => {
+      const doc = serializeSurface(buildDocument({
+        canvases: [buildCanvasContent({ id: 'diag-a', type: 'code', content: 'graph A' })],
+        blocks: [
+          { id: 'b1', type: 'text', content: 'Explanation' },
+          { id: 'b2', type: 'deeper-patterns', patterns: [{ pattern: 'Pattern A', connection: 'Connection A' }] },
+          { id: 'b3', type: 'suggestions', items: ['Follow A'] },
         ],
       }));
 
-      const io = fakeFileIO(new Map([['/doc.surface', multiSectionDoc]]));
+      const io = fakeFileIO(new Map([['/doc.surface', doc]]));
       const svc = createDocumentService(io);
 
-      // Update only section A — section B should be untouched
+      // Update blocks — canvases should be untouched
       svc.applyDesignSurface('/doc.surface', {
-        summary: 'Update section A',
-        sections: [{ id: 'section-a', explanation: 'Updated A' }],
+        summary: 'Update blocks',
+        blocks: [{ type: 'text', content: 'Updated' }],
       });
 
       const readBack = svc.read('/doc.surface')!;
 
-      // Section A was updated
-      expect(readBack.sections[0].explanation).toBe('Updated A');
+      // Canvas preserved
+      expect(readBack.canvases).toHaveLength(1);
+      expect(readBack.canvases[0].content).toBe('graph A');
 
-      // Section B is completely preserved
-      const sectionB = readBack.sections.find(s => s.id === 'section-b')!;
-      expect(sectionB).toBeDefined();
-      expect(sectionB.canvases).toHaveLength(1);
-      expect(sectionB.canvases[0].content).toBe('graph B');
-      expect(sectionB.explanation).toBe('Explanation B');
-      expect(sectionB.deeperPatterns).toEqual([{ pattern: 'Pattern B', connection: 'Connection B' }]);
-      expect(sectionB.checks).toHaveLength(1);
-      expect(sectionB.followups).toEqual(['Follow B']);
+      // Blocks replaced
+      expect(readBack.blocks).toHaveLength(1);
+      expect(readBack.blocks[0]).toMatchObject({ type: 'text', content: 'Updated' });
     });
 
-    it('deeperPatterns survive serialize → parseSurface round-trip', () => {
+    it('deeper-patterns blocks survive serialize → parse round-trip', () => {
       const doc = buildDocument({
-        sections: [buildSection({
-          title: 'Test',
-          deeperPatterns: [{ pattern: 'Feedback loops', connection: 'This topic uses feedback.' }],
-        })],
-        activeSection: 'test',
+        blocks: [{
+          id: 'b1',
+          type: 'deeper-patterns',
+          patterns: [{ pattern: 'Feedback loops', connection: 'This topic uses feedback.' }],
+        }],
       });
       const serialized = serializeSurface(doc);
       const io = fakeFileIO(new Map([['/doc.surface', serialized]]));
       const svc = createDocumentService(io);
       const readBack = svc.read('/doc.surface')!;
-      expect(readBack.sections[0].deeperPatterns).toEqual([
+      const block = readBack.blocks[0];
+      expect(block.type).toBe('deeper-patterns');
+      expect(block.type === 'deeper-patterns' && block.patterns).toEqual([
         { pattern: 'Feedback loops', connection: 'This topic uses feedback.' },
       ]);
     });

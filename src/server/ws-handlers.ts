@@ -3,11 +3,8 @@ import { createDocumentService, type DocumentService } from './document-service.
 import { handlePrompt } from './prompt-handler.js';
 import { parseSurface } from './surface-file.js';
 import { getProvider as getProviderFromRegistry, listProviders } from './providers/registry.js';
-import type {
-  ClientMessage,
-  LearningDocument,
-  WsMessage,
-} from '../shared/types.js';
+import type { LearningDocument } from '../shared/document.js';
+import type { ClientMessage, WsMessage } from '../shared/messages.js';
 import type { VersionStore } from './types.js';
 import type { ChatStore } from './chat-store.js';
 import {
@@ -25,11 +22,9 @@ export interface SessionState {
   activeChatId: string | null;
   activeVersionStore: VersionStore | null;
   latestDocument: LearningDocument | null;
-  /** Last provider/model used, for auto-triggering explain phase after prediction submission. */
+  /** Last provider/model used, for auto-triggering feedback after response submission. */
   lastProvider?: string;
   lastModel?: string;
-  /** Mode for the current chat session. */
-  mode?: 'study' | 'answer';
 }
 
 interface HandlerDeps {
@@ -126,7 +121,6 @@ export async function routeMessage(
         model: msg.model,
         reasoningEffort: msg.reasoningEffort,
         fromVersion: msg.fromVersion,
-        predictionMode: msg.predictionMode,
       };
       await routeMessage(ws, promptMsg, deps);
       return;
@@ -209,18 +203,6 @@ export async function routeMessage(
       return;
     }
 
-    case 'select-section': {
-      if (!state.activeChatId) return;
-      const filePath = documentService.filePath(chatStore.getChatDir(state.activeChatId));
-      const doc = documentService.read(filePath);
-      if (!doc) return;
-
-      // Set active section directly and write
-      doc.activeSection = msg.sectionId;
-      documentService.write(filePath, doc);
-      return;
-    }
-
     case 'prompt': {
       const { provider: providerId, model: modelId, reasoningEffort, text } = msg;
 
@@ -230,10 +212,9 @@ export async function routeMessage(
       const versionLogSuffix = msg.fromVersion ? ` (from v${msg.fromVersion})` : '';
       log.info(`Prompt received${versionLogSuffix}`, { text, providerId: providerId ?? 'none', modelId: modelId ?? 'none', reasoningEffort: reasoningEffort ?? 'default' });
 
-      // Track provider/model/mode for auto-triggering explain phase
+      // Track provider/model for auto-triggering feedback after response submission
       if (providerId) state.lastProvider = providerId;
       if (modelId) state.lastModel = modelId;
-      if (msg.predictionMode) state.mode = msg.predictionMode;
 
       if (!providerId || !modelId) {
         log.info('No provider/model selected — waiting for REPL to call MCP tools');
@@ -254,7 +235,6 @@ export async function routeMessage(
           chatDir: chatDir!,
           latestDocument: state.latestDocument,
           versionStore: state.activeVersionStore,
-          mode: state.mode ?? 'answer',
           onProgress(toolName, step) {
             broadcast({ type: 'tool-progress', toolName, step });
           },
@@ -269,7 +249,7 @@ export async function routeMessage(
       return;
     }
 
-    case 'submit-prediction': {
+    case 'submit-responses': {
       if (!state.activeChatId || !state.activeVersionStore) {
         sendMessage(ws, { type: 'provider-error', error: 'No active chat' });
         return;
@@ -284,23 +264,12 @@ export async function routeMessage(
         return;
       }
 
-      // Find the target section
-      const section = doc.sections.find(s => s.id === msg.sectionId);
-      if (!section?.predictionScaffold) {
-        sendMessage(ws, { type: 'provider-error', error: `Section '${msg.sectionId}' has no prediction scaffold` });
-        return;
-      }
-
-      // Write learner responses into claims
-      for (const claim of section.predictionScaffold.claims) {
-        if (msg.responses[claim.id] !== undefined) {
-          claim.value = msg.responses[claim.id];
+      // Write learner responses into matching interactive blocks
+      for (const block of doc.blocks) {
+        if (block.type === 'interactive' && msg.responses[block.id] !== undefined) {
+          block.response = msg.responses[block.id];
         }
       }
-
-      // Keep phase as 'predict' — the UI shows submitted predictions in read-only mode
-      // while the AI generates the explanation. Phase transitions to 'explain' when the
-      // AI's design_surface call actually writes explanation content (see tool-handlers.ts).
 
       // Bump version and write
       doc.version++;
@@ -310,29 +279,27 @@ export async function routeMessage(
       const content = documentService.readRaw(filePath) ?? '';
       await state.activeVersionStore.createVersion(content, {
         prompt: null,
-        summary: 'Predictions submitted',
+        summary: 'Responses submitted',
         timestamp: new Date().toISOString(),
         source: 'learner',
-        changedPanes: ['prediction'],
-        changedSectionIds: [msg.sectionId],
+        changedPanes: ['blocks'],
       });
 
       state.latestDocument = doc;
-      log.info('Prediction submitted', { sectionId: msg.sectionId, responses: msg.responses });
+      log.info('Responses submitted', { responses: msg.responses });
 
       // Re-write to trigger watcher with updated version list
       documentService.write(filePath, doc);
 
-      // Auto-trigger explain phase if we have a provider
+      // Auto-trigger AI feedback if we have a provider
       if (state.lastProvider && state.lastModel) {
-        const explainMsg: ClientMessage = {
+        const feedbackMsg: ClientMessage = {
           type: 'prompt',
-          text: 'Generate explanation addressing the learner\'s predictions',
+          text: 'Respond to the learner\'s answers',
           provider: state.lastProvider,
           model: state.lastModel,
-          predictionMode: 'study',
         };
-        await routeMessage(ws, explainMsg, deps);
+        await routeMessage(ws, feedbackMsg, deps);
       } else {
         // No provider available to auto-trigger — notify client that processing is done
         sendMessage(ws, { type: 'prompt-complete' });

@@ -1,37 +1,39 @@
 import React, { useState, useEffect } from 'react';
-import type { Section } from '../../shared/types.js';
+import type { LearningDocument } from '../../shared/document.js';
 import { CanvasGrid } from './CanvasGrid.js';
-import { Explanation } from './Explanation.js';
+import { BlockStream } from './BlockStream.js';
 import { Pane } from './Pane.js';
 import { IconButton } from './IconButton.js';
 import { Icon } from './Icon.js';
 import { FullscreenOverlay } from './FullscreenOverlay.js';
 import { useResizablePane } from '../hooks/useResizablePane.js';
-import type { SecondPaneEntry } from './panes/registry.js';
 
 interface PaneLayoutProps {
-  activeSection: Section | undefined;
-  activePhase: string;
-  secondPane: SecondPaneEntry;
+  document: LearningDocument | null;
+  onSubmitResponses: (responses: Record<string, string>) => void;
+  onSuggestionClick: (text: string) => void;
   paneScrollRefs: Record<string, React.RefObject<HTMLDivElement | null>>;
 }
 
-export function PaneLayout({ activeSection, activePhase, secondPane, paneScrollRefs }: PaneLayoutProps): React.ReactElement {
+export function PaneLayout({ document: doc, onSubmitResponses, onSuggestionClick, paneScrollRefs }: PaneLayoutProps): React.ReactElement {
   const { splitPercent, isDragging, containerRef, startDrag } = useResizablePane({ initialSplit: 50, minPercent: 20 });
   const [canvasFullscreen, setCanvasFullscreen] = useState(false);
-  const [explanationFullscreen, setExplanationFullscreen] = useState(false);
+  const [blocksFullscreen, setBlocksFullscreen] = useState(false);
 
   useEffect(() => {
-    if (!canvasFullscreen && !explanationFullscreen) return;
+    if (!canvasFullscreen && !blocksFullscreen) return;
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setCanvasFullscreen(false);
-        setExplanationFullscreen(false);
+        setBlocksFullscreen(false);
       }
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [canvasFullscreen, explanationFullscreen]);
+  }, [canvasFullscreen, blocksFullscreen]);
+
+  const canvases = doc?.canvases ?? [];
+  const blocks = doc?.blocks ?? [];
 
   return (
     <>
@@ -51,7 +53,7 @@ export function PaneLayout({ activeSection, activePhase, secondPane, paneScrollR
           }
         >
           <div className="flex items-center justify-center w-full h-full">
-            <CanvasGrid canvases={activeSection?.canvases ?? []} />
+            <CanvasGrid canvases={canvases} />
           </div>
         </Pane>
 
@@ -63,23 +65,25 @@ export function PaneLayout({ activeSection, activePhase, secondPane, paneScrollR
           <Icon name="gripVertical" size={12} strokeWidth={0} className="resize-grip" />
         </div>
 
-        {/* Second pane — Explanation or Prediction depending on phase */}
+        {/* Blocks pane */}
         <Pane
-          id={secondPane.id}
-          title={secondPane.title}
+          id="blocks"
+          title="Blocks"
           className="flex-1"
-          scrollRef={paneScrollRefs[secondPane.id]}
+          scrollRef={paneScrollRefs['blocks']}
           actions={
-            activePhase === 'explain' ? (
-              <IconButton
-                icon="maximize"
-                title="Expand explanation to fullscreen"
-                onClick={() => setExplanationFullscreen(true)}
-              />
-            ) : undefined
+            <IconButton
+              icon="maximize"
+              title="Expand blocks to fullscreen"
+              onClick={() => setBlocksFullscreen(true)}
+            />
           }
         >
-          <secondPane.component section={activeSection} />
+          <BlockStream
+            blocks={blocks}
+            onSubmitResponses={onSubmitResponses}
+            onSuggestionClick={onSuggestionClick}
+          />
         </Pane>
       </div>
 
@@ -87,16 +91,20 @@ export function PaneLayout({ activeSection, activePhase, secondPane, paneScrollR
       {canvasFullscreen && (
         <FullscreenOverlay title="Canvas" onClose={() => setCanvasFullscreen(false)}>
           <div className="canvas-fullscreen-body">
-            <CanvasGrid canvases={activeSection?.canvases ?? []} />
+            <CanvasGrid canvases={canvases} />
           </div>
         </FullscreenOverlay>
       )}
 
-      {/* Explanation fullscreen overlay */}
-      {explanationFullscreen && (
-        <FullscreenOverlay title="Explanation" onClose={() => setExplanationFullscreen(false)}>
+      {/* Blocks fullscreen overlay */}
+      {blocksFullscreen && (
+        <FullscreenOverlay title="Blocks" onClose={() => setBlocksFullscreen(false)}>
           <div className="flex-1 overflow-auto p-6">
-            <Explanation section={activeSection} />
+            <BlockStream
+              blocks={blocks}
+              onSubmitResponses={onSubmitResponses}
+              onSuggestionClick={onSuggestionClick}
+            />
           </div>
         </FullscreenOverlay>
       )}

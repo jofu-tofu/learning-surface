@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { getVersionPath, getChildren, getForwardPath } from '../version-tree.js';
-import type { VersionMeta } from '../types.js';
-
+import type { VersionMeta } from '../session.js';
 function meta(version: number, parent?: number, prompt?: string): VersionMeta {
   return { version, parent, prompt: prompt ?? `v${version}`, timestamp: '2026-01-01T00:00:00Z', source: 'ai' };
 }

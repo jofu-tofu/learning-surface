@@ -53,16 +53,6 @@ describe('prompt-handler pure functions', () => {
       const meta = buildVersionMeta('p', null, 'ts', ['canvas']);
       expect(meta.changedPanes).toEqual(['canvas']);
     });
-
-    it('omits changedSectionIds when empty', () => {
-      const meta = buildVersionMeta('p', null, 'ts', undefined, []);
-      expect(meta).not.toHaveProperty('changedSectionIds');
-    });
-
-    it('includes changedSectionIds when non-empty', () => {
-      const meta = buildVersionMeta('p', null, 'ts', undefined, ['intro']);
-      expect(meta.changedSectionIds).toEqual(['intro']);
-    });
   });
 });
 

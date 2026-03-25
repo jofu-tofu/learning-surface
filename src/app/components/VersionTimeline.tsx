@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { VersionMeta } from '../../shared/types.js';
+import type { VersionMeta } from '../../shared/session.js';
 import { Breadcrumb } from './Breadcrumb.js';
 import { BranchPopover } from './BranchPopover.js';
 

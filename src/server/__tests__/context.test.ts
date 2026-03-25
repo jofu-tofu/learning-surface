@@ -1,49 +1,46 @@
 import { describe, it, expect } from 'vitest';
 import { createContextCompiler } from '../context.js';
-import { buildDocument, buildSection, buildCanvasContent } from '../../test/helpers.js';
+import { buildDocument, buildCanvasContent } from '../../test/helpers.js';
 
 describe('ContextCompiler', () => {
   const compiler = createContextCompiler();
 
   describe('compile()', () => {
-    it('excludes absent content keys from surface', async () => {
+    it('includes canvases and blocks in surface', async () => {
       const doc = buildDocument({
-        activeSection: 'empty',
-        sections: [buildSection({ title: 'Empty' })],
+        canvases: [buildCanvasContent({ id: 'arch' })],
+        blocks: [{ id: 'b1', type: 'text', content: 'Hello' }],
       });
 
       const ctx = await compiler.compile(doc, '/tmp/test-session');
-      // canvases and deeperPatterns are always present (empty arrays) but explanation etc are absent
-      expect(ctx.surface).toEqual({ canvases: [], deeperPatterns: [] });
+      expect(ctx.surface).toMatchObject({
+        canvases: doc.canvases,
+        blocks: doc.blocks,
+      });
     });
 
-    it('includes extra unknown keys from section in surface', async () => {
-      const section = buildSection({ title: 'Extended', explanation: 'Hello' });
-      (section as unknown as Record<string, unknown>)['flashcards'] = [{ q: 'Q1', a: 'A1' }];
-
-      const doc = buildDocument({
-        activeSection: section.id,
-        sections: [section],
-      });
-
+    it('excludes summary from surface when absent', async () => {
+      const doc = buildDocument();
       const ctx = await compiler.compile(doc, '/tmp/test-session');
-      expect(ctx.surface['flashcards']).toEqual([{ q: 'Q1', a: 'A1' }]);
-      expect(ctx.surface['explanation']).toBe('Hello');
+      expect(ctx.surface).not.toHaveProperty('summary');
     });
 
-    it('includes section IDs and canvasIds in sections', async () => {
-      const doc = buildDocument({
-        sections: [
-          buildSection({
-            title: 'With Canvas',
-            canvases: [buildCanvasContent({ id: 'arch' }), buildCanvasContent({ id: 'flow' })],
-          }),
-        ],
-      });
-
+    it('includes summary in surface when present', async () => {
+      const doc = buildDocument({ summary: 'TCP handshake' });
       const ctx = await compiler.compile(doc, '/tmp/test-session');
-      expect(ctx.sections[0].id).toBe('with-canvas');
-      expect(ctx.sections[0].canvasIds).toEqual(['arch', 'flow']);
+      expect(ctx.surface).toMatchObject({ summary: 'TCP handshake' });
+    });
+
+    it('derives topic from session directory basename', async () => {
+      const doc = buildDocument();
+      const ctx = await compiler.compile(doc, '/data/sessions/tcp-lesson');
+      expect(ctx.session.topic).toBe('tcp-lesson');
+    });
+
+    it('returns empty promptHistory when no version metas exist', async () => {
+      const doc = buildDocument();
+      const ctx = await compiler.compile(doc, '/tmp/nonexistent-dir');
+      expect(ctx.promptHistory).toEqual([]);
     });
   });
 });

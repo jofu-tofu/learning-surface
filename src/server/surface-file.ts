@@ -1,6 +1,5 @@
 import { SurfaceFileSchema } from '../shared/schemas.js';
-import type { LearningDocument } from '../shared/types.js';
-
+import type { LearningDocument } from '../shared/document.js';
 // === Public API ===
 
 /**
@@ -61,6 +60,7 @@ export function parseSurface(raw: string): LearningDocument {
     // Retry with control character sanitization (handles CLI-generated JSON)
     parsed = JSON.parse(sanitizeJsonControlChars(raw));
   }
+
   return SurfaceFileSchema.parse(parsed) as LearningDocument;
 }
 

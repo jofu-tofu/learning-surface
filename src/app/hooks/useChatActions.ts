@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
-import type { Chat } from '../../shared/types.js';
-import { DRAFT_CHAT_ID } from '../../shared/types.js';
+import type { Chat } from '../../shared/session.js';
+import { DRAFT_CHAT_ID } from '../../shared/session.js';
 import { INITIAL_SURFACE_STATE, type SurfaceState } from './surfaceReducer.js';
 
 type SetState = React.Dispatch<React.SetStateAction<SurfaceState>>;

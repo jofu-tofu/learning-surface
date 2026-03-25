@@ -1,5 +1,5 @@
 import React from 'react';
-import type { CanvasContent } from '../../shared/types.js';
+import type { CanvasContent } from '../../shared/document.js';
 import { getRenderer } from './renderers/registry.js';
 import { EmptyState } from './EmptyState.js';
 import { ProcessingState } from './ProcessingState.js';

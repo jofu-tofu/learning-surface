@@ -92,87 +92,44 @@ export const CanvasInputSchema = z.object({
   language: z.string().optional().describe('Programming language for code canvases (e.g. "typescript", "python").'),
 });
 
-const CheckInputSchema = z.object({
-  question: z.string(),
-  hints: z.array(z.string()).optional(),
-  answer: z.string(),
-  answerExplanation: z.string().optional(),
-});
-
-const DeeperPatternInputSchema = z.object({
+export const DeeperPatternInputSchema = z.object({
   pattern: z.string().describe('The recurring or universal concept (e.g. "Feedback loops", "Divide and conquer", "Graph traversal").'),
   connection: z.string().describe('1-2 sentences explaining how this topic uses or relates to the pattern — bridge from what the learner likely already knows to the new material.'),
 });
 
-// === Prediction Schemas ===
+// === Block Input Schemas (AI-provided — omit id and response, server adds those) ===
 
-export const PredictionClaimInputSchema = z.object({
-  id: z.string(),
-  prompt: z.string().describe('The question or statement the learner must commit to.'),
-  type: z.enum(['choice', 'fill-blank', 'free-text']),
-  options: z.array(z.string()).optional().describe('Options for choice type claims.'),
-});
+export const BlockInputSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('text'), content: z.string() }),
+  z.object({ type: z.literal('interactive'), prompt: z.string() }),
+  z.object({
+    type: z.literal('feedback'),
+    targetBlockId: z.string(),
+    correct: z.boolean().nullable(),
+    content: z.string(),
+  }),
+  z.object({
+    type: z.literal('deeper-patterns'),
+    patterns: z.array(DeeperPatternInputSchema),
+  }),
+  z.object({ type: z.literal('suggestions'), items: z.array(z.string()) }),
+]);
 
-export const PredictionScaffoldInputSchema = z.object({
-  question: z.string().describe('Framing question that sets up the prediction exercise.'),
-  claims: z.array(PredictionClaimInputSchema).describe('2-4 structured claims the learner must commit to.'),
-});
+export type BlockInput = z.infer<typeof BlockInputSchema>;
 
-// === Section Update Schemas (phase-indexed) ===
-
-/** Full section update schema — used in explain phase and answer mode. */
-const SectionUpdateSchema = z.object({
-  id: z.string().optional(),
-  title: z.string().optional(),
-  active: z.boolean().optional(),
-  canvases: z.array(CanvasInputSchema).optional(),
-  explanation: z.string().optional(),
-  deeperPatterns: z.array(DeeperPatternInputSchema).optional(),
-  checks: z.array(CheckInputSchema).optional(),
-  followups: z.array(z.string()).optional(),
-  clear: z.array(z.enum(['canvases', 'explanation', 'deeperPatterns', 'checks', 'followups', 'predictionScaffold'])).optional(),
-});
-
-/** Predict-phase section update — includes predictionScaffold, excludes explanation/checks/followups. */
-export const PredictSectionUpdateSchema = z.object({
-  id: z.string().optional(),
-  title: z.string().optional(),
-  active: z.boolean().optional(),
-  canvases: z.array(CanvasInputSchema).optional(),
-  predictionScaffold: PredictionScaffoldInputSchema,
-  deeperPatterns: z.array(DeeperPatternInputSchema).optional(),
-  clear: z.array(z.enum(['canvases', 'deeperPatterns', 'predictionScaffold'])).optional(),
-});
-
-/** Explain-phase section update — same as full schema (no predictionScaffold). */
-export const ExplainSectionUpdateSchema = SectionUpdateSchema;
+// === design_surface Schema (flat — no sections) ===
 
 export const DesignSurfaceSchema = z.object({
   summary: z.string().describe(
     'Short label for this version of the surface (3-8 words). Summarizes what changed or what the learner is exploring. Used as the breadcrumb label in the timeline and as the chat title for the first version.',
   ),
-  sections: z.array(SectionUpdateSchema).optional(),
-  removeSection: z.string().optional(),
-  clearAll: z.boolean().optional(),
-});
-
-/** Predict-phase design_surface schema — sections use PredictSectionUpdateSchema. */
-export const PredictDesignSurfaceSchema = z.object({
-  summary: z.string().describe(
-    'Short label for this version of the surface (3-8 words). Summarizes what changed or what the learner is exploring. Used as the breadcrumb label in the timeline and as the chat title for the first version.',
-  ),
-  sections: z.array(PredictSectionUpdateSchema).optional(),
-  removeSection: z.string().optional(),
-  clearAll: z.boolean().optional(),
+  canvases: z.array(CanvasInputSchema).optional(),
+  blocks: z.array(BlockInputSchema).optional(),
+  clear: z.array(z.enum(['canvases', 'blocks'])).optional(),
 });
 
 export type DesignSurfaceInput = z.infer<typeof DesignSurfaceSchema>;
-export type SectionUpdateInput = z.infer<typeof SectionUpdateSchema>;
-export type PredictSectionUpdateInput = z.infer<typeof PredictSectionUpdateSchema>;
 export type CanvasInput = z.infer<typeof CanvasInputSchema>;
-export type PredictionClaimInput = z.infer<typeof PredictionClaimInputSchema>;
-export type PredictionScaffoldInput = z.infer<typeof PredictionScaffoldInputSchema>;
-
 
 // === Tool Definitions ===
 
@@ -188,26 +145,10 @@ export const TOOL_DEFS = [
   {
     name: 'design_surface',
     label: 'Designing surface',
-    description: 'Declarative batch tool: create sections, set canvases, explain, challenge, clear, navigate. Each section entry targets by id (existing) or creates by title (new). Within a section: canvases upsert by id (max 4), explanation replaces, deeperPatterns replaces, checks append, followups replace, clear deletes panes before applying. Partial success: invalid fields return errors, valid fields still apply.',
+    description: 'Declarative batch tool: set canvases and blocks for the learning surface. Canvases upsert by id (max 4). Blocks replace entirely — emit the full right-pane content each call. Use clear to remove panes before applying changes (e.g., clear: ["canvases"] then set new ones). Block types: text (markdown), interactive (free-text question), feedback (evaluation of learner response), deeper-patterns (cross-domain connections), suggestions (clickable next-action prompts). Partial success: invalid fields return errors, valid fields still apply.',
     schema: DesignSurfaceSchema,
   },
 ] as const satisfies readonly ToolDefinitionEntry[];
-
-const PREDICT_TOOL_DEFS: ToolDefinitionEntry[] = [
-  {
-    name: 'design_surface',
-    label: 'Designing surface',
-    description: 'Declarative batch tool for prediction phase: create sections, set canvases for visual context, and provide a prediction scaffold. Each section entry targets by id (existing) or creates by title (new). The predictionScaffold is REQUIRED — it contains the framing question and structured claims the learner must commit to. Canvases show the setup (not the answer). No explanation, checks, or followups in this phase.',
-    schema: PredictDesignSurfaceSchema,
-  },
-];
-
-/** Get tool definitions for the given phase. Predict phase uses a restricted schema. */
-export function getPhaseToolDefs(phase: 'predict' | 'explain'): readonly ToolDefinitionEntry[] {
-  return phase === 'predict' ? PREDICT_TOOL_DEFS : TOOL_DEFS;
-}
-
-
 
 // === Schema Lookup Map ===
 
@@ -225,6 +166,12 @@ function zodFieldToJsonSchema(field: z.ZodTypeAny): Record<string, unknown> {
     return zodFieldToJsonSchema(field.unwrap());
   }
 
+  // Handle nullable — { oneOf: [inner, { type: 'null' }] }
+  if (field instanceof z.ZodNullable) {
+    const inner = zodFieldToJsonSchema(field.unwrap());
+    return { oneOf: [inner, { type: 'null' }] };
+  }
+
   let result: Record<string, unknown>;
 
   if (field instanceof z.ZodString) {
@@ -233,10 +180,15 @@ function zodFieldToJsonSchema(field: z.ZodTypeAny): Record<string, unknown> {
     result = { type: 'boolean' };
   } else if (field instanceof z.ZodEnum) {
     result = { type: 'string', enum: field.options };
+  } else if (field instanceof z.ZodLiteral) {
+    result = { type: typeof field.value, const: field.value };
   } else if (field instanceof z.ZodArray) {
     result = { type: 'array', items: zodFieldToJsonSchema(field.element) };
   } else if (field instanceof z.ZodObject) {
     result = zodToJsonSchema(field);
+  } else if (field instanceof z.ZodDiscriminatedUnion) {
+    const options = [...field.options.values()];
+    result = { oneOf: options.map(opt => zodFieldToJsonSchema(opt)) };
   } else {
     result = { type: 'string' };
   }
@@ -271,48 +223,22 @@ export function zodToJsonSchema(schema: z.ZodObject<z.ZodRawShape>): Record<stri
 
 // === Zod Schema for .surface file validation ===
 
-export const CheckSchema = z.object({
-  id: z.string(),
-  question: z.string(),
-  status: z.enum(['unanswered', 'attempted', 'revealed']),
-  hints: z.array(z.string()).optional(),
-  answer: z.string(),
-  answerExplanation: z.string().optional(),
-});
-
 export const DeeperPatternSchema = z.object({
   pattern: z.string(),
   connection: z.string(),
 });
 
-export const PredictionClaimSchema = z.object({
-  id: z.string(),
-  prompt: z.string(),
-  type: z.enum(['choice', 'fill-blank', 'free-text']),
-  options: z.array(z.string()).optional(),
-  value: z.string().nullable(),
-});
-
-export const PredictionScaffoldSchema = z.object({
-  question: z.string(),
-  claims: z.array(PredictionClaimSchema),
-});
-
-export const SectionSchema = z.object({
-  id: z.string(),
-  title: z.string(),
-  canvases: z.array(CanvasInputSchema),
-  explanation: z.string().optional(),
-  deeperPatterns: z.array(DeeperPatternSchema).default([]),
-  checks: z.array(CheckSchema).optional(),
-  followups: z.array(z.string()).optional(),
-  phase: z.enum(['predict', 'explain']).optional(),
-  predictionScaffold: PredictionScaffoldSchema.optional(),
-});
+const BlockSchema = z.discriminatedUnion('type', [
+  z.object({ id: z.string(), type: z.literal('text'), content: z.string() }),
+  z.object({ id: z.string(), type: z.literal('interactive'), prompt: z.string(), response: z.string().nullable().optional() }),
+  z.object({ id: z.string(), type: z.literal('feedback'), targetBlockId: z.string(), correct: z.boolean().nullable(), content: z.string() }),
+  z.object({ id: z.string(), type: z.literal('deeper-patterns'), patterns: z.array(DeeperPatternSchema) }),
+  z.object({ id: z.string(), type: z.literal('suggestions'), items: z.array(z.string()) }),
+]);
 
 export const SurfaceFileSchema = z.object({
   version: z.number(),
-  activeSection: z.string(),
   summary: z.string().optional(),
-  sections: z.array(SectionSchema),
+  canvases: z.array(CanvasInputSchema).default([]),
+  blocks: z.array(BlockSchema).default([]),
 });

@@ -4,10 +4,9 @@ import {
   INITIAL_SURFACE_STATE,
   type SurfaceState,
 } from '../surfaceReducer.js';
-import { buildDocument, buildSection, buildVersionMeta } from '../../../test/helpers.js';
-import type { WsMessage } from '../../../shared/types.js';
-import { DRAFT_CHAT_ID } from '../../../shared/types.js';
-
+import { buildDocument, buildVersionMeta } from '../../../test/helpers.js';
+import type { WsMessage } from '../../../shared/messages.js';
+import { DRAFT_CHAT_ID } from '../../../shared/session.js';
 function state(overrides: Partial<SurfaceState> = {}): SurfaceState {
   return { ...INITIAL_SURFACE_STATE, ...overrides };
 }
@@ -31,7 +30,6 @@ describe('reduceSurfaceMessage', () => {
       expect(result.state.activity).toBeNull();
       expect(result.state.changedPanes.size).toBe(0);
       expect(result.state.versionChangedPanes.size).toBe(0);
-      expect(result.state.changedSectionIds.size).toBe(0);
     });
 
     it('sets document to null when message has no document', () => {
@@ -107,17 +105,13 @@ describe('reduceSurfaceMessage', () => {
     });
 
     it('detects changed panes when prevDoc exists', () => {
-      const prevDoc = buildDocument({
-        sections: [buildSection({ title: 'A', explanation: 'old' })],
-      });
-      const nextDoc = buildDocument({
-        sections: [buildSection({ title: 'A', explanation: 'new' })],
-      });
+      const prevDoc = buildDocument({ blocks: [{ id: 'b1', type: 'text', content: 'old' }] });
+      const nextDoc = buildDocument({ blocks: [{ id: 'b1', type: 'text', content: 'new' }] });
       const s = state();
       const msg: WsMessage = { type: 'document-update', document: nextDoc };
       const result = reduceSurfaceMessage(s, msg, prevDoc);
 
-      expect(result.state.changedPanes.has('explanation')).toBe(true);
+      expect(result.state.changedPanes.has('blocks')).toBe(true);
       expect(result.effects).toContainEqual({ type: 'schedule-flash-clear' });
     });
 
@@ -150,36 +144,34 @@ describe('reduceSurfaceMessage', () => {
     it('sets versionChangedPanes on version transition', () => {
       const prevDoc = buildDocument({
         version: 1,
-        sections: [buildSection({ title: 'A', explanation: 'old' })],
+        blocks: [{ id: 'b1', type: 'text', content: 'old' }],
       });
       const nextDoc = buildDocument({
         version: 2,
-        sections: [buildSection({ title: 'A', explanation: 'new' })],
+        blocks: [{ id: 'b1', type: 'text', content: 'new' }],
       });
       const s = state({ currentVersion: 1 });
       const msg: WsMessage = { type: 'document-update', document: nextDoc };
       const result = reduceSurfaceMessage(s, msg, prevDoc);
 
-      expect(result.state.versionChangedPanes.has('explanation')).toBe(true);
-      expect(result.state.changedSectionIds.has('a')).toBe(true);
+      expect(result.state.versionChangedPanes.has('blocks')).toBe(true);
     });
 
     it('does not set versionChangedPanes for same-version streaming updates', () => {
       const prevDoc = buildDocument({
         version: 2,
-        sections: [buildSection({ title: 'A', explanation: 'partial' })],
+        blocks: [{ id: 'b1', type: 'text', content: 'partial' }],
       });
       const nextDoc = buildDocument({
         version: 2,
-        sections: [buildSection({ title: 'A', explanation: 'more complete' })],
+        blocks: [{ id: 'b1', type: 'text', content: 'more complete' }],
       });
-      const s = state({ currentVersion: 2, versionChangedPanes: new Set(['canvas']), changedSectionIds: new Set(['a']) });
+      const s = state({ currentVersion: 2, versionChangedPanes: new Set(['canvas']) });
       const msg: WsMessage = { type: 'document-update', document: nextDoc };
       const result = reduceSurfaceMessage(s, msg, prevDoc);
 
       // Should preserve existing version-level indicators, not recompute
       expect(result.state.versionChangedPanes).toEqual(new Set(['canvas']));
-      expect(result.state.changedSectionIds).toEqual(new Set(['a']));
     });
   });
 
@@ -204,17 +196,15 @@ describe('reduceSurfaceMessage', () => {
       expect(result.state.currentVersion).toBe(5);
     });
 
-    it('clears versionChangedPanes and changedSectionIds on navigation', () => {
+    it('clears versionChangedPanes on navigation', () => {
       const s = state({
         currentVersion: 2,
-        versionChangedPanes: new Set(['canvas', 'explanation']),
-        changedSectionIds: new Set(['intro']),
+        versionChangedPanes: new Set(['canvas', 'blocks']),
       });
       const msg: WsMessage = { type: 'version-change', version: 1 };
       const result = reduceSurfaceMessage(s, msg, null);
 
       expect(result.state.versionChangedPanes.size).toBe(0);
-      expect(result.state.changedSectionIds.size).toBe(0);
     });
   });
 
@@ -255,14 +245,6 @@ describe('reduceSurfaceMessage', () => {
       expect(result.state.providerError).toBe('Rate limited');
       expect(result.state.isProcessing).toBe(false);
       expect(result.state.activity).toBeNull();
-    });
-
-    it('resets studyModeLocked so user can retry', () => {
-      const s = state({ isProcessing: true, studyModeLocked: true });
-      const msg: WsMessage = { type: 'provider-error', error: 'Rate limited' };
-      const result = reduceSurfaceMessage(s, msg, null);
-
-      expect(result.state.studyModeLocked).toBe(false);
     });
   });
 
@@ -321,14 +303,6 @@ describe('reduceSurfaceMessage', () => {
       expect(result.effects).toContainEqual({ type: 'clear-pending-prompt' });
     });
 
-    it('resets studyModeLocked on failure so user can retry', () => {
-      const s = state({ isProcessing: true, studyModeLocked: true });
-      const msg: WsMessage = { type: 'preflight-result', ok: false, error: 'Provider unavailable' };
-      const result = reduceSurfaceMessage(s, msg, null);
-
-      expect(result.state.studyModeLocked).toBe(false);
-    });
-
     it('uses fallback error when error is undefined on failure', () => {
       const msg: WsMessage = { type: 'preflight-result', ok: false };
       const result = reduceSurfaceMessage(state(), msg, null);
@@ -349,14 +323,6 @@ describe('reduceSurfaceMessage', () => {
       expect(result.state.isProcessing).toBe(false);
       expect(result.state.activity).toBeNull();
       expect(result.effects).toContainEqual({ type: 'clear-settle-timer' });
-    });
-
-    it('resets studyModeLocked so user can continue after explain phase', () => {
-      const s = state({ isProcessing: true, studyModeLocked: true, studyMode: true });
-      const msg: WsMessage = { type: 'prompt-complete' };
-      const result = reduceSurfaceMessage(s, msg, null);
-
-      expect(result.state.studyModeLocked).toBe(false);
     });
   });
 

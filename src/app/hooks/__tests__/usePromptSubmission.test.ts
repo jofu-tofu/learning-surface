@@ -30,10 +30,10 @@ describe('usePromptSubmission', () => {
     );
   });
 
-  it('locks study mode after submit when studyMode is true', () => {
+  it('sets isProcessing after submit', () => {
     const send = vi.fn();
     const setState = vi.fn();
-    const s = state({ studyMode: true, studyModeLocked: false });
+    const s = state();
 
     const { result } = renderHook(() =>
       usePromptSubmission(s, setState, send, false, {
@@ -48,10 +48,10 @@ describe('usePromptSubmission', () => {
     // setState should be called with an updater function
     expect(setState).toHaveBeenCalledTimes(1);
     const updater = setState.mock.calls[0][0] as (prev: SurfaceState) => SurfaceState;
-    const prev = state({ studyMode: true, studyModeLocked: false });
+    const prev = state();
     const next = updater(prev);
 
-    expect(next.studyModeLocked).toBe(true);
+    expect(next.isProcessing).toBe(true);
   });
 
   it('clearPendingPrompt prevents executePendingPromptEffect from sending', () => {
@@ -80,5 +80,25 @@ describe('usePromptSubmission', () => {
     act(() => result.current.executePendingPromptEffect());
 
     expect(send).not.toHaveBeenCalled();
+  });
+
+  it('submitResponses sends submit-responses message', () => {
+    const send = vi.fn();
+    const setState = vi.fn();
+    const s = state();
+
+    const { result } = renderHook(() =>
+      usePromptSubmission(s, setState, send, false, {
+        selectedProvider: null,
+        selectedModel: null,
+        selectedReasoningEffort: null,
+      }),
+    );
+
+    act(() => result.current.submitResponses({ b1: 'My answer' }));
+
+    expect(send).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'submit-responses', responses: { b1: 'My answer' } }),
+    );
   });
 });

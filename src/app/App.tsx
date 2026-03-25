@@ -1,6 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { getSecondPane } from './components/panes/registry.js';
-import { Sidebar } from './components/Sidebar.js';
 import { ChatList } from './components/ChatList.js';
 import { SidebarPanel } from './components/SidebarPanel.js';
 import { AppHeader } from './components/AppHeader.js';
@@ -9,7 +7,6 @@ import { Icon } from './components/Icon.js';
 import { useSurface } from './hooks/useSurface.js';
 import { ProcessingProvider } from './hooks/ProcessingContext.js';
 import { ChangeDetectionProvider } from './hooks/ChangeDetectionContext.js';
-import { getActiveSection } from '../shared/types.js';
 import { applyTheme, getStoredTheme, type ThemeId } from './utils/themes.js';
 import { focusRing } from './utils/styles.js';
 
@@ -25,8 +22,8 @@ export function App(): React.ReactElement {
     activeChatId,
     isDraftChat,
     submitPrompt,
+    submitResponses,
     selectVersion,
-    selectSection,
     newChat,
     switchChat,
     deleteChat,
@@ -35,8 +32,6 @@ export function App(): React.ReactElement {
     isProcessing,
     changedPanes,
     versionChangedPanes,
-    changedSectionIds,
-    flashSectionIds,
     activity,
     providers,
     selectedProvider,
@@ -47,22 +42,13 @@ export function App(): React.ReactElement {
     setSelectedReasoningEffort,
     providerError,
     clearProviderError,
-    studyMode,
-    studyModeLocked,
-    setStudyMode,
-    submitPrediction,
   } = useSurface();
 
   const [currentTheme, setCurrentTheme] = useState<ThemeId>(getStoredTheme);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [chatSelectMode, setChatSelectMode] = useState(false);
 
-  const activeSection = doc ? getActiveSection(doc) : undefined;
-  const activePhase = activeSection?.phase ?? 'explain';
-  const secondPane = getSecondPane(activePhase) ?? getSecondPane('explain')!;
-  const sectionList = doc?.sections.map((section) => ({ id: section.id, title: section.title })) ?? [];
   const currentVersionMeta = versions.find((v) => v.version === currentVersion);
-  const chatBarDisabled = studyModeLocked;
 
   useEffect(() => { applyTheme(currentTheme); }, [currentTheme]);
 
@@ -71,17 +57,12 @@ export function App(): React.ReactElement {
     <ChangeDetectionProvider
       flashPanes={changedPanes}
       versionChangedPanes={versionChangedPanes}
-      changedSectionIds={changedSectionIds}
-      flashSectionIds={flashSectionIds}
     >
       <div className="h-dvh flex flex-col bg-surface-900 text-surface-100 overflow-hidden">
         {/* Header */}
         <AppHeader
           sidebarCollapsed={sidebarCollapsed}
           onSidebarToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
-          studyMode={studyMode}
-          studyModeLocked={studyModeLocked}
-          onStudyModeToggle={() => setStudyMode(!studyMode)}
           currentTheme={currentTheme}
           onThemeChange={setCurrentTheme}
           connected={connected}
@@ -89,7 +70,7 @@ export function App(): React.ReactElement {
 
         {/* Main content */}
         <div className="flex flex-1 min-h-0">
-          {/* Sidebar — split into Chats (top) and Sections (bottom) */}
+          {/* Sidebar — Chats only */}
           <aside
             data-testid="pane-sidebar"
             className={`sidebar-collapsible shrink-0 bg-surface-800/40 border-r border-surface-700/50 flex flex-col ${sidebarCollapsed ? 'collapsed' : ''}`}
@@ -122,32 +103,15 @@ export function App(): React.ReactElement {
                 onRenameChat={renameChat}
               />
             </SidebarPanel>
-
-            {/* Divider */}
-            <div className="border-t border-surface-700/30" />
-
-            {/* Sections panel */}
-            <SidebarPanel title="Sections" className={`flex-1 ${changedPanes.has('sections') ? 'pane-updated' : ''}`}>
-              <Sidebar
-                sections={sectionList}
-                activeSection={doc?.activeSection ?? ''}
-                onSectionClick={selectSection}
-              />
-              {sectionList.length === 0 && (
-                <p className="px-4 text-sm text-surface-500 italic">No sections yet. Send a prompt to begin.</p>
-              )}
-            </SidebarPanel>
           </aside>
 
           {/* Center content area */}
           <ContentArea
-            activeSection={activeSection}
-            activePhase={activePhase}
-            secondPane={secondPane}
+            document={doc}
             currentVersionMeta={currentVersionMeta}
             providerError={providerError}
             clearProviderError={clearProviderError}
-            chatBarDisabled={chatBarDisabled}
+            chatBarDisabled={false}
             providerSelection={{
               providers,
               selectedProvider,
@@ -163,7 +127,7 @@ export function App(): React.ReactElement {
             forwardPath={forwardPath}
             onVersionSelect={selectVersion}
             submitPrompt={submitPrompt}
-            submitPrediction={submitPrediction}
+            submitResponses={submitResponses}
           />
         </div>
       </div>

@@ -1,16 +1,8 @@
-import type { LearningDocument } from '../shared/types.js';
-import type { VersionMeta } from '../shared/types.js';
-
+import type { LearningDocument } from '../shared/document.js';
+import type { VersionMeta } from '../shared/session.js';
 export interface SurfaceContext {
-  session: {
-    topic: string;
-    version: number;
-    activeSection: string;
-  };
-  mode: 'study' | 'answer';
-  phase: 'predict' | 'explain';
-  surface: Record<string, unknown>;
-  sections: Array<{ id: string; title: string; canvasIds: string[] }>;
+  session: { topic: string; version: number };
+  surface: Record<string, unknown>;  // canvases + blocks serialized for AI
   promptHistory: string[];
 }
 
@@ -24,7 +16,7 @@ export interface VersionStore {
 }
 
 export interface ContextCompiler {
-  compile(doc: LearningDocument, sessionDir: string, mode?: 'study' | 'answer'): Promise<SurfaceContext>;
+  compile(doc: LearningDocument, sessionDir: string): Promise<SurfaceContext>;
 }
 
 export interface FileWatcherService {

@@ -1,7 +1,6 @@
-import type { LearningDocument, Section, CanvasContent, Check, PredictionScaffold, PredictionClaim } from '../shared/types.js';
+import type { LearningDocument, CanvasContent, Block } from '../shared/document.js';
 import {
   type DesignSurfaceInput,
-  type SectionUpdateInput,
   type CanvasInput,
   DiagramDataSchema,
   TimelineDataSchema,
@@ -9,7 +8,6 @@ import {
   SequenceDataSchema,
 } from '../shared/schemas.js';
 import type { ZodType } from 'zod';
-import { slugify } from '../shared/slugify.js';
 
 // === Constants ===
 
@@ -25,29 +23,9 @@ const STRUCTURED_SCHEMAS: Record<string, ZodType> = {
 
 // === Result Types ===
 
-interface CanvasResult {
-  success: boolean;
-  error?: string;
-}
-
-interface SectionResult {
-  id: string;
-  results: {
-    title?: boolean;
-    canvases?: Record<string, CanvasResult>;
-    explanation?: boolean;
-    deeperPatterns?: boolean;
-    checks?: Record<string, boolean>;
-    followups?: boolean;
-    predictionScaffold?: boolean;
-    clear?: boolean;
-    active?: boolean;
-  };
-}
-
 export interface DesignSurfaceResult {
   version: number;
-  sections: SectionResult[];
+  canvasResults: Record<string, { success: boolean; error?: string }>;
   errors: string[];
 }
 
@@ -69,113 +47,25 @@ function validateCanvasContent(canvas: CanvasInput): string | null {
   return null;
 }
 
-// === Section Helpers ===
+// === Canvas Upsert ===
 
-function findSectionById(doc: LearningDocument, id: string): Section | undefined {
-  return doc.sections.find(section => section.id === id);
-}
-
-function createSection(title: string): Section {
-  return {
-    id: slugify(title),
-    title,
-    canvases: [],
-    deeperPatterns: [],
-  };
-}
-
-// === Section Update Helpers ===
-
-function resolveOrCreateSection(
-  doc: LearningDocument,
-  update: SectionUpdateInput,
+function upsertCanvases(
+  canvases: CanvasContent[],
+  inputs: CanvasInput[],
   errors: string[],
-): { section: Section; isNew: boolean } | { errorResult: SectionResult } {
-  if (update.id) {
-    const section = findSectionById(doc, update.id);
-    if (!section) {
-      const availableIds = doc.sections.map(section => section.id).join(', ');
-      errors.push(`Section '${update.id}' not found. Available: [${availableIds}]`);
-      return { errorResult: { id: update.id, results: {} } };
-    }
-    return { section, isNew: false };
-  } else if (update.title) {
-    const section = createSection(update.title);
+  canvasResults: Record<string, { success: boolean; error?: string }>,
+): CanvasContent[] {
+  const result = [...canvases];
 
-    // Auto-remove empty "Untitled" placeholder
-    const untitledIndex = doc.sections.findIndex(section => section.id === 'untitled');
-    if (untitledIndex !== -1) {
-      const untitled = doc.sections[untitledIndex];
-      const isEmpty = untitled.canvases.length === 0 &&
-        !untitled.explanation &&
-        !untitled.checks?.length &&
-        !untitled.followups?.length;
-      if (isEmpty) {
-        doc.sections.splice(untitledIndex, 1);
-        if (doc.activeSection === 'untitled') {
-          doc.activeSection = section.id;
-        }
-      }
-    }
-
-    doc.sections.push(section);
-    return { section, isNew: true };
-  } else {
-    errors.push("Section requires either 'id' (existing) or 'title' (new)");
-    return { errorResult: { id: '', results: {} } };
-  }
-}
-
-function updateTitle(section: Section, update: SectionUpdateInput, isNew: boolean, result: SectionResult): void {
-  if (update.title && !isNew) {
-    section.title = update.title;
-    result.results.title = true;
-  }
-}
-
-function clearFields(section: Section, update: SectionUpdateInput, result: SectionResult): void {
-  if (update.clear && update.clear.length > 0) {
-    for (const target of update.clear) {
-      switch (target) {
-        case 'canvases':
-          section.canvases = [];
-          break;
-        case 'explanation':
-          delete section.explanation;
-          break;
-        case 'checks':
-          delete section.checks;
-          break;
-        case 'deeperPatterns':
-          section.deeperPatterns = [];
-          break;
-        case 'followups':
-          delete section.followups;
-          break;
-        case 'predictionScaffold':
-          delete section.predictionScaffold;
-          delete section.phase;
-          break;
-      }
-    }
-    result.results.clear = true;
-  }
-}
-
-function upsertCanvases(section: Section, update: SectionUpdateInput, errors: string[], result: SectionResult): void {
-  if (!update.canvases) return;
-
-  const canvasResults: Record<string, CanvasResult> = {};
-
-  for (const canvasInput of update.canvases) {
+  for (const canvasInput of inputs) {
     const validationError = validateCanvasContent(canvasInput);
     if (validationError) {
       canvasResults[canvasInput.id] = { success: false, error: validationError };
-      errors.push(`Section '${section.id}' canvas '${canvasInput.id}': ${validationError}`);
+      errors.push(`Canvas '${canvasInput.id}': ${validationError}`);
       continue;
     }
 
-    const existingIndex = section.canvases.findIndex(canvas => canvas.id === canvasInput.id);
+    const existingIndex = result.findIndex(canvas => canvas.id === canvasInput.id);
     const canvas: CanvasContent = {
       id: canvasInput.id,
       type: canvasInput.type,
@@ -184,130 +74,40 @@ function upsertCanvases(section: Section, update: SectionUpdateInput, errors: st
     };
 
     if (existingIndex >= 0) {
-      section.canvases[existingIndex] = canvas;
+      result[existingIndex] = canvas;
       canvasResults[canvasInput.id] = { success: true };
-    } else if (section.canvases.length < MAX_CANVASES) {
-      section.canvases.push(canvas);
+    } else if (result.length < MAX_CANVASES) {
+      result.push(canvas);
       canvasResults[canvasInput.id] = { success: true };
     } else {
-      const existingIds = section.canvases.map(canvas => canvas.id).join(', ');
+      const existingIds = result.map(c => c.id).join(', ');
       const capError = `Maximum ${MAX_CANVASES} canvases. Cannot add '${canvasInput.id}'. Existing: [${existingIds}]`;
       canvasResults[canvasInput.id] = { success: false, error: capError };
-      errors.push(`Section '${section.id}': ${capError}`);
+      errors.push(capError);
     }
   }
-
-  result.results.canvases = canvasResults;
-}
-
-function updateExplanation(section: Section, update: SectionUpdateInput, result: SectionResult): void {
-  if (update.explanation !== undefined) {
-    section.explanation = update.explanation;
-    // Auto-transition from predict → explain when the AI writes explanation content.
-    // This ensures the UI switches from the Prediction pane to the Explanation pane
-    // only when there's actual content to show.
-    if (section.phase === 'predict') {
-      section.phase = 'explain';
-    }
-    result.results.explanation = true;
-  }
-}
-
-function updateDeeperPatterns(section: Section, update: SectionUpdateInput, result: SectionResult): void {
-  if (update.deeperPatterns !== undefined) {
-    section.deeperPatterns = update.deeperPatterns.map(dp => ({
-      pattern: dp.pattern,
-      connection: dp.connection,
-    }));
-    result.results.deeperPatterns = true;
-  }
-}
-
-function appendChecks(section: Section, update: SectionUpdateInput, result: SectionResult): void {
-  if (!update.checks) return;
-
-  if (!section.checks) section.checks = [];
-  const checkResults: Record<string, boolean> = {};
-
-  for (const checkInput of update.checks) {
-    const id = `c${section.checks.length + 1}`;
-    const check: Check = {
-      id,
-      question: checkInput.question,
-      status: 'unanswered',
-      ...(checkInput.hints ? { hints: checkInput.hints } : {}),
-      answer: checkInput.answer,
-      ...(checkInput.answerExplanation ? { answerExplanation: checkInput.answerExplanation } : {}),
-    };
-    section.checks.push(check);
-    checkResults[id] = true;
-  }
-
-  result.results.checks = checkResults;
-}
-
-function updateFollowups(section: Section, update: SectionUpdateInput, result: SectionResult): void {
-  if (update.followups !== undefined) {
-    section.followups = update.followups;
-    result.results.followups = true;
-  }
-}
-
-function updatePredictionScaffold(section: Section, update: SectionUpdateInput, result: SectionResult): void {
-  // The predict-phase schema uses 'predictionScaffold' — it arrives on the update object via the AI tool call
-  const scaffoldInput = (update as Record<string, unknown>).predictionScaffold as
-    { question: string; claims: Array<{ id: string; prompt: string; type: 'choice' | 'fill-blank' | 'free-text'; options?: string[] }> } | undefined;
-  if (!scaffoldInput) return;
-
-  const claims: PredictionClaim[] = scaffoldInput.claims.map(c => ({
-    id: c.id,
-    prompt: c.prompt,
-    type: c.type,
-    ...(c.options ? { options: c.options } : {}),
-    value: null, // always null when AI creates scaffold — learner fills in later
-  }));
-
-  const scaffold: PredictionScaffold = {
-    question: scaffoldInput.question,
-    claims,
-  };
-
-  section.predictionScaffold = scaffold;
-  section.phase = 'predict';
-  result.results.predictionScaffold = true;
-}
-
-function setActiveSection(doc: LearningDocument, section: Section, update: SectionUpdateInput, result: SectionResult): void {
-  if (update.active) {
-    doc.activeSection = section.id;
-    result.results.active = true;
-  }
-}
-
-// === Core Merge Logic ===
-
-function applySectionUpdate(
-  doc: LearningDocument,
-  update: SectionUpdateInput,
-  errors: string[],
-): SectionResult {
-  const resolved = resolveOrCreateSection(doc, update, errors);
-  if ('errorResult' in resolved) return resolved.errorResult;
-
-  const { section, isNew } = resolved;
-  const result: SectionResult = { id: section.id, results: {} };
-
-  updateTitle(section, update, isNew, result);
-  clearFields(section, update, result);
-  upsertCanvases(section, update, errors, result);
-  updateExplanation(section, update, result);
-  updateDeeperPatterns(section, update, result);
-  appendChecks(section, update, result);
-  updateFollowups(section, update, result);
-  updatePredictionScaffold(section, update, result);
-  setActiveSection(doc, section, update, result);
 
   return result;
+}
+
+// === Block Assignment ===
+
+function assignBlocks(inputs: import('../shared/schemas.js').BlockInput[]): Block[] {
+  return inputs.map((input, index) => {
+    const id = `b${index + 1}`;
+    switch (input.type) {
+      case 'text':
+        return { id, type: 'text' as const, content: input.content };
+      case 'interactive':
+        return { id, type: 'interactive' as const, prompt: input.prompt, response: null };
+      case 'feedback':
+        return { id, type: 'feedback' as const, targetBlockId: input.targetBlockId, correct: input.correct, content: input.content };
+      case 'deeper-patterns':
+        return { id, type: 'deeper-patterns' as const, patterns: input.patterns.map(p => ({ pattern: p.pattern, connection: p.connection })) };
+      case 'suggestions':
+        return { id, type: 'suggestions' as const, items: input.items };
+    }
+  });
 }
 
 // === Public API ===
@@ -324,61 +124,42 @@ export function applyDesignSurface(
 ): { doc: LearningDocument; results: DesignSurfaceResult } {
   const cloned = structuredClone(doc);
   const errors: string[] = [];
-  const sectionResults: SectionResult[] = [];
+  const canvasResults: Record<string, { success: boolean; error?: string }> = {};
 
   // Summary — update document label / chat title
   if (params.summary) {
     cloned.summary = params.summary;
   }
 
-  // clearAll — reset entire document
-  if (params.clearAll) {
-    cloned.sections = [{
-      id: 'start',
-      title: 'Start',
-      canvases: [],
-      deeperPatterns: [],
-    }];
-    cloned.activeSection = 'start';
-    delete cloned.summary;
-    return {
-      doc: cloned,
-      results: { version: cloned.version, sections: [], errors: [] },
-    };
-  }
-
-  // removeSection — delete a section by ID
-  if (params.removeSection) {
-    const sectionIdToRemove = params.removeSection;
-    if (cloned.sections.length <= 1) {
-      errors.push(`Cannot remove last section '${sectionIdToRemove}'. Use clearAll instead.`);
-    } else {
-      const removeIndex = cloned.sections.findIndex(section => section.id === sectionIdToRemove);
-      if (removeIndex === -1) {
-        const availableIds = cloned.sections.map(section => section.id).join(', ');
-        errors.push(`removeSection: '${sectionIdToRemove}' not found. Available: [${availableIds}]`);
-      } else {
-        cloned.sections.splice(removeIndex, 1);
-        if (cloned.activeSection === sectionIdToRemove && cloned.sections.length > 0) {
-          cloned.activeSection = cloned.sections[cloned.sections.length - 1].id;
-        }
+  // Clear — handle ['canvases'] and ['blocks']
+  if (params.clear && params.clear.length > 0) {
+    for (const target of params.clear) {
+      switch (target) {
+        case 'canvases':
+          cloned.canvases = [];
+          break;
+        case 'blocks':
+          cloned.blocks = [];
+          break;
       }
     }
   }
 
-  // Apply section updates
-  if (params.sections) {
-    for (const update of params.sections) {
-      const result = applySectionUpdate(cloned, update, errors);
-      sectionResults.push(result);
-    }
+  // Canvases — upsert by ID (max 4)
+  if (params.canvases) {
+    cloned.canvases = upsertCanvases(cloned.canvases, params.canvases, errors, canvasResults);
+  }
+
+  // Blocks — replace entirely, assign IDs b1, b2, ..., set response: null on interactive
+  if (params.blocks) {
+    cloned.blocks = assignBlocks(params.blocks);
   }
 
   return {
     doc: cloned,
     results: {
       version: cloned.version,
-      sections: sectionResults,
+      canvasResults,
       errors,
     },
   };

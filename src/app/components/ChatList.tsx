@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import type { Chat } from '../../shared/types.js';
-import { sortChatsByRecent } from '../../shared/types.js';
+import type { Chat } from '../../shared/session.js';
+import { sortChatsByRecent } from '../../shared/session.js';
 import { listContainer, listItemBase, listItemActive, listItemInactive, focusRing } from '../utils/styles.js';
 import { Icon } from './Icon.js';
 

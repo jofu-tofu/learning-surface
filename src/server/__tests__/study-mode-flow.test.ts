@@ -1,238 +1,115 @@
 import { describe, it, expect } from 'vitest';
 import { applyDesignSurface } from '../tool-handlers.js';
-import { resolvePhase } from '../../shared/phase.js';
-import {
-  buildDocument,
-  buildSection,
-  buildPredictToolCall,
-  buildExplainToolCall,
-  fillPredictionClaims,
-} from '../../test/helpers.js';
-import type { LearningDocument } from '../../shared/types.js';
+import { buildDocument } from '../../test/helpers.js';
+import type { LearningDocument } from '../../shared/document.js';
 import type { DesignSurfaceInput } from '../../shared/schemas.js';
 
-/** Empty doc with a single untitled placeholder section. */
-function emptyDoc(): LearningDocument {
-  return buildDocument({
-    sections: [buildSection({ title: 'Untitled' })],
-    activeSection: 'untitled',
-  });
-}
-
-describe('study mode predict→explain flow', () => {
-  // ─── Scenario 1: Predict tool call on empty doc ───
-  it('creates section with scaffold, phase=predict, no explanation/checks/followups', () => {
-    const doc = emptyDoc();
-    const params = buildPredictToolCall();
-    const { doc: result, results } = applyDesignSurface(doc, params as unknown as DesignSurfaceInput);
-
-    const section = result.sections.find(s => s.id === 'tcp-handshake')!;
-    expect(section).toBeDefined();
-    expect(section.predictionScaffold).toBeDefined();
-    expect(section.predictionScaffold!.claims).toHaveLength(3);
-    expect(section.predictionScaffold!.claims.every(c => c.value === null)).toBe(true);
-
-    // Stored phase
-    expect(section.phase).toBe('predict');
-    // Computed phase in study mode
-    expect(resolvePhase(section, 'study')).toBe('predict');
-
-    // No explain-phase fields
-    expect(section.explanation).toBeUndefined();
-    expect(section.checks).toBeUndefined();
-    expect(section.followups).toBeUndefined();
-
-    // Result confirms scaffold applied
-    const sectionResult = results.sections.find(s => s.id === 'tcp-handshake');
-    expect(sectionResult?.results.predictionScaffold).toBe(true);
-  });
-
-  // ─── Scenario 2: Filled claims flip resolvePhase to 'explain' ───
-  it('resolvePhase returns explain after all claims filled, stored phase unchanged', () => {
-    const doc = emptyDoc();
-    const params = buildPredictToolCall();
-    const { doc: afterPredict } = applyDesignSurface(doc, params as unknown as DesignSurfaceInput);
-    const sectionId = afterPredict.sections.find(s => s.predictionScaffold)!.id;
-
-    const filled = fillPredictionClaims(afterPredict, sectionId, {
-      c1: 'Client',
-      c2: 'ACK',
-      c3: 'To confirm the server received the SYN-ACK',
-    });
-
-    const section = filled.sections.find(s => s.id === sectionId)!;
-    // Stored phase unchanged (tool handler didn't run again)
-    expect(section.phase).toBe('predict');
-    // Computed phase flips because all claims are filled
-    expect(resolvePhase(section, 'study')).toBe('explain');
-  });
-
-  // ─── Scenario 3: Explain tool call clears scaffold and populates explanation ───
-  it('clears scaffold and populates explanation/checks/followups', () => {
-    const doc = emptyDoc();
-    const predictParams = buildPredictToolCall();
-    const { doc: afterPredict } = applyDesignSurface(doc, predictParams as unknown as DesignSurfaceInput);
-    const sectionId = afterPredict.sections.find(s => s.predictionScaffold)!.id;
-
-    const explainParams = buildExplainToolCall(sectionId);
-    const { doc: result } = applyDesignSurface(afterPredict, explainParams);
-
-    const section = result.sections.find(s => s.id === sectionId)!;
-    // Scaffold cleared
-    expect(section.predictionScaffold).toBeUndefined();
-    // Phase cleared by clearFields
-    expect(section.phase).toBeUndefined();
-    // Explain-phase fields present
-    expect(section.explanation).toBeDefined();
-    expect(section.checks).toHaveLength(1);
-    expect(section.followups).toHaveLength(1);
-    // Canvas updated (full sequence with ACK)
-    const seqCanvas = section.canvases.find(c => c.id === 'full-seq');
-    expect(seqCanvas).toBeDefined();
-    expect(seqCanvas!.content).toContain('ACK');
-  });
-
-  // ─── Scenario 4: Explain on unfilled claims still clears scaffold ───
-  it('clears scaffold even when claims are unfilled', () => {
-    const doc = emptyDoc();
-    const predictParams = buildPredictToolCall();
-    const { doc: afterPredict } = applyDesignSurface(doc, predictParams as unknown as DesignSurfaceInput);
-    const sectionId = afterPredict.sections.find(s => s.predictionScaffold)!.id;
-
-    // Do NOT fill claims — go straight to explain
-    const explainParams = buildExplainToolCall(sectionId);
-    const { doc: result } = applyDesignSurface(afterPredict, explainParams);
-
-    const section = result.sections.find(s => s.id === sectionId)!;
-    expect(section.predictionScaffold).toBeUndefined();
-    expect(section.explanation).toBeDefined();
-  });
-
-  // ─── Scenario 5: Invalid canvas + valid scaffold = partial success ───
-  it('applies scaffold even when a canvas has invalid content', () => {
-    const doc = emptyDoc();
-    const params = buildPredictToolCall();
-    // Inject an invalid diagram canvas alongside the valid sequence canvas
-    const sections = (params as { sections: Array<Record<string, unknown>> }).sections;
-    const canvases = sections[0].canvases as Array<Record<string, unknown>>;
-    canvases.push({
-      id: 'bad-diagram',
-      type: 'diagram',
-      content: 'not valid json',
-    });
-
-    const { doc: result, results } = applyDesignSurface(doc, params as unknown as DesignSurfaceInput);
-
-    // Errors reported for invalid canvas
-    expect(results.errors.length).toBeGreaterThan(0);
-    expect(results.errors[0]).toContain('bad-diagram');
-
-    const section = result.sections.find(s => s.predictionScaffold)!;
-    // Scaffold still applied despite canvas error
-    expect(section.predictionScaffold).toBeDefined();
-    expect(section.predictionScaffold!.claims).toHaveLength(3);
-
-    const sectionResult = results.sections.find(s => s.id === section.id);
-    expect(sectionResult?.results.predictionScaffold).toBe(true);
-    expect(sectionResult?.results.canvases?.['bad-diagram']?.success).toBe(false);
-  });
-
-  // ─── Scenario 6: Two predict calls — scaffold replaces ───
-  it('second predict call overwrites first scaffold', () => {
-    const doc = emptyDoc();
-    const first = buildPredictToolCall({ claims: [
-      { id: 'x1', prompt: 'First?', type: 'free-text' },
-    ]});
-    const { doc: afterFirst } = applyDesignSurface(doc, first as unknown as DesignSurfaceInput);
-    const sectionId = afterFirst.sections.find(s => s.predictionScaffold)!.id;
-
-    const second = buildPredictToolCall({
-      sectionTitle: undefined, // target existing section by id
-      claims: [
-        { id: 'y1', prompt: 'Second A?', type: 'choice', options: ['A', 'B'] },
-        { id: 'y2', prompt: 'Second B?', type: 'fill-blank' },
+describe('feedback loop flow', () => {
+  // ─── Scenario 1: Interactive blocks created with response: null ───
+  it('creates interactive blocks with response: null', () => {
+    const doc = buildDocument();
+    const { doc: result } = applyDesignSurface(doc, {
+      summary: 'TCP handshake',
+      canvases: [{
+        id: 'setup-seq',
+        type: 'sequence',
+        content: JSON.stringify({
+          participants: [{ id: 'client', label: 'Client' }, { id: 'server', label: 'Server' }],
+          messages: [{ from: 'client', to: 'server', label: 'SYN' }],
+        }),
+      }],
+      blocks: [
+        { type: 'text', content: 'Look at the sequence diagram.' },
+        { type: 'interactive', prompt: 'Who sends the next packet?' },
+        { type: 'interactive', prompt: 'The flag on the final packet is ___' },
+        { type: 'deeper-patterns', patterns: [
+          { pattern: 'Handshake protocols', connection: 'Both parties must agree before data flows.' },
+        ]},
       ],
-    });
-    // Target existing section by id instead of creating new
-    const secondSections = (second as { sections: Array<Record<string, unknown>> }).sections;
-    delete secondSections[0].title;
-    secondSections[0].id = sectionId;
+    } as DesignSurfaceInput);
 
-    const { doc: result } = applyDesignSurface(afterFirst, second as unknown as DesignSurfaceInput);
-
-    const section = result.sections.find(s => s.id === sectionId)!;
-    expect(section.predictionScaffold!.claims).toHaveLength(2);
-    expect(section.predictionScaffold!.claims[0].id).toBe('y1');
-    expect(section.predictionScaffold!.claims[1].id).toBe('y2');
+    expect(result.blocks).toHaveLength(4);
+    const interactives = result.blocks.filter(b => b.type === 'interactive');
+    expect(interactives).toHaveLength(2);
+    expect(interactives.every(b => b.type === 'interactive' && b.response === null)).toBe(true);
+    expect(result.canvases).toHaveLength(1);
   });
 
-  // ─── Scenario 7: Multi-section — explain only affects targeted section ───
-  it('explain on one section leaves other section scaffold intact', () => {
-    const doc = emptyDoc();
+  // ─── Scenario 2: Feedback blocks reference interactive blocks ───
+  it('feedback blocks can reference previous interactive block IDs', () => {
+    // First: create interactive blocks
+    const doc = buildDocument();
+    const { doc: afterInteractive } = applyDesignSurface(doc, {
+      summary: 'TCP quiz',
+      blocks: [
+        { type: 'interactive', prompt: 'Who sends the next packet?' },
+        { type: 'interactive', prompt: 'Flag?' },
+      ],
+    } as DesignSurfaceInput);
 
-    // Create section A
-    const predictA = buildPredictToolCall({ sectionTitle: 'Section A' });
-    const { doc: afterA } = applyDesignSurface(doc, predictA as unknown as DesignSurfaceInput);
+    // Simulate learner filling responses
+    const filled = structuredClone(afterInteractive);
+    for (const block of filled.blocks) {
+      if (block.type === 'interactive') {
+        block.response = 'some answer';
+      }
+    }
 
-    // Create section B
-    const predictB = buildPredictToolCall({ sectionTitle: 'Section B', summary: 'Section B predict' });
-    const { doc: afterBoth } = applyDesignSurface(afterA, predictB as unknown as DesignSurfaceInput);
+    // AI generates feedback referencing the interactive block IDs
+    const { doc: result } = applyDesignSurface(filled, {
+      summary: 'TCP feedback',
+      blocks: [
+        { type: 'feedback', targetBlockId: 'b1', correct: true, content: 'Correct — the client sends it.' },
+        { type: 'feedback', targetBlockId: 'b2', correct: false, content: 'The flag is ACK, not SYN.' },
+        { type: 'text', content: 'Full explanation here.' },
+        { type: 'deeper-patterns', patterns: [
+          { pattern: 'Handshake protocols', connection: 'Both sides agree.' },
+        ]},
+        { type: 'suggestions', items: ['How does TCP handle connection teardown?'] },
+      ],
+    } as DesignSurfaceInput);
 
-    const sectionAId = afterBoth.sections.find(s => s.title === 'Section A')!.id;
-    const sectionBId = afterBoth.sections.find(s => s.title === 'Section B')!.id;
-
-    // Explain only section A
-    const explainA = buildExplainToolCall(sectionAId);
-    const { doc: result } = applyDesignSurface(afterBoth, explainA);
-
-    // Section A: explained, no scaffold
-    const sA = result.sections.find(s => s.id === sectionAId)!;
-    expect(sA.predictionScaffold).toBeUndefined();
-    expect(sA.explanation).toBeDefined();
-
-    // Section B: scaffold intact, no explanation
-    const sB = result.sections.find(s => s.id === sectionBId)!;
-    expect(sB.predictionScaffold).toBeDefined();
-    expect(sB.predictionScaffold!.claims).toHaveLength(3);
-    expect(sB.explanation).toBeUndefined();
-    expect(sB.phase).toBe('predict');
+    expect(result.blocks).toHaveLength(5);
+    const feedbacks = result.blocks.filter(b => b.type === 'feedback');
+    expect(feedbacks).toHaveLength(2);
+    expect(feedbacks[0]).toMatchObject({ targetBlockId: 'b1', correct: true });
+    expect(feedbacks[1]).toMatchObject({ targetBlockId: 'b2', correct: false });
   });
 
-  // ─── Scenario 8: Explain without clearing scaffold transitions phase ───
-  it('writing explanation to predict-phase section auto-transitions phase to explain', () => {
-    const doc = emptyDoc();
-    const predictParams = buildPredictToolCall();
-    const { doc: afterPredict } = applyDesignSurface(doc, predictParams as unknown as DesignSurfaceInput);
-    const sectionId = afterPredict.sections.find(s => s.predictionScaffold)!.id;
-
-    // Explain WITHOUT clearing scaffold (clearScaffold: false)
-    const explainParams = buildExplainToolCall(sectionId, { clearScaffold: false });
-    const { doc: result } = applyDesignSurface(afterPredict, explainParams);
-
-    const section = result.sections.find(s => s.id === sectionId)!;
-    // Scaffold preserved (not cleared)
-    expect(section.predictionScaffold).toBeDefined();
-    // Phase auto-transitioned from 'predict' to 'explain' when explanation was written
-    expect(section.phase).toBe('explain');
-    // Explanation content present
-    expect(section.explanation).toBeDefined();
-  });
-
-  // ─── Scenario 9: Explanation on non-predict section does not force phase ───
-  it('writing explanation to section without phase does not set phase', () => {
+  // ─── Scenario 3: Blocks replace entirely — old blocks gone ───
+  it('replacing blocks removes all old blocks', () => {
     const doc = buildDocument({
-      sections: [buildSection({ title: 'Normal Section' })],
-      activeSection: 'normal-section',
+      blocks: [
+        { id: 'b1', type: 'text', content: 'Old text' },
+        { id: 'b2', type: 'interactive', prompt: 'Old question', response: 'Old answer' },
+      ],
     });
 
     const { doc: result } = applyDesignSurface(doc, {
-      summary: 'test',
-      sections: [{ id: 'normal-section', explanation: 'Hello world' }],
-    });
+      summary: 'New content',
+      blocks: [{ type: 'text', content: 'Completely new' }],
+    } as DesignSurfaceInput);
 
-    const section = result.sections[0];
-    expect(section.explanation).toBe('Hello world');
-    // Phase should remain undefined for non-study-mode sections
-    expect(section.phase).toBeUndefined();
+    expect(result.blocks).toHaveLength(1);
+    expect(result.blocks[0]).toMatchObject({ id: 'b1', type: 'text', content: 'Completely new' });
+  });
+
+  // ─── Scenario 4: Invalid canvas + valid blocks = partial success ───
+  it('applies blocks even when a canvas has invalid content', () => {
+    const doc = buildDocument();
+    const { doc: result, results } = applyDesignSurface(doc, {
+      summary: 'Partial test',
+      canvases: [
+        { id: 'bad-diagram', type: 'diagram', content: 'not valid json' },
+      ],
+      blocks: [
+        { type: 'interactive', prompt: 'What happens?' },
+      ],
+    } as DesignSurfaceInput);
+
+    expect(results.errors.length).toBeGreaterThan(0);
+    expect(results.errors[0]).toContain('bad-diagram');
+    expect(result.blocks).toHaveLength(1);
+    expect(result.blocks[0]).toMatchObject({ type: 'interactive', response: null });
   });
 });

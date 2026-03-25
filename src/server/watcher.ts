@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { watch, type FSWatcher } from 'chokidar';
-import type { LearningDocument } from '../shared/types.js';
+import type { LearningDocument } from '../shared/document.js';
 import type { FileWatcherService } from './types.js';
 import { parseSurface } from './surface-file.js';
 import { CURRENT_SURFACE } from './document-service.js';
@@ -10,8 +10,8 @@ import { formatError } from './utils/ws-helpers.js';
 
 const DEFAULT_DOCUMENT: LearningDocument = {
   version: 1,
-  activeSection: '',
-  sections: [],
+  canvases: [],
+  blocks: [],
 };
 
 export function createFileWatcher(): FileWatcherService {

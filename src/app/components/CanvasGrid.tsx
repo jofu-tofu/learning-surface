@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import type { CanvasContent } from '../../shared/types.js';
+import type { CanvasContent } from '../../shared/document.js';
 import { Canvas } from './Canvas.js';
 import { Icon } from './Icon.js';
 import { useContentRefresh } from '../hooks/useContentRefresh.js';

@@ -48,7 +48,7 @@ describe('MCP integration dry run', () => {
     await mkdir(SESSION_DIR, { recursive: true });
     await writeFile(
       join(SESSION_DIR, 'current.surface'),
-      JSON.stringify({ version: 1, activeSection: 'start', sections: [{ id: 'start', title: 'Start', canvases: [], deeperPatterns: [] }] }),
+      JSON.stringify({ version: 1, canvases: [], blocks: [] }),
     );
 
     // Same config as mcp-entry.ts: no versionStore
@@ -70,15 +70,14 @@ describe('MCP integration dry run', () => {
     const result = await client.callTool({
       name: 'design_surface',
       arguments: {
-        summary: 'Test section',
-        sections: [{ title: 'Test Section', explanation: 'Hello from MCP' }],
+        summary: 'Test block',
+        blocks: [{ type: 'text', content: 'Hello from MCP' }],
       },
     });
     expect(result.isError).toBeFalsy();
 
     // Verify the surface file was updated
     const raw = await readFile(join(SESSION_DIR, 'current.surface'), 'utf-8');
-    expect(raw).toContain('Test Section');
     expect(raw).toContain('Hello from MCP');
 
     await server.stop();

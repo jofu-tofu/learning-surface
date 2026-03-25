@@ -21,9 +21,9 @@ True understanding emerges when knowledge becomes structured, transferable, and 
 
 ### Current state vs. target
 
-The current implementation — structured explanations, canvases, comprehension checks, deeper patterns — is a **first step**. It delivers well-organized answers that the learner must actively interpret. This is necessary groundwork: the multi-pane surface, the canvas types, the section model all exist to support richer interactions.
+The current implementation uses a **freeform block model** — the AI emits typed blocks (text, interactive, feedback, deeper-patterns, suggestions) that compose naturally into answer-style or study-style surfaces. Interactive blocks elicit the learner's model; feedback blocks address their responses. The feedback loop runs continuously: submit responses → AI evaluates → new blocks → repeat.
 
-But delivering answers still places the revision burden entirely on the learner. The target is an app that **actively invokes the feedback loop** rather than waiting for the learner to self-test:
+The target is an app that **actively invokes the feedback loop** rather than waiting for the learner to self-test:
 
 - **Surface the learner's model.** Before explaining, elicit what the learner currently believes. Make their mental model visible and committal so errors become detectable.
 - **Introduce precise friction.** Present targeted challenges, counterexamples, and edge cases that expose specific gaps — not generic quiz questions, but friction calibrated to the learner's current understanding.
@@ -65,18 +65,18 @@ src/
     providers/         # AI provider abstraction (CLI via codex exec, API via OpenAI SDK)
     utils/             # WebSocket helpers, version meta reader
   app/                 # React frontend — multi-pane tutoring surface
-    components/        # AppHeader, ContentArea, PaneLayout, FullscreenOverlay, VersionTimeline, CanvasGrid, Canvas, Explanation, Prediction, Sidebar, SidebarPanel, ChatList, Breadcrumb, ChatBar, ProviderSelector, PromptPreview, ActivityStatus, BranchPopover, PaneHeader, ErrorBanner, EmptyState, Icon, VersionDot, ThemeSelector
-      renderers/       # Registry-based visual renderers (KaTeX, Code, Diagram, Timeline, Proof, Sequence) + pure layout modules (diagram-layout, timeline-layout, proof-layout, sequence-layout)
-      content-slots/   # Registry-based content slots for Explanation pane (ExplanationSlot, DeeperPatternsSlot, ChecksSlot, FollowupsSlot)
-      panes/           # Registry-based second-pane mapping (phase → component). SurfaceActionsContext for pane action injection
-    hooks/             # useSurface (composition root), surfaceReducer (pure state machine), domain hooks (useDocumentActions, useChatActions, useProcessingState, useChangeDetection, useStudyMode, usePromptSubmission), ProcessingContext, ChangeDetectionContext, useWebSocket, useMarkdown, useAsyncRender, useProviderSelection, useClickOutside, useContainerSize
-    utils/             # versionLabel, styles, formatTime, detectChangedPanes, themes
+    components/        # AppHeader, ContentArea, PaneLayout, BlockStream, FullscreenOverlay, VersionTimeline, CanvasGrid, Canvas, SidebarPanel, ChatList, Breadcrumb, ChatBar, ProviderSelector, PromptPreview, ActivityStatus, BranchPopover, PaneHeader, ErrorBanner, EmptyState, Icon, VersionDot, ThemeSelector
+      renderers/       # Registry-based visual renderers (KaTeX, Code, Diagram, Timeline, Proof, Sequence) + pure layout modules
+      blocks/          # Registry-based block renderers (TextBlock, InteractiveBlock, FeedbackBlock, DeeperPatternsBlock, SuggestionsBlock)
+      panes/           # SurfaceActionsContext for pane action injection
+    hooks/             # useSurface (composition root), surfaceReducer (pure state machine), domain hooks (useDocumentActions, useChatActions, useProcessingState, useChangeDetection, usePromptSubmission), ProcessingContext, ChangeDetectionContext, useWebSocket, useAsyncRender, useProviderSelection, useClickOutside, useContainerSize
+    utils/             # versionLabel, styles, formatTime, themes
   test/                # Test data builders, mock factories, test fixtures
 ```
 
 **Content pipeline:** User prompt -> AI provider -> `design_surface` tool -> `.surface` JSON file -> file watcher -> WebSocket -> rendered surface. All providers (API and CLI) interact through `design_surface` — CLI providers connect via MCP (`--mcp-config` pointing to `mcp-entry.ts`).
 
-**Data model:** `chats.json` index -> per-chat directories -> `v1.surface` + patches + `meta.json` -> version reconstruction
+**Data model:** `chats.json` index -> per-chat directories -> `v1.surface` + patches + `meta.json` -> version reconstruction. Documents contain canvases (left pane) and blocks (right pane) at the top level — no sections.
 
 ## Constraints
 
@@ -92,13 +92,13 @@ These shape every implementation decision — violating them means the code is w
 - **Single tool, declarative intent.** The AI calls one `design_surface` tool with a declarative description of what the surface should become. The tool definition IS the prompt engineering.
 - **Stateless AI agent.** No conversation history carried between interactions. The app compiles a structured JSON context from the current surface state.
 - **Filesystem as source of truth.** `.surface` JSON files on disk, diffs as patches, file watcher pushes changes to frontend.
-- **Multi-pane, not single-document.** Canvases stay visible during explanation. Spatial contiguity (Mayer) enforced by layout, not scroll proximity. Sections support multiple canvases via `canvases: CanvasContent[]`.
+- **Multi-pane, not single-document.** Canvases stay visible alongside blocks. Spatial contiguity (Mayer) enforced by layout, not scroll proximity.
+- **Everything is blocks.** No study/answer mode toggle. The AI composes block types freely — text, interactive, feedback, deeper-patterns, suggestions — to create answer-style or study-style surfaces as context demands.
+- **Continuous feedback loop.** Learner fills interactive blocks → submits → AI responds with feedback + new content → repeat via version history.
 
 ## Roadmap (not yet built)
 
-**Feedback loop activation** (partially implemented): Prediction elicitation before explanation (bounded two-phase loop), interactive prediction scaffold with multi-claim submission UX, study/answer mode toggle. Remaining: learner model tracking across sessions, variation testing after revision.
-
-**Existing backlog:** Cross-session concept linking, PDF side-by-side viewer, spaced repetition scheduling, concept graph, progressive disclosure within panes, user-editable explanations, timeline branching UX.
+**Existing backlog:** Learner model tracking across sessions, variation testing after revision, cross-session concept linking, PDF side-by-side viewer, spaced repetition scheduling, concept graph, progressive disclosure within panes, user-editable explanations, timeline branching UX.
 
 ## Context Tree
 

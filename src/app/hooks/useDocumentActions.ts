@@ -1,5 +1,6 @@
 import { useMemo, useCallback } from 'react';
-import type { LearningDocument, VersionMeta } from '../../shared/types.js';
+import type { LearningDocument } from '../../shared/document.js';
+import type { VersionMeta } from '../../shared/session.js';
 import { getVersionPath, getForwardPath } from '../../shared/version-tree.js';
 import type { SurfaceState } from './surfaceReducer.js';
 
@@ -13,7 +14,6 @@ interface DocumentActions {
   path: VersionMeta[];
   forwardPath: VersionMeta[];
   selectVersion: (version: number) => void;
-  selectSection: (sectionId: string) => void;
 }
 
 export function useDocumentActions(state: SurfaceState, setState: SetState, send: SendFn): DocumentActions {
@@ -27,13 +27,5 @@ export function useDocumentActions(state: SurfaceState, setState: SetState, send
     send({ type: 'select-version', version });
   }, [setState, send]);
 
-  const selectSection = useCallback((sectionId: string) => {
-    setState(prevState => ({
-      ...prevState,
-      document: prevState.document ? { ...prevState.document, activeSection: sectionId } : prevState.document,
-    }));
-    send({ type: 'select-section', sectionId });
-  }, [setState, send]);
-
-  return { document, versions, currentVersion, path, forwardPath, selectVersion, selectSection };
+  return { document, versions, currentVersion, path, forwardPath, selectVersion };
 }

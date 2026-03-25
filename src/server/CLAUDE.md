@@ -15,7 +15,7 @@ Node.js server — WebSocket hub, document I/O, version storage, chat persistenc
 
 **Single tool: `design_surface`.** The AI calls one declarative tool that describes the desired surface state. The tool handler (`applyDesignSurface`) is a pure function returning `{ doc, results }` — no in-place mutation.
 
-This replaces the previous 12-tool approach. The single tool definition IS the prompt engineering — its schema and description teach the AI what a learning surface can contain.
+The tool operates on a flat document model: canvases (left pane, upsert by ID) and blocks (right pane, replace entirely). No sections, no phases.
 
 ## Key Files
 
@@ -23,11 +23,11 @@ This replaces the previous 12-tool approach. The single tool definition IS the p
 |------|------|
 | `index.ts` | Server factory — wires HTTP + WebSocket, watcher, chat store; serves static files in production |
 | `cli.ts` | CLI entry point — resolves session dir, port, and clientDir; calls `startServer()` |
-| `ws-handlers.ts` | Message routing with `HandlerDeps` DI. Includes `submit-prediction` handler for prediction claims |
+| `ws-handlers.ts` | Message routing with `HandlerDeps` DI. Includes `submit-responses` handler for learner answers |
 | `prompt-handler.ts` | AI orchestration — pure functions + `handlePrompt` imperative shell |
-| `system-prompt.ts` | Single source of truth for all AI system prompts and teaching principles. Includes study mode system prompts |
+| `system-prompt.ts` | Single source of truth for all AI system prompts and teaching principles |
 | `document-service.ts` | Document I/O with injectable `FileIO`; uses `CURRENT_SURFACE` constant |
-| `surface-file.ts` | `.surface` JSON parse/serialize — replaces markdown.ts and blocks/ |
+| `surface-file.ts` | `.surface` JSON parse/serialize |
 | `tool-handlers.ts` | Pure surface transform — `applyDesignSurface(doc, params)` returns `{ doc, results }` |
 | `legacy-migrate.ts` | Migrates old `.md` structured markdown files to `.surface` JSON format |
 | `versions.ts` | Version store — v1.surface + patches via `diff` library |
@@ -39,12 +39,12 @@ This replaces the previous 12-tool approach. The single tool definition IS the p
 
 ## Conventions
 
-- `tool-handlers.ts` `applyDesignSurface` is a pure function — returns a new `{ doc, results }`, no in-place mutation.
+- `tool-handlers.ts` `applyDesignSurface` is a pure function — returns a new `{ doc, results }`, no in-place mutation. Canvases upsert by ID (max 4). Blocks replace entirely with sequential IDs `b1`, `b2`, etc.
 - `mcp-server.ts` batches rapid tool calls into a single version snapshot (2s debounce). Call `flushVersionBatch()` in tests to force flush.
-- Context compilation sends the **active section's state** + section list (enriched with `{ id, title, canvasIds }`) + recent prompt history to the AI — not the full document.
+- Context compilation sends the full document's canvases and blocks + recent prompt history to the AI.
 - System prompt uses a single `design_surface` tool description — no auto-generated block format spec.
-- `schemas.ts` exports `getPhaseToolDefs(phase)` for phase-indexed tool schema selection (predict vs explain phase gets different tool definitions).
-- `SessionState` includes `lastProvider`, `lastModel`, and `mode` fields.
+- `SessionState` includes `lastProvider` and `lastModel` fields (no `mode`).
+- `submit-responses` handler writes learner answers into interactive blocks, creates a learner version, and auto-triggers AI feedback.
 
 ---
 ## Context Maintenance

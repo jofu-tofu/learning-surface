@@ -1,5 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import type { LearningDocument, VersionMeta, WsMessage, Chat } from '../../shared/types.js';
+import type { LearningDocument } from '../../shared/document.js';
+import type { WsMessage } from '../../shared/messages.js';
+import type { VersionMeta, Chat } from '../../shared/session.js';
 import type { ProviderInfo, ReasoningEffort } from '../../shared/providers.js';
 import { useWebSocket } from './useWebSocket.js';
 import { useProviderSelection } from './useProviderSelection.js';
@@ -8,7 +10,6 @@ import { useDocumentActions } from './useDocumentActions.js';
 import { useChatActions } from './useChatActions.js';
 import { useProcessingState } from './useProcessingState.js';
 import { useChangeDetection } from './useChangeDetection.js';
-import { useStudyMode } from './useStudyMode.js';
 import { usePromptSubmission } from './usePromptSubmission.js';
 
 export type { ToolActivity } from './surfaceReducer.js';
@@ -28,8 +29,8 @@ interface UseSurfaceReturn {
   /** True when the current view is a blank draft (no chat created yet). */
   isDraftChat: boolean;
   submitPrompt: (text: string) => void;
+  submitResponses: (responses: Record<string, string>) => void;
   selectVersion: (version: number) => void;
-  selectSection: (sectionId: string) => void;
   newChat: () => void;
   switchChat: (chatId: string) => void;
   deleteChat: (chatId: string) => void;
@@ -41,10 +42,6 @@ interface UseSurfaceReturn {
   changedPanes: Set<string>;
   /** Panes that changed in the current version vs the previous version (persists until next version transition) */
   versionChangedPanes: Set<string>;
-  /** Section IDs that were added or modified in the current version (persists until next version transition) */
-  changedSectionIds: Set<string>;
-  /** Section IDs that changed in the most recent streaming update (1.2s flash lifetime) */
-  flashSectionIds: Set<string>;
   /** Current tool-call activity during processing, null when idle */
   activity: ToolActivity | null;
   /** Provider/model selection */
@@ -58,11 +55,6 @@ interface UseSurfaceReturn {
   /** Error from provider preflight or runtime failure */
   providerError: string | null;
   clearProviderError: () => void;
-  /** Study mode state */
-  studyMode: boolean;
-  studyModeLocked: boolean;
-  setStudyMode: (enabled: boolean) => void;
-  submitPrediction: (sectionId: string, responses: Record<string, string>) => void;
 }
 
 const WS_URL = typeof window !== 'undefined'
@@ -83,17 +75,16 @@ export function useSurface(): UseSurfaceReturn {
 
   // --- Domain hooks (facades over shared SurfaceState) ---
 
-  const { document, versions, currentVersion, path, forwardPath, selectVersion, selectSection } =
+  const { document, versions, currentVersion, path, forwardPath, selectVersion } =
     useDocumentActions(state, setState, sendRef.current);
 
   const { chats, activeChatId, isDraftChat, newChat, switchChat, deleteChat, deleteChats, renameChat } =
     useChatActions(state, setState, sendRef.current);
 
   const { isProcessing, activity } = useProcessingState(state);
-  const { changedPanes, versionChangedPanes, changedSectionIds, flashSectionIds } = useChangeDetection(state);
-  const { studyMode, studyModeLocked, setStudyMode } = useStudyMode(state, setState);
+  const { changedPanes, versionChangedPanes } = useChangeDetection(state);
 
-  const { submitPrompt, submitPrediction, executePendingPromptEffect, clearPendingPrompt } =
+  const { submitPrompt, submitResponses, executePendingPromptEffect, clearPendingPrompt } =
     usePromptSubmission(state, setState, sendRef.current, isDraftChat, {
       selectedProvider, selectedModel, selectedReasoningEffort,
     });
@@ -132,7 +123,7 @@ export function useSurface(): UseSurfaceReturn {
                 break;
               case 'schedule-flash-clear':
                 clearTimeout(flashTimerRef.current);
-                flashTimerRef.current = setTimeout(() => setState(prevState => ({ ...prevState, changedPanes: new Set(), flashSectionIds: new Set() })), 1200);
+                flashTimerRef.current = setTimeout(() => setState(prevState => ({ ...prevState, changedPanes: new Set() })), 1200);
                 break;
               case 'clear-settle-timer':
                 clearTimeout(settleTimerRef.current);
@@ -165,12 +156,11 @@ export function useSurface(): UseSurfaceReturn {
   return {
     document, versions, currentVersion, path, forwardPath,
     connected, chats, activeChatId, isDraftChat,
-    submitPrompt, selectVersion, selectSection,
+    submitPrompt, submitResponses, selectVersion,
     newChat, switchChat, deleteChat, deleteChats, renameChat,
-    isProcessing, changedPanes, versionChangedPanes, changedSectionIds, flashSectionIds, activity,
+    isProcessing, changedPanes, versionChangedPanes, activity,
     providers, selectedProvider, selectedModel, selectedReasoningEffort,
     setSelectedProvider, setSelectedModel, setSelectedReasoningEffort,
     providerError: state.providerError, clearProviderError,
-    studyMode, studyModeLocked, setStudyMode, submitPrediction,
   };
 }

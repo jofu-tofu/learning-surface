@@ -1,6 +1,6 @@
 import React, { useMemo, useCallback } from 'react';
-import type { Section, VersionMeta } from '../../shared/types.js';
-import { getAllSecondPaneIds, type SecondPaneEntry } from './panes/registry.js';
+import type { LearningDocument } from '../../shared/document.js';
+import type { VersionMeta } from '../../shared/session.js';
 import { SurfaceActionsProvider } from './panes/SurfaceActionsContext.js';
 import { PaneLayout } from './PaneLayout.js';
 import { VersionTimeline } from './VersionTimeline.js';
@@ -11,9 +11,7 @@ import { ChatBar } from './ChatBar.js';
 import type { ProviderSelectorProps } from './ProviderSelector.js';
 
 interface ContentAreaProps {
-  activeSection: Section | undefined;
-  activePhase: string;
-  secondPane: SecondPaneEntry;
+  document: LearningDocument | null;
   currentVersionMeta: VersionMeta | undefined;
   providerError: string | null;
   clearProviderError: () => void;
@@ -25,13 +23,11 @@ interface ContentAreaProps {
   forwardPath: VersionMeta[];
   onVersionSelect: (version: number) => void;
   submitPrompt: (text: string) => void;
-  submitPrediction: (sectionId: string, responses: Record<string, string>) => void;
+  submitResponses: (responses: Record<string, string>) => void;
 }
 
 export function ContentArea({
-  activeSection,
-  activePhase,
-  secondPane,
+  document: doc,
   currentVersionMeta,
   providerError,
   clearProviderError,
@@ -43,14 +39,12 @@ export function ContentArea({
   forwardPath,
   onVersionSelect,
   submitPrompt,
-  submitPrediction,
+  submitResponses,
 }: ContentAreaProps): React.ReactElement {
   const paneScrollRefs = useMemo(() => {
     const refs: Record<string, React.RefObject<HTMLDivElement | null>> = {};
     refs['canvas'] = React.createRef<HTMLDivElement>();
-    for (const id of getAllSecondPaneIds()) {
-      refs[id] = React.createRef<HTMLDivElement>();
-    }
+    refs['blocks'] = React.createRef<HTMLDivElement>();
     return refs;
   }, []);
 
@@ -62,16 +56,16 @@ export function ContentArea({
   }, [submitPrompt, paneScrollRefs]);
 
   return (
-    <SurfaceActionsProvider value={{ submitPrompt: handlePromptSubmit, submitResponse: submitPrediction }}>
+    <SurfaceActionsProvider value={{ submitPrompt: handlePromptSubmit, submitResponses }}>
       <div className="flex-1 flex flex-col min-w-0">
         {/* Prompt preview */}
         <PromptPreview prompt={currentVersionMeta?.prompt ?? null} />
 
         {/* Panes — resizable split */}
         <PaneLayout
-          activeSection={activeSection}
-          activePhase={activePhase}
-          secondPane={secondPane}
+          document={doc}
+          onSubmitResponses={submitResponses}
+          onSuggestionClick={handlePromptSubmit}
           paneScrollRefs={paneScrollRefs}
         />
 

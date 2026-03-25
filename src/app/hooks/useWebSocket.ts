@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import type { WsMessage } from '../../shared/types.js';
-
+import type { WsMessage } from '../../shared/messages.js';
 interface UseWebSocketOptions {
   url: string;
   onMessage: (msg: WsMessage) => void;

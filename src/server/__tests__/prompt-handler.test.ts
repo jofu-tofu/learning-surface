@@ -56,7 +56,7 @@ describe('handlePrompt integration', () => {
     const { deps, store } = setup({
       toolCalls: [{
         toolName: 'design_surface',
-        params: { summary: 'TCP transport', sections: [{ id: 'introduction', explanation: 'TCP is a transport protocol.' }] },
+        params: { summary: 'TCP transport', blocks: [{ type: 'text', content: 'TCP is a transport protocol.' }] },
       }],
     });
 
@@ -69,7 +69,9 @@ describe('handlePrompt integration', () => {
       versionStore: store,
     }, deps);
 
-    expect(result.updatedDocument.sections[0].explanation).toBe('TCP is a transport protocol.');
+    const textBlock = result.updatedDocument.blocks.find(b => b.type === 'text');
+    expect(textBlock).toBeDefined();
+    expect(textBlock!.type === 'text' && textBlock!.content).toBe('TCP is a transport protocol.');
   });
 
   it('API mode: no tool calls → no version created', async () => {
@@ -91,7 +93,7 @@ describe('handlePrompt integration', () => {
     const { deps, store } = setup({
       toolCalls: [{
         toolName: 'design_surface',
-        params: { summary: 'New content', sections: [{ id: 'introduction', explanation: 'New content' }] },
+        params: { summary: 'New content', blocks: [{ type: 'text', content: 'New content' }] },
       }],
     });
 
@@ -159,8 +161,8 @@ describe('handlePrompt onProgress', () => {
     const onProgress = vi.fn();
     const { deps, store } = setup({
       toolCalls: [
-        { toolName: 'design_surface', params: { summary: 'Teaching intro', sections: [{ id: 'introduction', canvases: [{ id: 'v', type: 'code', content: 'graph LR\n  A-->B' }] }] } },
-        { toolName: 'design_surface', params: { summary: 'Teaching intro', sections: [{ id: 'introduction', explanation: 'An explanation.' }] } },
+        { toolName: 'design_surface', params: { summary: 'Teaching intro', canvases: [{ id: 'v', type: 'code', content: 'graph LR\n  A-->B' }] } },
+        { toolName: 'design_surface', params: { summary: 'Teaching intro', blocks: [{ type: 'text', content: 'An explanation.' }] } },
       ],
     });
 
@@ -223,7 +225,7 @@ describe('handlePrompt onProgress', () => {
     const { deps, store } = setup({
       toolCalls: [{
         toolName: 'design_surface',
-        params: { summary: 'Works', sections: [{ id: 'introduction', explanation: 'works' }] },
+        params: { summary: 'Works', blocks: [{ type: 'text', content: 'works' }] },
       }],
     });
 

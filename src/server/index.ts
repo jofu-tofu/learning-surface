@@ -15,7 +15,7 @@ import {
   ensureActiveChat,
   formatError,
 } from './utils/ws-helpers.js';
-import type { ClientMessage, WsMessage } from '../shared/types.js';
+import type { ClientMessage, WsMessage } from '../shared/messages.js';
 import type { VersionStore } from './types.js';
 import { createChatLogger, nullLogger } from './logger.js';
 

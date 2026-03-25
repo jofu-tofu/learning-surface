@@ -2,7 +2,7 @@ import { join } from 'node:path';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { parseSurface, serializeSurface } from './surface-file.js';
 import { applyDesignSurface, type DesignSurfaceResult } from './tool-handlers.js';
-import type { LearningDocument } from '../shared/types.js';
+import type { LearningDocument } from '../shared/document.js';
 import type { DesignSurfaceInput } from '../shared/schemas.js';
 
 // ---------------------------------------------------------------------------
@@ -58,8 +58,8 @@ export interface DocumentService {
 
 export const BLANK_DOC: LearningDocument = {
   version: 0,
-  activeSection: 'untitled',
-  sections: [{ id: 'untitled', title: 'Untitled', canvases: [], deeperPatterns: [] }],
+  canvases: [],
+  blocks: [],
 };
 
 export function createDocumentService(io: FileIO = nodeFileIO()): DocumentService {

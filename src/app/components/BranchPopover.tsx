@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import type { VersionMeta } from '../../shared/types.js';
+import type { VersionMeta } from '../../shared/session.js';
 import { getChildren } from '../../shared/version-tree.js';
 import { useClickOutside } from '../hooks/useClickOutside.js';
 import { formatTime } from '../utils/formatTime.js';

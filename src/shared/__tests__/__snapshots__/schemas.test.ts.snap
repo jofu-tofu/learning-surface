@@ -3,130 +3,169 @@
 exports[`zodToJsonSchema snapshot > DesignSurfaceSchema produces stable JSON Schema 1`] = `
 {
   "properties": {
-    "clearAll": {
-      "type": "boolean",
+    "blocks": {
+      "items": {
+        "oneOf": [
+          {
+            "properties": {
+              "content": {
+                "type": "string",
+              },
+              "type": {
+                "const": "text",
+                "type": "string",
+              },
+            },
+            "required": [
+              "type",
+              "content",
+            ],
+            "type": "object",
+          },
+          {
+            "properties": {
+              "prompt": {
+                "type": "string",
+              },
+              "type": {
+                "const": "interactive",
+                "type": "string",
+              },
+            },
+            "required": [
+              "type",
+              "prompt",
+            ],
+            "type": "object",
+          },
+          {
+            "properties": {
+              "content": {
+                "type": "string",
+              },
+              "correct": {
+                "oneOf": [
+                  {
+                    "type": "boolean",
+                  },
+                  {
+                    "type": "null",
+                  },
+                ],
+              },
+              "targetBlockId": {
+                "type": "string",
+              },
+              "type": {
+                "const": "feedback",
+                "type": "string",
+              },
+            },
+            "required": [
+              "type",
+              "targetBlockId",
+              "correct",
+              "content",
+            ],
+            "type": "object",
+          },
+          {
+            "properties": {
+              "patterns": {
+                "items": {
+                  "properties": {
+                    "connection": {
+                      "description": "1-2 sentences explaining how this topic uses or relates to the pattern — bridge from what the learner likely already knows to the new material.",
+                      "type": "string",
+                    },
+                    "pattern": {
+                      "description": "The recurring or universal concept (e.g. "Feedback loops", "Divide and conquer", "Graph traversal").",
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "pattern",
+                    "connection",
+                  ],
+                  "type": "object",
+                },
+                "type": "array",
+              },
+              "type": {
+                "const": "deeper-patterns",
+                "type": "string",
+              },
+            },
+            "required": [
+              "type",
+              "patterns",
+            ],
+            "type": "object",
+          },
+          {
+            "properties": {
+              "items": {
+                "items": {
+                  "type": "string",
+                },
+                "type": "array",
+              },
+              "type": {
+                "const": "suggestions",
+                "type": "string",
+              },
+            },
+            "required": [
+              "type",
+              "items",
+            ],
+            "type": "object",
+          },
+        ],
+      },
+      "type": "array",
     },
-    "removeSection": {
-      "type": "string",
-    },
-    "sections": {
+    "canvases": {
       "items": {
         "properties": {
-          "active": {
-            "type": "boolean",
-          },
-          "canvases": {
-            "items": {
-              "properties": {
-                "content": {
-                  "description": "diagram: JSON {nodes: [{id, label, shape?: "rectangle"|"rounded"|"diamond"|"circle", category?: "input"|"process"|"output"|"decision"|"concept"|"warning", description?, emphasis?: "normal"|"highlighted"|"dimmed", group?}], edges: [{from, to, label?, edgeType?: "solid"|"dashed"|"dotted", sourceLabel?, targetLabel?}], direction?: "TB"|"LR"}. sequence: JSON {participants: [{id, label}], messages: [{from, to, label?, type?: "solid"|"dashed", group?}]}. timeline: JSON {events: [{id, date, label, description?, category?}], direction?: "horizontal"|"vertical"}. proof: JSON {title?, premises?: string[], steps: [{expression, justification, isGoal?}]}. katex: raw LaTeX string. code: raw source code (set language field).",
-                  "type": "string",
-                },
-                "id": {
-                  "type": "string",
-                },
-                "language": {
-                  "type": "string",
-                },
-                "type": {
-                  "enum": [
-                    "katex",
-                    "code",
-                    "diagram",
-                    "timeline",
-                    "proof",
-                    "sequence",
-                  ],
-                  "type": "string",
-                },
-              },
-              "required": [
-                "id",
-                "type",
-                "content",
-              ],
-              "type": "object",
-            },
-            "type": "array",
-          },
-          "checks": {
-            "items": {
-              "properties": {
-                "answer": {
-                  "type": "string",
-                },
-                "answerExplanation": {
-                  "type": "string",
-                },
-                "hints": {
-                  "items": {
-                    "type": "string",
-                  },
-                  "type": "array",
-                },
-                "question": {
-                  "type": "string",
-                },
-              },
-              "required": [
-                "question",
-                "answer",
-              ],
-              "type": "object",
-            },
-            "type": "array",
-          },
-          "clear": {
-            "items": {
-              "enum": [
-                "canvases",
-                "explanation",
-                "deeperPatterns",
-                "checks",
-                "followups",
-                "predictionScaffold",
-              ],
-              "type": "string",
-            },
-            "type": "array",
-          },
-          "deeperPatterns": {
-            "items": {
-              "properties": {
-                "connection": {
-                  "description": "1-2 sentences explaining how this topic uses or relates to the pattern — bridge from what the learner likely already knows to the new material.",
-                  "type": "string",
-                },
-                "pattern": {
-                  "description": "The recurring or universal concept (e.g. "Feedback loops", "Divide and conquer", "Graph traversal").",
-                  "type": "string",
-                },
-              },
-              "required": [
-                "pattern",
-                "connection",
-              ],
-              "type": "object",
-            },
-            "type": "array",
-          },
-          "explanation": {
+          "content": {
+            "description": "diagram: JSON {nodes: [{id, label, shape?: "rectangle"|"rounded"|"diamond"|"circle", category?: "input"|"process"|"output"|"decision"|"concept"|"warning", description?, emphasis?: "normal"|"highlighted"|"dimmed", group?}], edges: [{from, to, label?, edgeType?: "solid"|"dashed"|"dotted", sourceLabel?, targetLabel?}], direction?: "TB"|"LR"}. sequence: JSON {participants: [{id, label}], messages: [{from, to, label?, type?: "solid"|"dashed", group?}]}. timeline: JSON {events: [{id, date, label, description?, category?}], direction?: "horizontal"|"vertical"}. proof: JSON {title?, premises?: string[], steps: [{expression, justification, isGoal?}]}. katex: raw LaTeX string. code: raw source code (set language field).",
             "type": "string",
-          },
-          "followups": {
-            "items": {
-              "type": "string",
-            },
-            "type": "array",
           },
           "id": {
             "type": "string",
           },
-          "title": {
+          "language": {
+            "type": "string",
+          },
+          "type": {
+            "enum": [
+              "katex",
+              "code",
+              "diagram",
+              "timeline",
+              "proof",
+              "sequence",
+            ],
             "type": "string",
           },
         },
+        "required": [
+          "id",
+          "type",
+          "content",
+        ],
         "type": "object",
+      },
+      "type": "array",
+    },
+    "clear": {
+      "items": {
+        "enum": [
+          "canvases",
+          "blocks",
+        ],
+        "type": "string",
       },
       "type": "array",
     },

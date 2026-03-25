@@ -23,6 +23,9 @@ function runCliProcess(
 ): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     const child = spawn(command, args, { stdio: ['pipe', 'pipe', 'pipe'], ...spawnOptions });
+    // Close stdin immediately — CLI providers receive all input via args, not stdin.
+    // Without this, claude CLI waits for stdin and times out after 3s.
+    child.stdin?.end();
     let stdout = '';
     let stderrOutput = '';
 

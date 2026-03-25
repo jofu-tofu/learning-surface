@@ -3,8 +3,7 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createFileWatcher } from '../watcher.js';
-import type { LearningDocument } from '../../shared/types.js';
-
+import type { LearningDocument } from '../../shared/document.js';
 describe('FileWatcher', () => {
   let dir: string;
   const watchers: ReturnType<typeof createFileWatcher>[] = [];
@@ -25,8 +24,8 @@ describe('FileWatcher', () => {
     dir = mkdtempSync(join(tmpdir(), 'ls-watcher-'));
     writeFileSync(join(dir, 'current.surface'), JSON.stringify({
       version: 1,
-      activeSection: 'intro',
-      sections: [{ id: 'intro', title: 'Introduction', canvases: [], deeperPatterns: [] }],
+      canvases: [],
+      blocks: [{ id: 'b1', type: 'text', content: 'Hello' }],
     }));
 
     const callback = vi.fn<(doc: LearningDocument) => void>();
@@ -35,7 +34,7 @@ describe('FileWatcher', () => {
     watcher.start(dir);
 
     expect(callback).toHaveBeenCalledTimes(1);
-    expect(callback.mock.calls[0][0].activeSection).toBe('intro');
+    expect(callback.mock.calls[0][0].blocks).toHaveLength(1);
   });
 
   it('calls callback with default document when file does not exist', () => {
@@ -48,7 +47,8 @@ describe('FileWatcher', () => {
     watcher.start(dir);
 
     expect(callback).toHaveBeenCalledTimes(1);
-    expect(callback.mock.calls[0][0].sections).toEqual([]);
+    expect(callback.mock.calls[0][0].canvases).toEqual([]);
+    expect(callback.mock.calls[0][0].blocks).toEqual([]);
   });
 
   it('does not call callback on parse error (protects state)', () => {

@@ -6,7 +6,7 @@ import {
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import { TOOL_DEFS, DesignSurfaceSchema, zodToJsonSchema } from '../shared/schemas.js';
-import type { LearningDocument } from '../shared/types.js';
+import type { LearningDocument } from '../shared/document.js';
 import type { VersionStore } from './types.js';
 import { createDocumentService, type DocumentService } from './document-service.js';
 import { buildVersionMeta, detectAllChanges } from './prompt-handler.js';
@@ -51,10 +51,10 @@ export function createMcpServer(options: {
     const doc = documentService.read(filePath);
     if (!content || !doc) return;
 
-    // Compute which panes/sections changed for persistent metadata
-    const { paneChanges, sectionChanges } = batchStartDoc
+    // Compute which panes changed for persistent metadata
+    const { paneChanges } = batchStartDoc
       ? detectAllChanges(batchStartDoc, doc)
-      : { paneChanges: new Set<string>(), sectionChanges: new Set<string>() };
+      : { paneChanges: new Set<string>() };
 
     await store.createVersion(
       content,
@@ -63,7 +63,6 @@ export function createMcpServer(options: {
         doc.summary ?? null,
         new Date().toISOString(),
         [...paneChanges],
-        [...sectionChanges],
       ),
     );
     batchStartVersion = null;

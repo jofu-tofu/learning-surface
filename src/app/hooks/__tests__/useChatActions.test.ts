@@ -2,8 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useChatActions } from '../useChatActions.js';
 import { INITIAL_SURFACE_STATE, type SurfaceState } from '../surfaceReducer.js';
-import { DRAFT_CHAT_ID } from '../../../shared/types.js';
-
+import { DRAFT_CHAT_ID } from '../../../shared/session.js';
 function state(overrides: Partial<SurfaceState> = {}): SurfaceState {
   return { ...INITIAL_SURFACE_STATE, ...overrides };
 }

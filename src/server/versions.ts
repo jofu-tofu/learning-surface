@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { createPatch, applyPatch } from 'diff';
-import type { VersionMeta } from '../shared/types.js';
+import type { VersionMeta } from '../shared/session.js';
 import type { VersionStore } from './types.js';
 import { readAllVersionMetas } from './utils/readMetas.js';
 

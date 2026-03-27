@@ -125,12 +125,20 @@ describe('reduceSurfaceMessage', () => {
       expect(result.effects).not.toContainEqual({ type: 'schedule-flash-clear' });
     });
 
-    it('always emits reset-settle-timer when document is present', () => {
+    it('emits reset-settle-timer when not processing', () => {
       const doc = buildDocument();
       const msg: WsMessage = { type: 'document-update', document: doc };
-      const result = reduceSurfaceMessage(state(), msg, null);
+      const result = reduceSurfaceMessage(state({ isProcessing: false }), msg, null);
 
       expect(result.effects).toContainEqual({ type: 'reset-settle-timer' });
+    });
+
+    it('skips reset-settle-timer when actively processing', () => {
+      const doc = buildDocument();
+      const msg: WsMessage = { type: 'document-update', document: doc };
+      const result = reduceSurfaceMessage(state({ isProcessing: true }), msg, null);
+
+      expect(result.effects).not.toContainEqual({ type: 'reset-settle-timer' });
     });
 
     it('updates prevDoc to the new document', () => {
@@ -262,6 +270,13 @@ describe('reduceSurfaceMessage', () => {
         toolName: 'design_surface',
         step: 2,
       });
+    });
+
+    it('emits clear-settle-timer to prevent premature processing reset', () => {
+      const msg: WsMessage = { type: 'tool-progress', toolName: 'thinking', step: 0 };
+      const result = reduceSurfaceMessage(state(), msg, null);
+
+      expect(result.effects).toContainEqual({ type: 'clear-settle-timer' });
     });
 
     it('falls back to raw name for unknown tool', () => {

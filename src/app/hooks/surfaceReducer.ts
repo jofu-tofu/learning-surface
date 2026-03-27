@@ -117,7 +117,12 @@ export function reduceSurfaceMessage(
       const next = msg.document;
       let changedPanes = state.changedPanes;
       let { versionChangedPanes } = state;
-      const newEffects: SurfaceEffect[] = [{ type: 'reset-settle-timer' }];
+      // Only start the settle timer when not actively processing — prompt-complete
+      // is the authoritative "done" signal. Starting it during processing causes the
+      // animation to die prematurely (e.g. during the AI thinking phase).
+      const newEffects: SurfaceEffect[] = state.isProcessing
+        ? []
+        : [{ type: 'reset-settle-timer' }];
 
       if (prevDoc) {
         const changed = detectChangedPanes(prevDoc, next);
@@ -205,7 +210,7 @@ export function reduceSurfaceMessage(
             step: msg.step ?? 0,
           },
         },
-        effects: [],
+        effects: [{ type: 'clear-settle-timer' }],
         prevDoc,
       };
 

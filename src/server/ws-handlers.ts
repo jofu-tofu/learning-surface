@@ -3,86 +3,37 @@ import { createDocumentService, type DocumentService } from './document-service.
 import { handlePrompt } from './prompt-handler.js';
 import { parseSurface } from './surface-file.js';
 import { getProvider as getProviderFromRegistry, listProviders } from './providers/registry.js';
-import type { LearningDocument } from '../shared/document.js';
-import type { ClientMessage, WsMessage } from '../shared/messages.js';
-import type { VersionStore } from './types.js';
+import type { ClientMessage } from '../shared/messages.js';
 import type { ChatStore } from './chat-store.js';
-import {
-  sendMessage,
-  buildSessionInitMessage,
-  buildChatListMessage,
-  getVersions,
-  ensureActiveChat,
-  formatError,
-} from './utils/ws-helpers.js';
+import type { SessionBus } from './session-bus.js';
+import { sendMessage, buildChatListMessage, formatError } from './utils/ws-helpers.js';
 import { createChatLogger, nullLogger } from './logger.js';
 
-/** Mutable server-side session state shared across handlers. */
-export interface SessionState {
-  activeChatId: string | null;
-  activeVersionStore: VersionStore | null;
-  latestDocument: LearningDocument | null;
-  /** Last provider/model used, for auto-triggering feedback after response submission. */
-  lastProvider?: string;
-  lastModel?: string;
-}
+// ── Handler dependencies ────────────────────────────────────────────
 
-interface HandlerDeps {
-  state: SessionState;
+export interface HandlerDeps {
+  bus: SessionBus;
   chatStore: ChatStore;
-  broadcast: (msg: WsMessage) => void;
-  switchToChat: (chatId: string) => Promise<void>;
   documentService?: DocumentService;
   getProviders?: () => import('../shared/providers.js').ProviderInfo[];
   getProvider?: (id: string) => import('../shared/providers.js').Agent | undefined;
   onPrompt?: typeof handlePrompt;
 }
 
-/** Fetch versions and broadcast the full session-init state. */
-async function broadcastSessionState(deps: {
-  state: SessionState;
-  chatStore: ChatStore;
-  broadcast: (msg: WsMessage) => void;
-}): Promise<void> {
-  const { state, chatStore, broadcast } = deps;
-  const versions = await getVersions(state.activeVersionStore);
-  broadcast(buildSessionInitMessage({
-    sessionDir: state.activeChatId ? chatStore.getChatDir(state.activeChatId) : '',
-    document: state.latestDocument,
-    versions,
-    chats: chatStore.listChats(),
-    activeChatId: state.activeChatId,
-  }));
-}
+// ── Helpers ─────────────────────────────────────────────────────────
 
-/** Create a new chat and switch to it.  Returns the new chat ID. */
+/** Create a new chat and switch to it. Returns the new chat ID. */
 async function createChat(
-  deps: Pick<HandlerDeps, 'chatStore' | 'switchToChat'>,
+  deps: Pick<HandlerDeps, 'chatStore' | 'bus'>,
 ): Promise<string> {
-  const { chatStore, switchToChat } = deps;
+  const { chatStore, bus } = deps;
   const chat = chatStore.createChat();
   await chatStore.save();
-  await switchToChat(chat.id);
+  await bus.switchToChat(chat.id);
   return chat.id;
 }
 
-/** Create a new chat, switch to it, and broadcast the updated state. */
-async function createAndInitChat(
-  ws: WebSocket,
-  deps: Pick<HandlerDeps, 'chatStore' | 'switchToChat' | 'broadcast'>,
-): Promise<void> {
-  const { chatStore, broadcast } = deps;
-  const chatId = await createChat(deps);
-
-  broadcast(buildChatListMessage(chatStore.listChats(), chatId));
-
-  sendMessage(ws, buildSessionInitMessage({
-    sessionDir: chatStore.getChatDir(chatId),
-    versions: [],
-    chats: chatStore.listChats(),
-    activeChatId: chatId,
-  }));
-}
+// ── Router ──────────────────────────────────────────────────────────
 
 /** Route a parsed client message to the appropriate handler. */
 export async function routeMessage(
@@ -90,7 +41,7 @@ export async function routeMessage(
   msg: ClientMessage,
   deps: HandlerDeps,
 ): Promise<void> {
-  const { state, chatStore, broadcast, switchToChat } = deps;
+  const { bus, chatStore } = deps;
   const documentService = deps.documentService ?? createDocumentService();
   const getProviders = deps.getProviders ?? listProviders;
   const providerLookup = deps.getProvider ?? getProviderFromRegistry;
@@ -98,20 +49,22 @@ export async function routeMessage(
 
   switch (msg.type) {
     case 'list-chats': {
-      sendMessage(ws, buildChatListMessage(chatStore.listChats(), state.activeChatId));
+      sendMessage(ws, buildChatListMessage(chatStore.listChats(), bus.activeChatId));
       return;
     }
 
     case 'new-chat': {
-      await createAndInitChat(ws, deps);
+      await createChat(deps);
+      bus.chatListChanged();
+      sendMessage(ws, await bus.buildSessionInit());
       return;
     }
 
     case 'new-chat-with-prompt': {
       // Create the chat but DON'T send session-init (which resets isProcessing).
       // Only broadcast chat-list so the sidebar updates while the prompt processes.
-      const chatId = await createChat(deps);
-      broadcast(buildChatListMessage(chatStore.listChats(), chatId));
+      await createChat(deps);
+      bus.chatListChanged();
 
       // Then process the prompt in the new chat
       const promptMsg: ClientMessage = {
@@ -130,28 +83,20 @@ export async function routeMessage(
       const chat = chatStore.getChat(msg.chatId);
       if (!chat) return;
 
-      await switchToChat(msg.chatId);
-
-      await broadcastSessionState({ state, chatStore, broadcast });
+      await bus.switchToChat(msg.chatId);
+      await bus.broadcastFullState();
       return;
     }
 
     case 'delete-chat': {
-      const wasActive = msg.chatId === state.activeChatId;
+      const wasActive = msg.chatId === bus.activeChatId;
       await chatStore.deleteChat(msg.chatId);
 
       if (wasActive) {
-        await ensureActiveChat(chatStore, switchToChat);
-        // If no chats remain, ensureActiveChat was a no-op — clear state
-        if (chatStore.listChats().length === 0) {
-          state.activeChatId = null;
-          state.activeVersionStore = null;
-          state.latestDocument = null;
-        }
-
-        await broadcastSessionState({ state, chatStore, broadcast });
+        await bus.ensureActiveChat();
+        await bus.broadcastFullState();
       } else {
-        broadcast(buildChatListMessage(chatStore.listChats(), state.activeChatId));
+        bus.chatListChanged();
       }
       return;
     }
@@ -159,21 +104,16 @@ export async function routeMessage(
     case 'delete-chats': {
       if (msg.chatIds.length === 0) return;
 
-      const wasActiveDeleted = msg.chatIds.includes(state.activeChatId ?? '');
+      const wasActiveDeleted = msg.chatIds.includes(bus.activeChatId ?? '');
       for (const chatId of msg.chatIds) {
         await chatStore.deleteChat(chatId);
       }
 
       if (wasActiveDeleted) {
-        await ensureActiveChat(chatStore, switchToChat);
-        if (chatStore.listChats().length === 0) {
-          state.activeChatId = null;
-          state.activeVersionStore = null;
-          state.latestDocument = null;
-        }
-        await broadcastSessionState({ state, chatStore, broadcast });
+        await bus.ensureActiveChat();
+        await bus.broadcastFullState();
       } else {
-        broadcast(buildChatListMessage(chatStore.listChats(), state.activeChatId));
+        bus.chatListChanged();
       }
       return;
     }
@@ -183,16 +123,16 @@ export async function routeMessage(
       if (!chat) return;
 
       await chatStore.updateChatTitle(msg.chatId, msg.title);
-      broadcast(buildChatListMessage(chatStore.listChats(), state.activeChatId));
+      bus.chatListChanged();
       return;
     }
 
     case 'select-version': {
-      if (!state.activeVersionStore) return;
+      if (!bus.activeVersionStore) return;
 
-      const versionContent = await state.activeVersionStore.getVersion(msg.version);
+      const versionContent = await bus.activeVersionStore.getVersion(msg.version);
       const doc = parseSurface(versionContent);
-      const versionList = await state.activeVersionStore.listVersions();
+      const versionList = await bus.activeVersionStore.listVersions();
 
       sendMessage(ws, {
         type: 'version-change',
@@ -206,22 +146,22 @@ export async function routeMessage(
     case 'prompt': {
       const { provider: providerId, model: modelId, reasoningEffort, text } = msg;
 
-      const chatDir = state.activeChatId ? chatStore.getChatDir(state.activeChatId) : null;
+      const chatDir = bus.activeChatId ? chatStore.getChatDir(bus.activeChatId) : null;
       const log = chatDir ? createChatLogger(chatDir) : nullLogger;
 
       const versionLogSuffix = msg.fromVersion ? ` (from v${msg.fromVersion})` : '';
       log.info(`Prompt received${versionLogSuffix}`, { text, providerId: providerId ?? 'none', modelId: modelId ?? 'none', reasoningEffort: reasoningEffort ?? 'default' });
 
       // Track provider/model for auto-triggering feedback after response submission
-      if (providerId) state.lastProvider = providerId;
-      if (modelId) state.lastModel = modelId;
+      if (providerId) bus.lastProvider = providerId;
+      if (modelId) bus.lastModel = modelId;
 
       if (!providerId || !modelId) {
         log.info('No provider/model selected — waiting for REPL to call MCP tools');
         return;
       }
 
-      if (!state.activeChatId || !state.activeVersionStore) {
+      if (!bus.activeChatId || !bus.activeVersionStore) {
         sendMessage(ws, { type: 'provider-error', error: 'No active chat' });
         return;
       }
@@ -233,43 +173,30 @@ export async function routeMessage(
           modelId,
           reasoningEffort,
           chatDir: chatDir!,
-          latestDocument: state.latestDocument,
-          versionStore: state.activeVersionStore,
+          latestDocument: bus.latestDocument,
+          versionStore: bus.activeVersionStore,
           onProgress(toolName, step) {
-            broadcast({ type: 'tool-progress', toolName, step });
+            bus.toolProgress(toolName, step);
           },
         });
-        state.latestDocument = result.updatedDocument;
 
-        // Broadcast final document + versions explicitly before prompt-complete
-        // so the client has the definitive state (including new version metadata)
-        // before processing ends. The file watcher may fire later with the same
-        // data, which is harmless — the reducer is idempotent.
-        const finalVersions = await getVersions(state.activeVersionStore);
-        broadcast({ type: 'document-update', document: result.updatedDocument, versions: finalVersions });
-
-        // Bump chat timestamp and broadcast updated chat list
-        if (state.activeChatId) {
-          await chatStore.touchChat(state.activeChatId);
-          broadcast(buildChatListMessage(chatStore.listChats(), state.activeChatId));
-        }
-
+        await bus.completedWithDocument(result.updatedDocument);
         sendMessage(ws, { type: 'prompt-complete' });
       } catch (err) {
         const errorMessage = formatError(err);
         log.error('Provider error', { error: errorMessage, providerId, modelId, text });
-        broadcast({ type: 'provider-error', error: errorMessage });
+        bus.providerError(errorMessage);
       }
       return;
     }
 
     case 'submit-responses': {
-      if (!state.activeChatId || !state.activeVersionStore) {
+      if (!bus.activeChatId || !bus.activeVersionStore) {
         sendMessage(ws, { type: 'provider-error', error: 'No active chat' });
         return;
       }
 
-      const chatDir = chatStore.getChatDir(state.activeChatId);
+      const chatDir = chatStore.getChatDir(bus.activeChatId);
       const log = createChatLogger(chatDir);
       const filePath = documentService.filePath(chatDir);
       const doc = documentService.read(filePath);
@@ -291,7 +218,7 @@ export async function routeMessage(
 
       // Create a version snapshot with source: 'learner'
       const content = documentService.readRaw(filePath) ?? '';
-      await state.activeVersionStore.createVersion(content, {
+      await bus.activeVersionStore.createVersion(content, {
         prompt: null,
         summary: 'Responses submitted',
         timestamp: new Date().toISOString(),
@@ -299,24 +226,16 @@ export async function routeMessage(
         changedPanes: ['blocks'],
       });
 
-      state.latestDocument = doc;
       log.info('Responses submitted', { responses: msg.responses });
-
-      // Broadcast final document + versions explicitly (same pattern as prompt handler)
-      const responseVersions = await getVersions(state.activeVersionStore);
-      broadcast({ type: 'document-update', document: doc, versions: responseVersions });
-
-      // Bump chat timestamp and broadcast updated chat list
-      await chatStore.touchChat(state.activeChatId);
-      broadcast(buildChatListMessage(chatStore.listChats(), state.activeChatId));
+      await bus.completedWithDocument(doc);
 
       // Auto-trigger AI feedback if we have a provider
-      if (state.lastProvider && state.lastModel) {
+      if (bus.lastProvider && bus.lastModel) {
         const feedbackMsg: ClientMessage = {
           type: 'prompt',
           text: 'Respond to the learner\'s answers',
-          provider: state.lastProvider,
-          model: state.lastModel,
+          provider: bus.lastProvider,
+          model: bus.lastModel,
         };
         await routeMessage(ws, feedbackMsg, deps);
       } else {

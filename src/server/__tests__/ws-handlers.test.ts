@@ -1,8 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
-import { routeMessage, type SessionState } from '../ws-handlers.js';
+import { routeMessage, type HandlerDeps } from '../ws-handlers.js';
 import { handlePrompt } from '../prompt-handler.js';
 import { createDocumentService } from '../document-service.js';
 import type { ChatStore } from '../chat-store.js';
+import type { SessionBus } from '../session-bus.js';
 import type { ClientMessage, WsMessage, WsProviderError } from '../../shared/messages.js';
 import {
   MINIMAL_DOC,
@@ -45,6 +46,35 @@ function fakeChatStore(chatDir = '/chat'): ChatStore {
   };
 }
 
+// === Fake SessionBus ===
+
+function fakeSessionBus(overrides: Partial<SessionBus> = {}): SessionBus {
+  const store = spyVersionStore();
+  return {
+    activeChatId: 'c1',
+    activeVersionStore: store,
+    latestDocument: null,
+    lastProvider: undefined,
+    lastModel: undefined,
+    switchToChat: vi.fn(async () => {}),
+    ensureActiveChat: vi.fn(async () => {}),
+    documentChanged: vi.fn(async () => {}),
+    completedWithDocument: vi.fn(async () => {}),
+    chatListChanged: vi.fn(() => {}),
+    broadcastFullState: vi.fn(async () => {}),
+    toolProgress: vi.fn(() => {}),
+    providerError: vi.fn(() => {}),
+    buildSessionInit: vi.fn(async () => ({
+      type: 'session-init' as const,
+      sessionDir: '/chat',
+      versions: [],
+      chats: [],
+      activeChatId: 'c1',
+    })),
+    ...overrides,
+  };
+}
+
 // === Test helpers ===
 
 function setup(opts: {
@@ -61,13 +91,10 @@ function setup(opts: {
     type: opts.providerType ?? 'api',
   });
 
-  const state: SessionState = {
-    activeChatId: 'c1',
+  const bus = fakeSessionBus({
     activeVersionStore: store,
-    latestDocument: null,
-  };
+  });
 
-  const broadcast = vi.fn<(msg: WsMessage) => void>();
   const ws = fakeWs();
 
   // Wrap handlePrompt with test deps so the fake provider/documentService are used
@@ -77,11 +104,9 @@ function setup(opts: {
     getProvider: (id: string) => id === 'fake' ? provider : undefined,
   };
 
-  const deps = {
-    state,
+  const deps: HandlerDeps = {
+    bus,
     chatStore: fakeChatStore(),
-    broadcast,
-    switchToChat: vi.fn(),
     documentService,
     onPrompt: ((req: Parameters<typeof handlePrompt>[0]) =>
       handlePrompt(req, promptDeps)) as typeof handlePrompt,
@@ -91,7 +116,7 @@ function setup(opts: {
     await routeMessage(ws as unknown as import('ws').WebSocket, msg, deps);
   }
 
-  return { ws, state, broadcast, deps, store, provider, promptDeps, send };
+  return { ws, bus, deps, store, provider, promptDeps, send };
 }
 
 describe('ws-handlers prompt flow', () => {
@@ -111,8 +136,8 @@ describe('ws-handlers prompt flow', () => {
     expect(complete).toBeDefined();
   });
 
-  it('broadcasts document-update with versions before prompt-complete', async () => {
-    const { ws, broadcast, send } = setup({
+  it('calls bus.completedWithDocument after successful prompt', async () => {
+    const { bus, send } = setup({
       toolCalls: [{ toolName: 'design_surface', params: { summary: 'Test', blocks: [{ type: 'text', content: 'Hello' }] } }],
     });
 
@@ -123,31 +148,27 @@ describe('ws-handlers prompt flow', () => {
       model: 'fake-model',
     });
 
-    const broadcasts = broadcast.mock.calls.map(([m]) => m as WsMessage);
-    const docUpdate = broadcasts.find(m => m.type === 'document-update');
-    expect(docUpdate).toBeDefined();
-
-    // prompt-complete must come after document-update
-    const complete = ws.sent.find(m => m.type === 'prompt-complete');
-    expect(complete).toBeDefined();
+    expect(bus.completedWithDocument).toHaveBeenCalledTimes(1);
   });
 
-  it('broadcasts chat-list after prompt to update sidebar timestamp', async () => {
-    const { broadcast, send } = setup({
-      toolCalls: [{ toolName: 'design_surface', params: { summary: 'Test', blocks: [{ type: 'text', content: 'Hello' }] } }],
+  it('calls bus.toolProgress for each tool call during prompt', async () => {
+    const { bus, send } = setup({
+      toolCalls: [
+        { toolName: 'design_surface', params: { summary: 'Teaching intro', canvases: [{ id: 'v', type: 'code', content: 'graph LR' }] } },
+        { toolName: 'design_surface', params: { summary: 'Teaching intro', blocks: [{ type: 'text', content: 'Hello' }] } },
+      ],
     });
 
     await send({
       type: 'prompt',
-      text: 'explain something',
+      text: 'teach me',
       provider: 'fake',
       model: 'fake-model',
     });
 
-    const chatListBroadcasts = broadcast.mock.calls
-      .map(([m]) => m as WsMessage)
-      .filter(m => m.type === 'chat-list');
-    expect(chatListBroadcasts.length).toBeGreaterThanOrEqual(1);
+    // thinking + 2 tool calls = 3 progress calls
+    expect(bus.toolProgress).toHaveBeenCalledTimes(3);
+    expect(bus.toolProgress).toHaveBeenCalledWith('thinking', 0);
   });
 
   it('sends prompt-complete even when AI makes no tool calls', async () => {
@@ -164,8 +185,8 @@ describe('ws-handlers prompt flow', () => {
     expect(complete).toBeDefined();
   });
 
-  it('sends provider-error (not prompt-complete) when prompt handler throws', async () => {
-    const { ws, broadcast, deps } = setup();
+  it('calls bus.providerError (not prompt-complete) when prompt handler throws', async () => {
+    const { ws, bus, deps } = setup();
 
     deps.onPrompt = (async () => { throw new Error('API rate limited'); }) as typeof handlePrompt;
 
@@ -179,11 +200,7 @@ describe('ws-handlers prompt flow', () => {
     const complete = ws.sent.find(m => m.type === 'prompt-complete');
     expect(complete).toBeUndefined();
 
-    const error = broadcast.mock.calls.find(
-      ([m]) => (m as WsMessage).type === 'provider-error',
-    );
-    expect(error).toBeDefined();
-    expect((error![0] as WsProviderError).error).toContain('API rate limited');
+    expect(bus.providerError).toHaveBeenCalledWith('API rate limited');
   });
 
   it('multi-turn: second prompt gets prompt-complete after first', async () => {
@@ -218,7 +235,7 @@ describe('ws-handlers prompt flow', () => {
   });
 
   it('no provider/model selected returns silently (REPL mode)', async () => {
-    const { ws, send, broadcast } = setup();
+    const { ws, send, bus } = setup();
 
     await send({
       type: 'prompt',
@@ -226,53 +243,28 @@ describe('ws-handlers prompt flow', () => {
     });
 
     expect(ws.sent).toHaveLength(0);
-    expect(broadcast).not.toHaveBeenCalled();
+    expect(bus.completedWithDocument).not.toHaveBeenCalled();
+    expect(bus.toolProgress).not.toHaveBeenCalled();
   });
 
   it('no active chat sends provider-error', async () => {
-    const { ws, state, send } = setup();
-    state.activeChatId = null;
+    const { ws, deps } = setup();
+    (deps.bus as { activeChatId: string | null }).activeChatId = null;
 
-    await send({
+    await routeMessage(ws as unknown as import('ws').WebSocket, {
       type: 'prompt',
       text: 'hello',
       provider: 'fake',
       model: 'fake-model',
-    });
+    }, deps);
 
     const error = ws.sent.find(m => m.type === 'provider-error');
     expect(error).toBeDefined();
-    expect(error!.error).toContain('No active chat');
-  });
-
-  it('broadcasts tool-progress for each tool call during prompt', async () => {
-    const { broadcast, send } = setup({
-      toolCalls: [
-        { toolName: 'design_surface', params: { summary: 'Teaching intro', canvases: [{ id: 'v', type: 'code', content: 'graph LR' }] } },
-        { toolName: 'design_surface', params: { summary: 'Teaching intro', blocks: [{ type: 'text', content: 'Hello' }] } },
-      ],
-    });
-
-    await send({
-      type: 'prompt',
-      text: 'teach me',
-      provider: 'fake',
-      model: 'fake-model',
-    });
-
-    const progressCalls = broadcast.mock.calls
-      .map(([m]) => m as WsMessage)
-      .filter(m => m.type === 'tool-progress');
-
-    // thinking + 2 tool calls = 3 progress messages
-    expect(progressCalls).toHaveLength(3);
-    expect(progressCalls[0]).toMatchObject({ type: 'tool-progress', toolName: 'thinking', step: 0 });
-    expect(progressCalls[1]).toMatchObject({ type: 'tool-progress', toolName: 'design_surface', step: 1 });
-    expect(progressCalls[2]).toMatchObject({ type: 'tool-progress', toolName: 'design_surface', step: 2 });
+    expect((error as WsProviderError).error).toContain('No active chat');
   });
 
   it('broadcasts tool-progress thinking even with zero tool calls', async () => {
-    const { broadcast, send } = setup({ toolCalls: [] });
+    const { bus, send } = setup({ toolCalls: [] });
 
     await send({
       type: 'prompt',
@@ -281,29 +273,21 @@ describe('ws-handlers prompt flow', () => {
       model: 'fake-model',
     });
 
-    const progressCalls = broadcast.mock.calls
-      .map(([m]) => m as WsMessage)
-      .filter(m => m.type === 'tool-progress');
-
-    expect(progressCalls).toHaveLength(1);
-    expect(progressCalls[0]).toMatchObject({ toolName: 'thinking', step: 0 });
+    expect(bus.toolProgress).toHaveBeenCalledTimes(1);
+    expect(bus.toolProgress).toHaveBeenCalledWith('thinking', 0);
   });
 });
 
 describe('ws-handlers other routes', () => {
   // --- new-chat ---
 
-  it('new-chat creates chat, switches, broadcasts chat-list, sends session-init', async () => {
-    const { ws, send, deps, broadcast } = setup();
+  it('new-chat creates chat, switches via bus, sends session-init', async () => {
+    const { ws, send, bus } = setup();
 
     await send({ type: 'new-chat' });
 
-    expect(deps.switchToChat).toHaveBeenCalled();
-
-    const chatListBroadcast = broadcast.mock.calls.find(
-      ([m]) => (m as WsMessage).type === 'chat-list',
-    );
-    expect(chatListBroadcast).toBeDefined();
+    expect(bus.switchToChat).toHaveBeenCalled();
+    expect(bus.chatListChanged).toHaveBeenCalled();
 
     const sessionInit = ws.sent.find(m => m.type === 'session-init');
     expect(sessionInit).toBeDefined();
@@ -312,7 +296,7 @@ describe('ws-handlers other routes', () => {
   // --- new-chat-with-prompt ---
 
   it('new-chat-with-prompt must NOT send session-init (preserves isProcessing on client)', async () => {
-    const { ws, send, broadcast } = setup({
+    const { ws, send, bus } = setup({
       toolCalls: [{ toolName: 'design_surface', params: { summary: 'Trees', blocks: [{ type: 'text', content: 'A tree is...' }] } }],
     });
 
@@ -326,16 +310,10 @@ describe('ws-handlers other routes', () => {
     // Must NOT send session-init to the requesting client (that resets isProcessing)
     const sessionInit = ws.sent.find(m => m.type === 'session-init');
     expect(sessionInit).toBeUndefined();
-
-    // Must NOT broadcast session-init either
-    const sessionBroadcast = broadcast.mock.calls.find(
-      ([m]) => (m as WsMessage).type === 'session-init',
-    );
-    expect(sessionBroadcast).toBeUndefined();
   });
 
   it('new-chat-with-prompt creates chat, broadcasts chat-list, and processes prompt', async () => {
-    const { ws, send, deps, broadcast } = setup({
+    const { ws, send, bus } = setup({
       toolCalls: [{ toolName: 'design_surface', params: { summary: 'Trees', blocks: [{ type: 'text', content: 'A tree is...' }] } }],
     });
 
@@ -347,13 +325,8 @@ describe('ws-handlers other routes', () => {
     });
 
     // Creates and switches to a new chat
-    expect(deps.switchToChat).toHaveBeenCalled();
-
-    // Broadcasts chat-list (sidebar update)
-    const chatListBroadcast = broadcast.mock.calls.find(
-      ([m]) => (m as WsMessage).type === 'chat-list',
-    );
-    expect(chatListBroadcast).toBeDefined();
+    expect(bus.switchToChat).toHaveBeenCalled();
+    expect(bus.chatListChanged).toHaveBeenCalled();
 
     // Prompt is processed: prompt-complete is sent
     const complete = ws.sent.find(m => m.type === 'prompt-complete');
@@ -362,158 +335,107 @@ describe('ws-handlers other routes', () => {
 
   // --- switch-chat ---
 
-  it('switch-chat with valid id calls switchToChat and broadcasts', async () => {
-    const { send, deps, broadcast } = setup();
+  it('switch-chat with valid id calls bus.switchToChat and broadcasts full state', async () => {
+    const { send, bus } = setup();
 
     await send({ type: 'switch-chat', chatId: 'c1' });
 
-    expect(deps.switchToChat).toHaveBeenCalledWith('c1');
-    expect(broadcast).toHaveBeenCalled();
+    expect(bus.switchToChat).toHaveBeenCalledWith('c1');
+    expect(bus.broadcastFullState).toHaveBeenCalled();
   });
 
   it('switch-chat with unknown id early-returns without switching', async () => {
-    const { send, deps, broadcast } = setup();
+    const { send, bus } = setup();
 
     await send({ type: 'switch-chat', chatId: 'unknown' });
 
-    expect(deps.switchToChat).not.toHaveBeenCalled();
-    expect(broadcast).not.toHaveBeenCalled();
+    expect(bus.switchToChat).not.toHaveBeenCalled();
+    expect(bus.broadcastFullState).not.toHaveBeenCalled();
   });
 
   // --- delete-chat ---
 
-  it('delete-chat of active chat broadcasts chat-list', async () => {
-    const { send, deps, state, broadcast } = setup();
-    state.activeChatId = 'c1';
+  it('delete-chat of active chat calls ensureActiveChat and broadcasts full state', async () => {
+    const { send, deps, bus } = setup();
 
     const deleteSpy = vi.spyOn(deps.chatStore, 'deleteChat');
     await send({ type: 'delete-chat', chatId: 'c1' });
 
     expect(deleteSpy).toHaveBeenCalledWith('c1');
-    const sessionBroadcast = broadcast.mock.calls.find(
-      ([m]) => (m as WsMessage).type === 'session-init',
-    );
-    expect(sessionBroadcast).toBeDefined();
+    expect(bus.ensureActiveChat).toHaveBeenCalled();
+    expect(bus.broadcastFullState).toHaveBeenCalled();
   });
 
-  it('delete-chat of last remaining chat clears state and broadcasts session-init with no activeChatId', async () => {
-    const { send, deps, state, broadcast } = setup();
-    state.activeChatId = 'c1';
-
-    vi.spyOn(deps.chatStore, 'deleteChat').mockResolvedValue(undefined);
-    vi.spyOn(deps.chatStore, 'listChats').mockReturnValue([]);
-
-    await send({ type: 'delete-chat', chatId: 'c1' });
-
-    expect(state.activeChatId).toBeNull();
-    expect(state.activeVersionStore).toBeNull();
-    expect(state.latestDocument).toBeNull();
-
-    const sessionBroadcast = broadcast.mock.calls.find(
-      ([m]) => (m as WsMessage).type === 'session-init',
-    );
-    expect(sessionBroadcast).toBeDefined();
-    const msg = sessionBroadcast![0] as import('../../shared/messages.js').WsSessionInit;
-    expect(msg.activeChatId).toBeUndefined();
-  });
-
-  it('delete-chat of non-active chat broadcasts chat-list', async () => {
-    const { send, deps, state, broadcast } = setup();
-    state.activeChatId = 'other';
+  it('delete-chat of non-active chat broadcasts chat-list only', async () => {
+    const { send, deps, bus } = setup();
+    (deps.bus as { activeChatId: string | null }).activeChatId = 'other';
 
     const deleteSpy = vi.spyOn(deps.chatStore, 'deleteChat');
     await send({ type: 'delete-chat', chatId: 'c1' });
 
     expect(deleteSpy).toHaveBeenCalledWith('c1');
-    const chatListBroadcast = broadcast.mock.calls.find(
-      ([m]) => (m as WsMessage).type === 'chat-list',
-    );
-    expect(chatListBroadcast).toBeDefined();
-    const sessionBroadcast = broadcast.mock.calls.find(
-      ([m]) => (m as WsMessage).type === 'session-init',
-    );
-    expect(sessionBroadcast).toBeUndefined();
+    expect(bus.chatListChanged).toHaveBeenCalled();
+    expect(bus.broadcastFullState).not.toHaveBeenCalled();
   });
 
   // --- delete-chats (batch) ---
 
   it('delete-chats with empty array is a no-op', async () => {
-    const { send, deps, broadcast } = setup();
+    const { send, deps, bus } = setup();
 
     const deleteSpy = vi.spyOn(deps.chatStore, 'deleteChat');
     await send({ type: 'delete-chats', chatIds: [] });
 
     expect(deleteSpy).not.toHaveBeenCalled();
-    expect(broadcast).not.toHaveBeenCalled();
+    expect(bus.chatListChanged).not.toHaveBeenCalled();
   });
 
-  it('delete-chats including active chat clears state and broadcasts session-init', async () => {
-    const { send, deps, state, broadcast } = setup();
-    state.activeChatId = 'c1';
-
-    vi.spyOn(deps.chatStore, 'deleteChat').mockResolvedValue(undefined);
-    vi.spyOn(deps.chatStore, 'listChats').mockReturnValue([]);
+  it('delete-chats including active chat calls ensureActiveChat', async () => {
+    const { send, bus } = setup();
 
     await send({ type: 'delete-chats', chatIds: ['c1'] });
 
-    expect(state.activeChatId).toBeNull();
-    expect(state.activeVersionStore).toBeNull();
-    expect(state.latestDocument).toBeNull();
-
-    const sessionBroadcast = broadcast.mock.calls.find(
-      ([m]) => (m as WsMessage).type === 'session-init',
-    );
-    expect(sessionBroadcast).toBeDefined();
+    expect(bus.ensureActiveChat).toHaveBeenCalled();
+    expect(bus.broadcastFullState).toHaveBeenCalled();
   });
 
   it('delete-chats of non-active chats broadcasts chat-list', async () => {
-    const { send, deps, state, broadcast } = setup();
-    state.activeChatId = 'other';
+    const { send, deps, bus } = setup();
+    (deps.bus as { activeChatId: string | null }).activeChatId = 'other';
 
-    const deleteSpy = vi.spyOn(deps.chatStore, 'deleteChat');
     await send({ type: 'delete-chats', chatIds: ['c1'] });
 
-    expect(deleteSpy).toHaveBeenCalledWith('c1');
-    const chatListBroadcast = broadcast.mock.calls.find(
-      ([m]) => (m as WsMessage).type === 'chat-list',
-    );
-    expect(chatListBroadcast).toBeDefined();
-    const sessionBroadcast = broadcast.mock.calls.find(
-      ([m]) => (m as WsMessage).type === 'session-init',
-    );
-    expect(sessionBroadcast).toBeUndefined();
+    expect(bus.chatListChanged).toHaveBeenCalled();
+    expect(bus.broadcastFullState).not.toHaveBeenCalled();
   });
 
   // --- rename-chat ---
 
-  it('rename-chat with valid id updates title and broadcasts chat-list', async () => {
-    const { send, deps, broadcast } = setup();
+  it('rename-chat with valid id updates title and broadcasts via bus', async () => {
+    const { send, deps, bus } = setup();
 
     const updateTitleSpy = vi.spyOn(deps.chatStore, 'updateChatTitle');
     await send({ type: 'rename-chat', chatId: 'c1', title: 'Renamed Chat' });
 
     expect(updateTitleSpy).toHaveBeenCalledWith('c1', 'Renamed Chat');
-    const chatListBroadcast = broadcast.mock.calls.find(
-      ([m]) => (m as WsMessage).type === 'chat-list',
-    );
-    expect(chatListBroadcast).toBeDefined();
+    expect(bus.chatListChanged).toHaveBeenCalled();
   });
 
   it('rename-chat with unknown id early-returns without updating', async () => {
-    const { send, deps, broadcast } = setup();
+    const { send, deps, bus } = setup();
 
     const updateTitleSpy = vi.spyOn(deps.chatStore, 'updateChatTitle');
     await send({ type: 'rename-chat', chatId: 'unknown', title: 'Renamed Chat' });
 
     expect(updateTitleSpy).not.toHaveBeenCalled();
-    expect(broadcast).not.toHaveBeenCalled();
+    expect(bus.chatListChanged).not.toHaveBeenCalled();
   });
 
   // --- select-version ---
 
   it('select-version with no version store early-returns', async () => {
-    const { ws, send, state } = setup();
-    state.activeVersionStore = null;
+    const { ws, send, deps } = setup();
+    (deps.bus as { activeVersionStore: null }).activeVersionStore = null;
 
     await send({ type: 'select-version', version: 1 });
 
@@ -622,24 +544,19 @@ describe('ws-handlers submit-responses', () => {
     const documentService = createDocumentService(io);
     const store = spyVersionStore();
 
-    const state: SessionState = {
+    const bus = fakeSessionBus({
       activeChatId: 'c1',
       activeVersionStore: store,
-      latestDocument: null,
-      // No lastProvider/lastModel → auto-trigger won't fire
-    };
+    });
 
     const ws = fakeWs();
-    const broadcast = vi.fn<(msg: WsMessage) => void>();
 
     await routeMessage(ws as unknown as import('ws').WebSocket, {
       type: 'submit-responses',
       responses: { b1: 'Client', b2: 'ACK' },
     }, {
-      state,
+      bus,
       chatStore: fakeChatStore(),
-      broadcast,
-      switchToChat: vi.fn(),
       documentService,
     });
 
@@ -661,11 +578,10 @@ describe('ws-handlers submit-responses', () => {
     const documentService = createDocumentService(io);
     const store = spyVersionStore();
 
-    const state: SessionState = {
+    const bus = fakeSessionBus({
       activeChatId: 'c1',
       activeVersionStore: store,
-      latestDocument: null,
-    };
+    });
 
     const ws = fakeWs();
 
@@ -673,10 +589,8 @@ describe('ws-handlers submit-responses', () => {
       type: 'submit-responses',
       responses: { b1: 'Client', b2: 'ACK' },
     }, {
-      state,
+      bus,
       chatStore: fakeChatStore(),
-      broadcast: vi.fn(),
-      switchToChat: vi.fn(),
       documentService,
     });
 
@@ -701,13 +615,12 @@ describe('ws-handlers submit-responses', () => {
       },
     }]);
 
-    const state: SessionState = {
+    const bus = fakeSessionBus({
       activeChatId: 'c1',
       activeVersionStore: store,
-      latestDocument: null,
       lastProvider: 'fake',
       lastModel: 'fake-model',
-    };
+    });
 
     const ws = fakeWs();
 
@@ -715,10 +628,8 @@ describe('ws-handlers submit-responses', () => {
       type: 'submit-responses',
       responses: { b1: 'Client', b2: 'ACK' },
     }, {
-      state,
+      bus,
       chatStore: fakeChatStore(),
-      broadcast: vi.fn(),
-      switchToChat: vi.fn(),
       documentService,
       getProvider: (id: string) => id === 'fake' ? provider : undefined,
       onPrompt: ((req: Parameters<typeof handlePrompt>[0]) =>
@@ -748,11 +659,10 @@ describe('ws-handlers submit-responses', () => {
     const documentService = createDocumentService(io);
     const store = spyVersionStore();
 
-    const state: SessionState = {
+    const bus = fakeSessionBus({
       activeChatId: 'c1',
       activeVersionStore: store,
-      latestDocument: null,
-    };
+    });
 
     const ws = fakeWs();
 
@@ -760,10 +670,8 @@ describe('ws-handlers submit-responses', () => {
       type: 'submit-responses',
       responses: { b1: 'Client' },
     }, {
-      state,
+      bus,
       chatStore: fakeChatStore(),
-      broadcast: vi.fn(),
-      switchToChat: vi.fn(),
       documentService,
     });
 
@@ -771,5 +679,31 @@ describe('ws-handlers submit-responses', () => {
     const meta = store.createVersion.mock.calls[0][1];
     expect(meta.source).toBe('learner');
     expect(meta.changedPanes).toContain('blocks');
+  });
+
+  it('calls bus.completedWithDocument after submitting responses', async () => {
+    const io = fakeFileIO(new Map([
+      ['/chat/current.surface', interactiveDoc()],
+    ]));
+    const documentService = createDocumentService(io);
+    const store = spyVersionStore();
+
+    const bus = fakeSessionBus({
+      activeChatId: 'c1',
+      activeVersionStore: store,
+    });
+
+    const ws = fakeWs();
+
+    await routeMessage(ws as unknown as import('ws').WebSocket, {
+      type: 'submit-responses',
+      responses: { b1: 'Client' },
+    }, {
+      bus,
+      chatStore: fakeChatStore(),
+      documentService,
+    });
+
+    expect(bus.completedWithDocument).toHaveBeenCalledTimes(1);
   });
 });

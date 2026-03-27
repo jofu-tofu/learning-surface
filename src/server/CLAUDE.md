@@ -9,21 +9,22 @@ Node.js server — WebSocket hub, document I/O, version storage, chat persistenc
 - `HandlerDeps` (ws-handlers.ts) — all collaborators overridable for testing
 - `PromptDeps` (prompt-handler.ts) — documentService, contextCompiler, getProvider with production defaults
 
-**Composition root:** `index.ts` wires HTTP server, WebSocket server (attached to the HTTP server), chat store, version store, file watcher, and document service. Creates mutable `SessionState`, delegates message routing to `routeMessage()`. In production, serves static frontend files from `clientDir`; in dev, returns a placeholder (Vite serves the frontend separately).
+**Composition root:** `index.ts` wires HTTP server, WebSocket server (attached to the HTTP server), chat store, version store, file watcher, and document service. Creates a `SessionBus` (see `session-bus.ts`) as the single source of truth for session state and broadcasting, then delegates message routing to `routeMessage()`. In production, serves static frontend files from `clientDir`; in dev, returns a placeholder (Vite serves the frontend separately).
 
 ## Tool Philosophy
 
 **Single tool: `design_surface`.** The AI calls one declarative tool that describes the desired surface state. The tool handler (`applyDesignSurface`) is a pure function returning `{ doc, results }` — no in-place mutation.
 
-The tool operates on a flat document model: canvases (left pane, upsert by ID) and blocks (right pane, replace entirely). No sections, no phases.
+The tool operates on a flat document model: canvases (left pane, replace entirely) and blocks (right pane, replace entirely). No sections, no phases.
 
 ## Key Files
 
 | File | Role |
 |------|------|
-| `index.ts` | Server factory — wires HTTP + WebSocket, watcher, chat store; serves static files in production |
+| `index.ts` | Server factory — wires HTTP + WebSocket, watcher, chat store; creates SessionBus; serves static files in production |
 | `cli.ts` | CLI entry point — resolves session dir, port, and clientDir; calls `startServer()` |
-| `ws-handlers.ts` | Message routing with `HandlerDeps` DI. Includes `submit-responses` handler for learner answers |
+| `session-bus.ts` | Centralized session state + broadcasting. All state mutations go through the bus, which ensures clients are notified atomically. Handlers never call `broadcast()` directly. |
+| `ws-handlers.ts` | Message routing with `HandlerDeps` DI (includes `bus: SessionBus`). Includes `submit-responses` handler for learner answers |
 | `prompt-handler.ts` | AI orchestration — pure functions + `handlePrompt` imperative shell |
 | `system-prompt.ts` | Single source of truth for all AI system prompts and teaching principles |
 | `document-service.ts` | Document I/O with injectable `FileIO`; uses `CURRENT_SURFACE` constant |
@@ -39,11 +40,11 @@ The tool operates on a flat document model: canvases (left pane, upsert by ID) a
 
 ## Conventions
 
-- `tool-handlers.ts` `applyDesignSurface` is a pure function — returns a new `{ doc, results }`, no in-place mutation. Canvases upsert by ID (max 4). Blocks replace entirely with sequential IDs `b1`, `b2`, etc.
+- `tool-handlers.ts` `applyDesignSurface` is a pure function — returns a new `{ doc, results }`, no in-place mutation. Both canvases (max 4) and blocks replace entirely with sequential IDs `b1`, `b2`, etc.
 - `mcp-server.ts` batches rapid tool calls into a single version snapshot (2s debounce). Call `flushVersionBatch()` in tests to force flush.
 - Context compilation sends the full document's canvases and blocks + recent prompt history to the AI.
 - System prompt uses a single `design_surface` tool description — no auto-generated block format spec.
-- `SessionState` includes `lastProvider` and `lastModel` fields (no `mode`).
+- `SessionBus` is the single source of truth for session state (`activeChatId`, `activeVersionStore`, `latestDocument`). All state-related broadcasts go through bus methods — handlers never call `broadcast()` directly. Per-client responses (e.g. `prompt-complete`, `preflight-result`) still use `sendMessage(ws, …)`.
 - `submit-responses` handler writes learner answers into interactive blocks, creates a learner version, and auto-triggers AI feedback.
 
 ---

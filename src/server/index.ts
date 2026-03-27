@@ -6,17 +6,11 @@ import { createFileWatcher } from './watcher.js';
 import { createVersionStore } from './versions.js';
 import { createChatStore } from './chat-store.js';
 import { createDocumentService } from './document-service.js';
+import { createSessionBus } from './session-bus.js';
 import { listProvidersWithStatus } from './providers/registry.js';
-import { routeMessage, type SessionState } from './ws-handlers.js';
-import {
-  sendMessage,
-  buildSessionInitMessage,
-  getVersions,
-  ensureActiveChat,
-  formatError,
-} from './utils/ws-helpers.js';
+import { routeMessage } from './ws-handlers.js';
+import { sendMessage, formatError } from './utils/ws-helpers.js';
 import type { ClientMessage, WsMessage } from '../shared/messages.js';
-import type { VersionStore } from './types.js';
 import { createChatLogger, nullLogger } from './logger.js';
 
 const MIME_TYPES: Record<string, string> = {
@@ -66,22 +60,7 @@ export async function startServer(options: {
   await chatStore.init(sessionDir);
 
   const documentService = createDocumentService();
-
-  // Shared mutable session state (passed to routeMessage)
-  const state: SessionState = {
-    activeChatId: null,
-    activeVersionStore: null,
-    latestDocument: null,
-  };
-
   const watcher = createFileWatcher();
-
-  async function initVersionStoreForChat(chatId: string): Promise<VersionStore> {
-    const dir = chatStore.getChatDir(chatId);
-    const store = createVersionStore();
-    await store.init(dir);
-    return store;
-  }
 
   // HTTP server — serves static files in production, 404 in dev (Vite handles it)
   const httpServer = createServer((req, res) => {
@@ -105,68 +84,39 @@ export async function startServer(options: {
     }
   }
 
-  let switchLock = Promise.resolve();
+  // ── Session bus: single source of truth for state + broadcasting ──
 
-  async function switchToChat(chatId: string): Promise<void> {
-    const op = switchLock.then(async () => {
-      watcher.stop();
-      state.activeChatId = chatId;
-      state.activeVersionStore = await initVersionStoreForChat(chatId);
-
-      const chatDir = chatStore.getChatDir(chatId);
-      state.latestDocument = documentService.read(documentService.filePath(chatDir));
-
-      const log = createChatLogger(chatDir);
-      log.info('Chat activated', { chatId });
-
-      watcher.start(chatDir);
-    });
-    switchLock = op.catch((err) => console.error('switchToChat failed', { error: formatError(err) }));
-    return op;
-  }
-
-  watcher.onDocumentChange(async (doc) => {
-    state.latestDocument = doc;
-
-    // Set chat title from the first version's summary (root ancestor names the chat)
-    if (state.activeChatId && doc.summary) {
-      const chat = chatStore.getChat(state.activeChatId);
-      if (chat && chat.title === 'New Chat') {
-        await chatStore.updateChatTitle(state.activeChatId, doc.summary);
-        broadcast({ type: 'chat-list', chats: chatStore.listChats(), activeChatId: state.activeChatId ?? undefined });
-      }
-    }
-
-    if (state.activeVersionStore) {
-      const versions = await state.activeVersionStore.listVersions();
-      broadcast({ type: 'document-update', document: doc, versions });
-    }
+  const bus = createSessionBus({
+    chatStore,
+    broadcast,
+    async initVersionStore(chatId: string) {
+      const dir = chatStore.getChatDir(chatId);
+      const store = createVersionStore();
+      await store.init(dir);
+      return store;
+    },
+    documentService,
+    watcher,
   });
 
+  // ── WebSocket connections ─────────────────────────────────────────
+
   webSocketServer.on('connection', async (ws) => {
-    if (!state.activeChatId) {
-      await ensureActiveChat(chatStore, switchToChat);
+    if (!bus.activeChatId) {
+      await bus.ensureActiveChat();
     }
 
-    const [versions, providers] = await Promise.all([
-      getVersions(state.activeVersionStore),
+    const [providers] = await Promise.all([
       listProvidersWithStatus(),
     ]);
-    sendMessage(ws, buildSessionInitMessage({
-      sessionDir: state.activeChatId ? chatStore.getChatDir(state.activeChatId) : sessionDir,
-      document: state.latestDocument,
-      versions,
-      chats: chatStore.listChats(),
-      activeChatId: state.activeChatId,
-      providers,
-    }));
+    sendMessage(ws, await bus.buildSessionInit(providers));
 
     ws.on('message', async (rawMessage) => {
       try {
         const clientMessage = JSON.parse(String(rawMessage)) as ClientMessage;
-        await routeMessage(ws, clientMessage, { state, chatStore, broadcast, switchToChat });
+        await routeMessage(ws, clientMessage, { bus, chatStore });
       } catch (err) {
-        const chatDir = state.activeChatId ? chatStore.getChatDir(state.activeChatId) : null;
+        const chatDir = bus.activeChatId ? chatStore.getChatDir(bus.activeChatId) : null;
         const log = chatDir ? createChatLogger(chatDir) : nullLogger;
         log.error('Error handling client message', { error: formatError(err) });
       }

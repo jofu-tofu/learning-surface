@@ -240,6 +240,20 @@ export async function routeMessage(
           },
         });
         state.latestDocument = result.updatedDocument;
+
+        // Broadcast final document + versions explicitly before prompt-complete
+        // so the client has the definitive state (including new version metadata)
+        // before processing ends. The file watcher may fire later with the same
+        // data, which is harmless — the reducer is idempotent.
+        const finalVersions = await getVersions(state.activeVersionStore);
+        broadcast({ type: 'document-update', document: result.updatedDocument, versions: finalVersions });
+
+        // Bump chat timestamp and broadcast updated chat list
+        if (state.activeChatId) {
+          await chatStore.touchChat(state.activeChatId);
+          broadcast(buildChatListMessage(chatStore.listChats(), state.activeChatId));
+        }
+
         sendMessage(ws, { type: 'prompt-complete' });
       } catch (err) {
         const errorMessage = formatError(err);
@@ -288,8 +302,13 @@ export async function routeMessage(
       state.latestDocument = doc;
       log.info('Responses submitted', { responses: msg.responses });
 
-      // Re-write to trigger watcher with updated version list
-      documentService.write(filePath, doc);
+      // Broadcast final document + versions explicitly (same pattern as prompt handler)
+      const responseVersions = await getVersions(state.activeVersionStore);
+      broadcast({ type: 'document-update', document: doc, versions: responseVersions });
+
+      // Bump chat timestamp and broadcast updated chat list
+      await chatStore.touchChat(state.activeChatId);
+      broadcast(buildChatListMessage(chatStore.listChats(), state.activeChatId));
 
       // Auto-trigger AI feedback if we have a provider
       if (state.lastProvider && state.lastModel) {

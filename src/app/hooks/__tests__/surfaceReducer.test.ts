@@ -159,10 +159,35 @@ describe('reduceSurfaceMessage', () => {
         blocks: [{ id: 'b1', type: 'text', content: 'new' }],
       });
       const s = state({ currentVersion: 1 });
-      const msg: WsMessage = { type: 'document-update', document: nextDoc };
+      const versions = [buildVersionMeta({ version: 1 }), buildVersionMeta({ version: 2 })];
+      const msg: WsMessage = { type: 'document-update', document: nextDoc, versions };
       const result = reduceSurfaceMessage(s, msg, prevDoc);
 
       expect(result.state.versionChangedPanes.has('blocks')).toBe(true);
+    });
+
+    it('does not advance currentVersion when version metadata is missing (mid-processing)', () => {
+      const prevDoc = buildDocument({ version: 1 });
+      const nextDoc = buildDocument({ version: 2 });
+      const s = state({ currentVersion: 1, versions: [buildVersionMeta({ version: 1 })] });
+      // No versions array with version 2 metadata → version stays at 1
+      const msg: WsMessage = { type: 'document-update', document: nextDoc };
+      const result = reduceSurfaceMessage(s, msg, prevDoc);
+
+      expect(result.state.currentVersion).toBe(1);
+      // Document content should still update
+      expect(result.state.document).toBe(nextDoc);
+    });
+
+    it('advances currentVersion when version metadata is present', () => {
+      const prevDoc = buildDocument({ version: 1 });
+      const nextDoc = buildDocument({ version: 2 });
+      const s = state({ currentVersion: 1 });
+      const versions = [buildVersionMeta({ version: 1 }), buildVersionMeta({ version: 2 })];
+      const msg: WsMessage = { type: 'document-update', document: nextDoc, versions };
+      const result = reduceSurfaceMessage(s, msg, prevDoc);
+
+      expect(result.state.currentVersion).toBe(2);
     });
 
     it('does not set versionChangedPanes for same-version streaming updates', () => {

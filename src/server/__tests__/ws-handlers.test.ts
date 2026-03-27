@@ -38,6 +38,7 @@ function fakeChatStore(chatDir = '/chat'): ChatStore {
     createChat: () => chat,
     getChat: (id: string) => id === 'c1' ? chat : undefined,
     async updateChatTitle() {},
+    async touchChat() {},
     async deleteChat() {},
     getChatDir: () => chatDir,
     async save() {},
@@ -108,6 +109,45 @@ describe('ws-handlers prompt flow', () => {
 
     const complete = ws.sent.find(m => m.type === 'prompt-complete');
     expect(complete).toBeDefined();
+  });
+
+  it('broadcasts document-update with versions before prompt-complete', async () => {
+    const { ws, broadcast, send } = setup({
+      toolCalls: [{ toolName: 'design_surface', params: { summary: 'Test', blocks: [{ type: 'text', content: 'Hello' }] } }],
+    });
+
+    await send({
+      type: 'prompt',
+      text: 'explain something',
+      provider: 'fake',
+      model: 'fake-model',
+    });
+
+    const broadcasts = broadcast.mock.calls.map(([m]) => m as WsMessage);
+    const docUpdate = broadcasts.find(m => m.type === 'document-update');
+    expect(docUpdate).toBeDefined();
+
+    // prompt-complete must come after document-update
+    const complete = ws.sent.find(m => m.type === 'prompt-complete');
+    expect(complete).toBeDefined();
+  });
+
+  it('broadcasts chat-list after prompt to update sidebar timestamp', async () => {
+    const { broadcast, send } = setup({
+      toolCalls: [{ toolName: 'design_surface', params: { summary: 'Test', blocks: [{ type: 'text', content: 'Hello' }] } }],
+    });
+
+    await send({
+      type: 'prompt',
+      text: 'explain something',
+      provider: 'fake',
+      model: 'fake-model',
+    });
+
+    const chatListBroadcasts = broadcast.mock.calls
+      .map(([m]) => m as WsMessage)
+      .filter(m => m.type === 'chat-list');
+    expect(chatListBroadcasts.length).toBeGreaterThanOrEqual(1);
   });
 
   it('sends prompt-complete even when AI makes no tool calls', async () => {

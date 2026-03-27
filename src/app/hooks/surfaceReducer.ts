@@ -115,6 +115,15 @@ export function reduceSurfaceMessage(
       }
 
       const next = msg.document;
+      const nextVersions = msg.versions ?? state.versions;
+
+      // Only advance currentVersion if the new version has metadata in the
+      // versions list. During processing, the document version may advance
+      // (via tool calls) before a version snapshot is created — keep showing
+      // the previous version in the timeline until the snapshot arrives.
+      const hasVersionMeta = nextVersions.some(v => v.version === next.version);
+      const effectiveVersion = hasVersionMeta ? next.version : state.currentVersion;
+
       let changedPanes = state.changedPanes;
       let { versionChangedPanes } = state;
       // Only start the settle timer when not actively processing — prompt-complete
@@ -133,7 +142,7 @@ export function reduceSurfaceMessage(
         }
 
         // On version transition, capture which panes changed vs the previous version
-        if (next.version !== state.currentVersion) {
+        if (effectiveVersion !== state.currentVersion) {
           versionChangedPanes = detectChangedPanes(prevDoc, next);
         }
       }
@@ -142,8 +151,8 @@ export function reduceSurfaceMessage(
         state: {
           ...state,
           document: next,
-          currentVersion: next.version,
-          versions: msg.versions ?? state.versions,
+          currentVersion: effectiveVersion,
+          versions: nextVersions,
           changedPanes,
           versionChangedPanes,
         },

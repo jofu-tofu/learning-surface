@@ -9,6 +9,8 @@ export interface ChatStore {
   createChat(): Chat;
   getChat(chatId: string): Chat | undefined;
   updateChatTitle(chatId: string, title: string): Promise<void>;
+  /** Bump a chat's updatedAt timestamp (e.g. after prompt activity). */
+  touchChat(chatId: string): Promise<void>;
   deleteChat(chatId: string): Promise<void>;
   getChatDir(chatId: string): string;
   save(): Promise<void>;
@@ -67,6 +69,13 @@ export function createChatStore(): ChatStore {
       const chat = chats.find((chat) => chat.id === chatId);
       if (!chat) return;
       chat.title = title;
+      chat.updatedAt = new Date().toISOString();
+      await this.save();
+    },
+
+    async touchChat(chatId: string): Promise<void> {
+      const chat = chats.find((c) => c.id === chatId);
+      if (!chat) return;
       chat.updatedAt = new Date().toISOString();
       await this.save();
     },

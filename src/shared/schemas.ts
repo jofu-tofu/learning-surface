@@ -145,7 +145,7 @@ export const TOOL_DEFS = [
   {
     name: 'design_surface',
     label: 'Designing surface',
-    description: 'Declarative batch tool: set canvases and blocks for the learning surface. Canvases upsert by id (max 4). Blocks replace entirely — emit the full right-pane content each call. Use clear to remove panes before applying changes (e.g., clear: ["canvases"] then set new ones). Block types: text (markdown), interactive (free-text question), feedback (evaluation of learner response), deeper-patterns (cross-domain connections), suggestions (clickable next-action prompts). Partial success: invalid fields return errors, valid fields still apply.',
+    description: 'Declarative batch tool: set canvases and blocks for the learning surface. Both canvases and blocks replace entirely each call — emit the full content for each pane (max 4 canvases). Use clear to remove a pane without adding new content (e.g., clear: ["blocks"]). Block types: text (markdown), interactive (free-text question), feedback (evaluation of learner response), deeper-patterns (cross-domain connections), suggestions (clickable next-action prompts). Partial success: invalid fields return errors, valid fields still apply.',
     schema: DesignSurfaceSchema,
   },
 ] as const satisfies readonly ToolDefinitionEntry[];

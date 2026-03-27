@@ -47,15 +47,14 @@ function validateCanvasContent(canvas: CanvasInput): string | null {
   return null;
 }
 
-// === Canvas Upsert ===
+// === Canvas Replace ===
 
-function upsertCanvases(
-  canvases: CanvasContent[],
+function replaceCanvases(
   inputs: CanvasInput[],
   errors: string[],
   canvasResults: Record<string, { success: boolean; error?: string }>,
 ): CanvasContent[] {
-  const result = [...canvases];
+  const result: CanvasContent[] = [];
 
   for (const canvasInput of inputs) {
     const validationError = validateCanvasContent(canvasInput);
@@ -65,7 +64,14 @@ function upsertCanvases(
       continue;
     }
 
-    const existingIndex = result.findIndex(canvas => canvas.id === canvasInput.id);
+    if (result.length >= MAX_CANVASES) {
+      const acceptedIds = result.map(c => c.id).join(', ');
+      const capError = `Maximum ${MAX_CANVASES} canvases. Cannot add '${canvasInput.id}'. Accepted: [${acceptedIds}]`;
+      canvasResults[canvasInput.id] = { success: false, error: capError };
+      errors.push(capError);
+      continue;
+    }
+
     const canvas: CanvasContent = {
       id: canvasInput.id,
       type: canvasInput.type,
@@ -73,18 +79,8 @@ function upsertCanvases(
       ...(canvasInput.language ? { language: canvasInput.language } : {}),
     };
 
-    if (existingIndex >= 0) {
-      result[existingIndex] = canvas;
-      canvasResults[canvasInput.id] = { success: true };
-    } else if (result.length < MAX_CANVASES) {
-      result.push(canvas);
-      canvasResults[canvasInput.id] = { success: true };
-    } else {
-      const existingIds = result.map(c => c.id).join(', ');
-      const capError = `Maximum ${MAX_CANVASES} canvases. Cannot add '${canvasInput.id}'. Existing: [${existingIds}]`;
-      canvasResults[canvasInput.id] = { success: false, error: capError };
-      errors.push(capError);
-    }
+    result.push(canvas);
+    canvasResults[canvasInput.id] = { success: true };
   }
 
   return result;
@@ -145,9 +141,9 @@ export function applyDesignSurface(
     }
   }
 
-  // Canvases — upsert by ID (max 4)
+  // Canvases — replace entirely (max 4)
   if (params.canvases) {
-    cloned.canvases = upsertCanvases(cloned.canvases, params.canvases, errors, canvasResults);
+    cloned.canvases = replaceCanvases(params.canvases, errors, canvasResults);
   }
 
   // Blocks — replace entirely, assign IDs b1, b2, ..., set response: null on interactive

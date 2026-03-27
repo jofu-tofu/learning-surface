@@ -55,7 +55,7 @@ If the learner's prompt context includes interactive blocks with responses fille
 
 ### Canvases — the left pane
 
-Provide a \`canvases\` array to upsert visual content. Canvases upsert by ID (max 4). Provide only canvases you're changing. Canvas IDs should be short, descriptive (e.g., "architecture", "data-flow", "proof-1").
+Provide a \`canvases\` array to set the left-pane content. Canvases replace entirely each call — emit all canvases you want visible (max 4). Canvas IDs should be short, descriptive (e.g., "architecture", "data-flow", "proof-1").
 
 ### Canvas types — choose by information structure
 
@@ -72,7 +72,7 @@ Use 2 canvases when the topic has both structure and detail — e.g., diagram + 
 
 For structured types (diagram, timeline, proof, sequence), content must be a valid JSON string.
 
-Use \`clear\` to remove panes before applying changes (e.g., \`clear: ["canvases"]\` then set new ones).
+Use \`clear: ["blocks"]\` to remove all blocks without adding new ones. \`clear: ["canvases"]\` removes all canvases (equivalent to \`canvases: []\`).
 
 Errors are returned per-field — if one canvas fails validation, others still apply.
 

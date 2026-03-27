@@ -21,28 +21,27 @@ function makeDoc(overrides: Partial<LearningDocument> = {}): LearningDocument {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Contract tests: canvases upsert by ID
+// Contract tests: canvases replace entirely
 // ═══════════════════════════════════════════════════════════════════════════
 
-describe('canvases: upsert by ID — replace existing', () => {
-  it('replaces canvas with matching ID', () => {
+describe('canvases: replace entirely', () => {
+  it('replaces all existing canvases with the provided set', () => {
     const doc = makeDoc();
     const { doc: result } = apply(doc, {
       canvases: [{ id: 'arch', type: 'code', content: 'graph TD\n  X-->Y' }],
     });
-    expect(result.canvases.find(c => c.id === 'arch')!.content).toBe('graph TD\n  X-->Y');
+    expect(result.canvases).toHaveLength(1);
+    expect(result.canvases[0].content).toBe('graph TD\n  X-->Y');
   });
-});
 
-describe('canvases: upsert by ID — append new', () => {
-  it('appends new canvas when ID does not exist', () => {
+  it('old canvases with different IDs are removed', () => {
     const doc = makeDoc();
     const { doc: result } = apply(doc, {
       canvases: [{ id: 'flow', type: 'code', content: 'graph LR' }],
     });
-    expect(result.canvases).toHaveLength(2);
-    expect(result.canvases[0].id).toBe('arch');
-    expect(result.canvases[1].id).toBe('flow');
+    expect(result.canvases).toHaveLength(1);
+    expect(result.canvases[0].id).toBe('flow');
+    expect(result.canvases.find(c => c.id === 'arch')).toBeUndefined();
   });
 });
 
@@ -124,17 +123,16 @@ describe('invalid canvas content — partial success', () => {
 });
 
 describe('canvas cap exceeded', () => {
-  it('errors when adding 5th canvas to document with 4', () => {
-    const doc = buildDocument({
-      canvases: [
-        buildCanvasContent({ id: 'c1' }),
-        buildCanvasContent({ id: 'c2' }),
-        buildCanvasContent({ id: 'c3' }),
-        buildCanvasContent({ id: 'c4' }),
-      ],
-    });
+  it('errors when providing more than 4 canvases in one call', () => {
+    const doc = buildDocument();
     const { doc: result, results } = apply(doc, {
-      canvases: [{ id: 'fifth', type: 'code', content: 'x' }],
+      canvases: [
+        { id: 'c1', type: 'code', content: 'x' },
+        { id: 'c2', type: 'code', content: 'x' },
+        { id: 'c3', type: 'code', content: 'x' },
+        { id: 'c4', type: 'code', content: 'x' },
+        { id: 'fifth', type: 'code', content: 'x' },
+      ],
     });
     expect(result.canvases).toHaveLength(4);
     expect(results.canvasResults['fifth'].success).toBe(false);
@@ -177,7 +175,7 @@ describe('property: canvas count never exceeds 4', () => {
   });
 });
 
-describe('property: idempotence for canvas upsert', () => {
+describe('property: idempotence for canvas replace', () => {
   it('applying same canvas twice produces same result', () => {
     const doc = makeDoc();
     const update: DesignSurfaceInput = { summary: 'test', canvases: [{ id: 'arch', type: 'code', content: 'new' }] };
